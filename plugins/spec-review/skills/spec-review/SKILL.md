@@ -9,7 +9,7 @@ allowed-tools:
   - Read
   - Glob
   - Grep
-  - Task
+  - Agent
   - TeamCreate
   - TeamDelete
   - TaskCreate
@@ -109,10 +109,10 @@ For each selected agent, call `TaskCreate` with subject, description, and active
 
 Each specialist has a custom agent definition (in `agents/`) with its review protocol, specialist instructions, and persistent memory. You do NOT need to assemble prompts — the agent's `.md` file provides its system prompt automatically.
 
-Spawn using `subagent_type` matching the agent name (prefixed with `spec-review:`). The Task prompt contains only the dynamic content:
+Spawn using `subagent_type` matching the agent name (prefixed with `spec-review:`). The Agent prompt contains only the dynamic content:
 
 ```
-Task(
+Agent(
   subagent_type: "spec-review:clarity-reviewer",
   name: "clarity-reviewer",
   team_name: "spec-review-<identifier>",
@@ -136,7 +136,7 @@ Your task has been created as Task #N. Update it to in_progress when you start, 
 )
 ```
 
-Repeat for every selected agent — all `Task` calls in ONE message.
+Repeat for every selected agent — all `Agent` calls in ONE message.
 
 After spawning, use `TaskUpdate` to set `owner` on each task to the corresponding agent name.
 
