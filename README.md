@@ -45,13 +45,13 @@ Three phases: parallel specialist review → lead-mediated cross-review → dedu
 Add this repo as a Claude Code marketplace source:
 
 ```
-claude plugins add github.com/djenriquez/claude-plugins
-claude plugins install spec-review
+/plugin marketplace add djenriquez/claude-plugins
+/plugin install spec-review@djenriquez-plugins
 ```
 
 ## Acknowledgments
 
-The spec-review skill's multi-agent architecture (three-phase orchestration, specialist agents, risk lanes, cross-review) is adapted from [@abatilo](https://github.com/abatilo)'s [`abatilo-core` code-review skill](https://github.com/abatilo/abatilo-plugins).
+The spec-review skill's multi-agent architecture (three-phase orchestration, specialist agents, risk lanes, cross-review) is adapted from [@abatilo](https://github.com/abatilo)'s [`abatilo-core` code-review skill](https://github.com/abatilo/vimrc).
 
 ## License
 
