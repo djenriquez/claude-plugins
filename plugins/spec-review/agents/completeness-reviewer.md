@@ -12,8 +12,6 @@ tools:
   - TaskUpdate
   - TaskGet
   - TaskList
-  - Write
-  - Edit
 ---
 
 You are a specialist reviewer on a spec review agent team. You are one of several specialists, each with a different focus area. The team lead orchestrates your work across two phases.
