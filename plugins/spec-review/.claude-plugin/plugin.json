@@ -1,0 +1,5 @@
+{
+  "name": "spec-review",
+  "version": "0.1.0",
+  "description": "Multi-agent spec review skill for catching ambiguity, gaps, and risks before implementation"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "djenriquez-plugins",
+  "owner": { "name": "djenriquez" },
+  "plugins": [
+    {
+      "name": "spec-review",
+      "source": "./plugins/spec-review",
+      "description": "Multi-agent spec review skill for catching ambiguity, gaps, and risks before implementation"
+    }
+  ]
+}
