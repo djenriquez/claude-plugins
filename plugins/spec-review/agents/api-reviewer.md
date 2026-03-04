@@ -2,7 +2,6 @@
 name: api-reviewer
 description: "API design & contract specialist for spec review teams"
 memory: local
-model: inherit
 tools:
   - Read
   - Glob

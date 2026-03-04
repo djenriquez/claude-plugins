@@ -2,7 +2,6 @@
 name: clarity-reviewer
 description: "Clarity & precision specialist for spec review teams"
 memory: local
-model: inherit
 tools:
   - Read
   - Glob

@@ -2,7 +2,6 @@
 name: operations-reviewer
 description: "Operations & reliability specialist for spec review teams"
 memory: local
-model: inherit
 tools:
   - Read
   - Glob

@@ -2,7 +2,6 @@
 name: scope-reviewer
 description: "Scope & delivery risk specialist for spec review teams"
 memory: local
-model: inherit
 tools:
   - Read
   - Glob

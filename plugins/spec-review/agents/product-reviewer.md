@@ -2,7 +2,6 @@
 name: product-reviewer
 description: "Product & value alignment specialist for spec review teams"
 memory: local
-model: inherit
 tools:
   - Read
   - Glob

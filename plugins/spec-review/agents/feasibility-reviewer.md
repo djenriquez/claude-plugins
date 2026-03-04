@@ -2,7 +2,6 @@
 name: feasibility-reviewer
 description: "Technical feasibility & architecture fit specialist for spec review teams"
 memory: local
-model: inherit
 tools:
   - Read
   - Glob

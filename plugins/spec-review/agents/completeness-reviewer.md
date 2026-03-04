@@ -2,7 +2,6 @@
 name: completeness-reviewer
 description: "Completeness & edge case specialist for spec review teams"
 memory: local
-model: inherit
 tools:
   - Read
   - Glob
