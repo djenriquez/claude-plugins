@@ -9,7 +9,7 @@ allowed-tools:
   - Read
   - Glob
   - Grep
-  - Agent
+  - Task
   - TeamCreate
   - TeamDelete
   - TaskCreate
@@ -109,34 +109,19 @@ For each selected agent, call `TaskCreate` with subject, description, and active
 
 Each specialist has a custom agent definition (in `agents/`) with its review protocol, specialist instructions, and persistent memory. You do NOT need to assemble prompts — the agent's `.md` file provides its system prompt automatically.
 
-Spawn using `subagent_type` matching the agent name (prefixed with `spec-review:`). The Agent prompt contains only the dynamic content:
+Spawn using `subagent_type` matching the agent name. The Task prompt contains only the dynamic content:
 
 ```
-Agent(
-  subagent_type: "spec-review:clarity-reviewer",
+Task(
+  subagent_type: "clarity-reviewer",
   name: "clarity-reviewer",
   team_name: "spec-review-<identifier>",
   run_in_background: true,
-  prompt: "RISK LANE: L1
-
-SELF-CRITIQUE REQUIREMENT:
-This is an L1/L2 review. After your specialist review, you MUST self-critique your findings before sending them. Follow your Self-Critique protocol. Include self-critique status for each finding.
-(For L0 reviews, replace the above with: SELF-CRITIQUE: Not required for L0. Send findings directly.)
-
-SPEC CONTEXT:
-<Title, purpose, and any relevant background about what this spec covers>
-
-RELATED CODEBASE CONTEXT:
-<Brief description of the existing system this spec targets, if applicable>
-
-SPEC CONTENT:
-<the full spec text>
-
-Your task has been created as Task #N. Update it to in_progress when you start, and mark it completed when done sending findings."
+  prompt: "RISK LANE: L1\n\nSELF-CRITIQUE REQUIREMENT:\nThis is an L1/L2 review. After your specialist review, stress-test your findings through self-critique before sending them. Follow your Self-Critique protocol and prune or downgrade findings that don't survive scrutiny.\n(For L0 reviews, replace the above with: SELF-CRITIQUE: Not required for L0. Send findings directly.)\n\nSPEC CONTEXT:\n<Title, purpose, and any relevant background about what this spec covers>\n\nRELATED CODEBASE CONTEXT:\n<Brief description of the existing system this spec targets, if applicable>\n\nSPEC CONTENT:\n<the full spec text>\n\nYour task has been created as Task #N. Update it to in_progress when you start, and mark it completed when done sending findings."
 )
 ```
 
-Repeat for every selected agent — all `Agent` calls in ONE message.
+Repeat for every selected agent — all `Task` calls in ONE message.
 
 After spawning, use `TaskUpdate` to set `owner` on each task to the corresponding agent name.
 
@@ -157,6 +142,8 @@ Wait for **all** agents to report. Messages are delivered automatically — you 
 ## Step 5: Phase 2 — Lead-Mediated Cross-Review (L1/L2 only)
 
 **Skip for L0.**
+
+**Short-circuit rule**: If ALL Phase 1 findings are `suggestion`, `nitpick`, `thought`, or informational (zero `blocker`, `risk`, or `question` findings across all agents), skip cross-review. State in the synthesis: "Phase 2 skipped: no blocker/risk/question findings to challenge."
 
 After collecting all Phase 1 findings:
 
