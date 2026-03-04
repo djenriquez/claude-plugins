@@ -49,6 +49,10 @@ claude plugins add github.com/djenriquez/claude-plugins
 claude plugins install spec-review
 ```
 
+## Acknowledgments
+
+The spec-review skill's multi-agent architecture (three-phase orchestration, specialist agents, risk lanes, cross-review) is adapted from [@abatilo](https://github.com/abatilo)'s [`abatilo-core` code-review skill](https://github.com/abatilo/abatilo-plugins).
+
 ## License
 
 MIT
