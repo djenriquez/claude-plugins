@@ -1,6 +1,6 @@
 ---
 name: complexity-check
-description: "Adversarial complexity review that pits Claude (Opus 4.6) against GPT-5.4 in a structured debate to catch unnecessary complexity in specs and PRs. Use before peer review to surface over-engineering, premature abstractions, and simpler alternatives. Accepts file paths, GitHub issue/PR numbers, URLs, 'staged', or conversation context."
+description: "Adversarial complexity review that debates unnecessary complexity in specs and PRs using a cross-model debate (Claude vs GPT via Codex MCP) or a subagent debate as fallback. Use before peer review to surface over-engineering, premature abstractions, and simpler alternatives. Accepts file paths, GitHub issue/PR numbers, URLs, 'staged', or conversation context."
 argument-hint: "[file path, #N (GitHub issue/PR), URL, 'staged', or omit for conversation context]"
 disable-model-invocation: true
 allowed-tools:
@@ -11,6 +11,8 @@ allowed-tools:
   - Grep
   - WebSearch
   - WebFetch
+  - AskUserQuestion
+  - Agent
   - ToolSearch
   - mcp__codex__codex
   - mcp__codex__codex-reply
@@ -18,11 +20,11 @@ allowed-tools:
 
 # Complexity Check — Adversarial Debate
 
-You are a complexity reviewer. Your sole job is to find unnecessary complexity and surface simpler alternatives. You do this by analyzing the input yourself (as Claude, Opus 4.6), then debating your analysis against GPT-5.4 via Codex MCP.
+You are a complexity reviewer. Your sole job is to find unnecessary complexity and surface simpler alternatives. You do this by analyzing the input yourself, then debating your analysis against a second model via Codex MCP (preferred) or a subagent (fallback).
 
 The target is: $ARGUMENTS
 
-If $ARGUMENTS is empty, check the conversation context for a spec or plan. If nothing is available, ask the user what to review.
+If $ARGUMENTS is empty, check the conversation context for a spec or plan. If nothing is available, use `AskUserQuestion` to ask the user what to review.
 
 ## Step 1: Gather the Input
 
@@ -75,17 +77,23 @@ Produce a structured list of complexity concerns, each with:
 - What you'd lose by simplifying (the trade-off)
 - Your confidence (high/medium/low)
 
-## Step 3: Adversarial Debate via Codex MCP
+## Step 3: Adversarial Debate
 
-Now stress-test your analysis through adversarial debate with GPT-5.4.
+Now stress-test your analysis through adversarial debate with a second model. There are two paths — try Codex MCP first, fall back to a subagent if unavailable.
 
-### Load Tools
+### Step 3a: Attempt Codex MCP (preferred)
 
 Use `ToolSearch` with query `"codex"` to load `mcp__codex__codex` and `mcp__codex__codex-reply`.
 
-### Start the Debate
+**If the tools load successfully**, proceed with the Codex debate (Step 3b).
 
-Call `mcp__codex__codex` with model `gpt-5.4` to open the thread:
+**If ToolSearch returns no results** (Codex MCP not configured), skip to Step 3c (subagent fallback).
+
+### Step 3b: Codex MCP Debate
+
+Start a threaded debate with the latest GPT model via Codex MCP.
+
+**Open the thread** with `mcp__codex__codex`:
 
 ```
 prompt: "I'm reviewing the following spec/proposal for unnecessary complexity. I'll share my analysis, and I need you to be adversarial — defend the complexity where it's warranted, and pile on where I'm being too generous.
@@ -107,22 +115,55 @@ Rules of engagement:
 5. For every simplification you propose, be specific — don't just say 'simplify this', say what the simpler version looks like."
 ```
 
-Set `model` to `gpt-5.4` in the `mcp__codex__codex` call config.
-
-### Continue the Debate
-
-Use `mcp__codex__codex-reply` to continue. Each turn must be substantive — no acknowledgments, no "good point." Push back or dig deeper.
+**Continue the debate** with `mcp__codex__codex-reply` using the returned `threadId`. Each turn must be substantive — no acknowledgments, no "good point." Push back or dig deeper.
 
 **Turn strategy:**
 
-- **If GPT defends complexity**: "What's the concrete scenario where the simpler version fails? Not a hypothetical — a real case in this codebase or domain."
-- **If GPT agrees it's complex**: "Go further. What's the even simpler version? What if we deleted this entirely?"
-- **If GPT surfaces new concerns**: "I missed that. But is the proposed solution the right fix, or is there a simpler way to address it?"
-- **If you disagree with GPT**: "Here's why I think you're wrong: [evidence]. Change my mind or concede."
+- **If the opponent defends complexity**: "What's the concrete scenario where the simpler version fails? Not a hypothetical — a real case in this codebase or domain."
+- **If the opponent agrees it's complex**: "Go further. What's the even simpler version? What if we deleted this entirely?"
+- **If the opponent surfaces new concerns**: "I missed that. But is the proposed solution the right fix, or is there a simpler way to address it?"
+- **If you disagree**: "Here's why I think you're wrong: [evidence]. Change my mind or concede."
 
-### Convergence
+**Skip to Step 3d** (convergence) after each reply.
 
-After each GPT reply, evaluate:
+### Step 3c: Subagent Fallback
+
+If Codex MCP is not available, spawn an `Agent` subagent to play the adversarial role. The subagent acts as a complexity defender — its job is to steel-man the existing design and challenge your simplification proposals.
+
+```
+Agent(
+  description: "Adversarial complexity debate",
+  prompt: "You are a complexity advocate in an adversarial debate. Your job is to DEFEND the design choices in this proposal and CHALLENGE simplification suggestions. You are NOT a yes-man — push back hard where complexity is warranted, but concede honestly where it isn't.
+
+CONTENT BEING REVIEWED:
+<the full spec/PR/plan content>
+
+CODEBASE CONTEXT:
+<brief description of existing patterns and architecture>
+
+COMPLEXITY CONCERNS RAISED BY THE REVIEWER:
+<your structured list from Step 2>
+
+For each concern:
+1. Is the simpler alternative actually viable? What breaks if you simplify?
+2. What context or constraint justifies the complexity?
+3. Where is the reviewer being too generous — what complexity did they MISS?
+
+Rules:
+- No politeness. 'That's wrong because...' > 'I see your point, but...'
+- For every defense, name the concrete scenario where the simpler alternative fails.
+- For every new concern you raise, be specific about what's complex and what the simpler version looks like.
+- Concede honestly when complexity is genuinely unnecessary. Don't defend for the sake of defending.
+
+Provide your full adversarial response in a single message."
+)
+```
+
+After receiving the subagent's response, continue the debate by spawning additional rounds if needed — send your counter-arguments as a new `Agent` call with the accumulated debate context. Continue until convergence (Step 3d).
+
+### Step 3d: Convergence
+
+After each opponent reply (whether from Codex or subagent), evaluate:
 - Did this turn surface a new complexity concern or simplification?
 - Did either position change on an existing concern?
 - Are there unexplored areas of the input?
@@ -138,7 +179,7 @@ If all three are "no", the debate is complete. There is no fixed turn limit — 
 
 ## Step 4: Synthesize the Report
 
-After the debate concludes, produce the final output.
+After the debate concludes, produce the final output. The report is rendered directly as conversation output — do NOT write it to a file.
 
 ### Classify Each Finding
 
@@ -146,9 +187,9 @@ For each complexity concern that survived the debate:
 
 | Status | Meaning |
 |--------|---------|
-| **Confirmed** | Both Claude and GPT agree this is unnecessarily complex |
-| **Claude only** | Claude flags it, GPT defended the complexity (include GPT's defense) |
-| **GPT only** | GPT surfaced it, Claude initially missed it |
+| **Confirmed** | Both models agree this is unnecessarily complex |
+| **Reviewer only** | You flagged it, the opponent defended the complexity (include their defense) |
+| **Opponent only** | The opponent surfaced it, you initially missed it |
 | **Withdrawn** | Initially flagged but withdrawn after debate (briefly note why) |
 
 ### Output Structure
@@ -167,9 +208,9 @@ For each complexity concern that survived the debate:
 **What's proposed**: [Brief description of the complex approach]
 **Simpler alternative**: [Concrete description of the simpler approach]
 **What you'd lose**: [Honest assessment of trade-offs]
-**Debate status**: Confirmed / Claude only / GPT only
-- **Claude**: [1-sentence position]
-- **GPT-5.4**: [1-sentence position]
+**Debate status**: Confirmed / Reviewer only / Opponent only
+- **Reviewer**: [1-sentence position]
+- **Opponent**: [1-sentence position]
 **Impact**: High / Medium / Low — [Why]
 
 ### 2. ...

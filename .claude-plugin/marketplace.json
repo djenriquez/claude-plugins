@@ -15,7 +15,7 @@
     {
       "name": "complexity-check",
       "source": "./plugins/complexity-check",
-      "description": "Adversarial debate between Claude (Opus 4.6) and GPT-5.4 to catch unnecessary complexity in specs and PRs before peer review"
+      "description": "Adversarial cross-model debate to catch unnecessary complexity in specs and PRs before peer review"
     }
   ]
 }
