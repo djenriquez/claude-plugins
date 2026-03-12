@@ -6,7 +6,6 @@ disable-model-invocation: true
 allowed-tools:
   - Bash(git:*)
   - Bash(gh:*)
-  - Bash(mkdir:*)
   - Read
   - Write
   - Edit
@@ -40,7 +39,14 @@ If $ARGUMENTS is empty, ask the user which GitHub issue to work from.
 
 ### 1a. Retrieve the issue
 
-`$ARGUMENTS` should be a GitHub issue number (e.g., `#42` or `42`). Retrieve the issue:
+`$ARGUMENTS` should be a GitHub issue reference. Accepted formats:
+
+- **`#N`** or **`N`** (issue number): e.g., `#42` or `42`
+- **GitHub issue URL**: e.g., `https://github.com/owner/repo/issues/42` — extract the issue number from the URL path
+
+Any other format is not supported. If the argument doesn't match these patterns, ask the user to provide a GitHub issue number.
+
+Retrieve the issue:
 
 ```
 gh issue view <N>
@@ -97,7 +103,11 @@ The interview should focus on:
 
 Before starting the interview, provide a context preamble so the interview is grounded in what you learned in Step 1. Frame the interview around the specific open questions, design decisions, and ambiguities you identified.
 
-**Primary path**: Invoke the `/interview` skill (requires the `abatilo-core` plugin). This skill conducts a structured, in-depth interview using `AskUserQuestion`.
+**Primary path**: Invoke the `/interview` skill (requires the `abatilo-core` plugin). The `/interview` skill takes no arguments — it reads the current conversation context. Before invoking it, ensure the conversation contains your Step 1 summary (problem statement, affected system areas, open questions, and design decisions needed). This grounds the interview in the right context.
+
+The `/interview` skill conducts a structured, in-depth interview using `AskUserQuestion` and produces a summary of decisions when complete.
+
+> **Note on sub-skill permissions**: `/interview` and `/spec-review` run as independent skill invocations with their own `allowed-tools`. They are not constrained by this skill's tool list.
 
 **Fallback**: If `/interview` is not available (skill invocation fails or the user does not have `abatilo-core` installed), conduct the interview yourself using `AskUserQuestion` directly. Follow this process:
 
@@ -123,17 +133,9 @@ Derive a descriptive, kebab-case filename from the issue title:
 - Keep it concise but descriptive (3-6 words)
 - Example: issue "Add retry logic to webhook delivery" -> `webhook-delivery-retries.md`
 
-### 3b. Ensure the directory exists
+### 3b. Write the spec
 
-Check if `docs/specs/` exists in the project root. If not, create it:
-
-```
-mkdir -p docs/specs
-```
-
-### 3c. Write the spec
-
-Author a comprehensive spec at `docs/specs/<filename>.md` that synthesizes everything from the issue exploration and interview. The spec must be a standalone document — a reader who hasn't seen the issue or interview should understand the full picture.
+Author a comprehensive spec at `docs/specs/<filename>.md` that synthesizes everything from the issue exploration and interview. The `Write` tool creates parent directories automatically, so `docs/specs/` will be created if it doesn't exist. The spec must be a standalone document — a reader who hasn't seen the issue or interview should understand the full picture.
 
 #### Spec structure
 
@@ -195,7 +197,7 @@ Any remaining questions or decisions that need resolution.
 
 Adapt this structure to the specific problem — not every section is needed for every spec. Small bug fixes may only need Problem Statement, Context, Design, and Acceptance Criteria. Large features may need all sections plus additional ones.
 
-### 3d. Present the spec
+### 3c. Present the spec
 
 After writing the spec file, present the full spec to the user. Ask them to review it and flag anything that needs adjustment. Make any requested changes before proceeding.
 
