@@ -31,7 +31,7 @@ Obtain the content to review. This may be a spec, a PR, a plan, or any proposal.
 
 ### Input Detection
 
-- **`#N`** (GitHub number): Run `gh issue view <N> 2>/dev/null || gh pr view <N>` to resolve. Then:
+- **`#N`** (GitHub number): Run `gh issue view <N>` first. If it fails, run `gh pr view <N>`. Do not suppress stderr — auth errors and rate limits must surface to the user. Then:
   - **If issue**: The issue body is the primary content. Pull comments via `gh api repos/{owner}/{repo}/issues/<N>/comments` for discussion context.
   - **If PR**: Pull the PR description and diff via `gh pr diff <N>`. Both are review targets.
 - **File path**: Read the file directly.
@@ -88,9 +88,9 @@ Now stress-test your analysis through a structured challenge with a second model
 
 Use `ToolSearch` with query `"codex"` to load `mcp__codex__codex` and `mcp__codex__codex-reply`.
 
-**If the tools load successfully**, proceed with the Codex challenge (Step 3b).
+**If both tools load successfully**, proceed with the Codex challenge (Step 3b).
 
-**If ToolSearch returns no results** (Codex MCP not configured), skip to Step 3c (subagent fallback).
+**If ToolSearch returns no results or only one of the two tools** (Codex MCP not configured or partially available), skip to Step 3c (subagent fallback).
 
 ### Step 3b: Codex MCP Challenge
 
@@ -100,6 +100,8 @@ Start a threaded challenge with the latest GPT model via Codex MCP.
 
 ```
 prompt: "I'm reviewing the following spec/proposal for unnecessary complexity. I'll share my analysis, and I need you to challenge it — defend the complexity where it's genuinely warranted, and push harder where I'm being too generous.
+
+IMPORTANT: All relevant content is included below. Do not attempt to access the filesystem, run git commands, or inspect the repository — you do not have access and commands will hang or be denied by the sandbox.
 
 CONTENT BEING REVIEWED:
 <the full spec/PR/plan content>
@@ -118,6 +120,8 @@ Ground rules:
 5. For every simplification you propose, describe what the simpler version looks like — not just 'simplify this'."
 ```
 
+**Timeout handling**: If a `mcp__codex__codex` or `mcp__codex__codex-reply` call has not returned after 2 minutes, treat it as a connection failure and fall back to Step 3c with any context accumulated so far.
+
 **Continue the challenge** with `mcp__codex__codex-reply` using the returned `threadId`. Each turn must be substantive — no acknowledgments, no "good point." Push back or dig deeper.
 
 **Turn strategy:**
@@ -129,7 +133,7 @@ Ground rules:
 
 **Skip to Step 3d** (convergence) after each reply.
 
-**Error recovery**: If `mcp__codex__codex` or `mcp__codex__codex-reply` fails during the challenge (connection error, timeout, unexpected response), fall back to Step 3c with the context accumulated so far. Include any Codex responses already received as prior context in the subagent prompt.
+**Error recovery**: If `mcp__codex__codex` or `mcp__codex__codex-reply` fails during the challenge (connection error, timeout per above, unexpected response), fall back to Step 3c with the context accumulated so far. Include any Codex responses already received as prior context in the subagent prompt.
 
 ### Step 3c: Subagent Fallback
 
