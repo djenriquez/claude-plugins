@@ -6,6 +6,11 @@
       "name": "spec-review",
       "source": "./plugins/spec-review",
       "description": "Multi-agent spec review skill for catching ambiguity, gaps, and risks before implementation"
+    },
+    {
+      "name": "issue-to-spec",
+      "source": "./plugins/issue-to-spec",
+      "description": "Orchestrates the investigation and spec authoring workflow from a GitHub issue through interview, spec writing, complexity assessment, and optional spec review hardening"
     }
   ]
 }
