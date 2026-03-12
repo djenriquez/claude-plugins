@@ -164,7 +164,17 @@ Provide your full response in a single message."
 )
 ```
 
-After receiving the subagent's response, continue the challenge by spawning additional rounds — send your counter-arguments as a new `Agent` call with the accumulated context. **Minimum 2 rounds of counter-arguments before evaluating convergence** (Step 3d). The subagent path has less natural tension than cross-model challenge, so push harder: invert your own positions, challenge the advocate's concessions, and probe for complexity you might be blind to.
+After receiving the subagent's response, continue the challenge by **resuming the same agent** — use the `resume` parameter with the agent ID returned from the initial spawn. This preserves the advocate's full context across turns without re-sending the accumulated history. Send your counter-arguments as the resume prompt. **Minimum 2 rounds of counter-arguments before evaluating convergence** (Step 3d). The subagent path has less natural tension than cross-model challenge, so push harder: invert your own positions, challenge the advocate's concessions, and probe for complexity you might be blind to.
+
+```
+Agent(
+  resume: "<agent-id-from-initial-spawn>",
+  prompt: "Here are my counter-arguments to your response:
+<your counter-arguments>
+
+Continue the challenge. Defend, concede, or raise new concerns."
+)
+```
 
 ### Step 3d: Convergence
 
