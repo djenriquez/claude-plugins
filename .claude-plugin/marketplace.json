@@ -11,6 +11,11 @@
       "name": "issue-to-spec",
       "source": "./plugins/issue-to-spec",
       "description": "Orchestrates the investigation and spec authoring workflow from a GitHub issue through interview, spec writing, complexity assessment, and optional spec review hardening"
+    },
+    {
+      "name": "complexity-check",
+      "source": "./plugins/complexity-check",
+      "description": "Adversarial debate between Claude (Opus 4.6) and GPT-5.4 to catch unnecessary complexity in specs and PRs before peer review"
     }
   ]
 }
