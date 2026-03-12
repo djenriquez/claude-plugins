@@ -1,6 +1,6 @@
 ---
 name: complexity-check
-description: "Adversarial complexity review that debates unnecessary complexity in specs and PRs using a cross-model debate (Claude vs GPT via Codex MCP) or a subagent debate as fallback. Use before peer review to surface over-engineering, premature abstractions, and simpler alternatives. Accepts file paths, GitHub issue/PR numbers, URLs, 'staged', or conversation context."
+description: "Adversarial complexity review that debates unnecessary complexity in specs and PRs using a cross-model debate (via Codex MCP) or a subagent debate as fallback. Use before peer review to surface over-engineering, premature abstractions, and simpler alternatives. Accepts file paths, GitHub issue/PR numbers, URLs, 'staged', or conversation context."
 argument-hint: "[file path, #N (GitHub issue/PR), URL, 'staged', or omit for conversation context]"
 disable-model-invocation: true
 allowed-tools:
@@ -9,7 +9,6 @@ allowed-tools:
   - Read
   - Glob
   - Grep
-  - WebSearch
   - WebFetch
   - AskUserQuestion
   - Agent
@@ -41,6 +40,10 @@ Obtain the content to review. This may be a spec, a PR, a plan, or any proposal.
 - **No argument**: The content should be in the conversation context. If not, ask the user.
 
 Multiple arguments can be combined. When combining, treat all sources as the review target.
+
+### Large Inputs
+
+For very large inputs (>500 lines of diff or >2000 words of spec), do not attempt full coverage in the debate. Instead, focus on the most architecturally significant sections — the parts where complexity decisions have the highest blast radius. Summarize the remaining sections briefly in Step 2 but prioritize depth over breadth in Step 3.
 
 ### Codebase Context
 
@@ -119,21 +122,23 @@ Rules of engagement:
 
 **Turn strategy:**
 
-- **If the opponent defends complexity**: "What's the concrete scenario where the simpler version fails? Not a hypothetical — a real case in this codebase or domain."
-- **If the opponent agrees it's complex**: "Go further. What's the even simpler version? What if we deleted this entirely?"
-- **If the opponent surfaces new concerns**: "I missed that. But is the proposed solution the right fix, or is there a simpler way to address it?"
+- **If the advocate defends complexity**: "What's the concrete scenario where the simpler version fails? Not a hypothetical — a real case in this codebase or domain."
+- **If the advocate agrees it's complex**: "Go further. What's the even simpler version? What if we deleted this entirely?"
+- **If the advocate surfaces new concerns**: "I missed that. But is the proposed solution the right fix, or is there a simpler way to address it?"
 - **If you disagree**: "Here's why I think you're wrong: [evidence]. Change my mind or concede."
 
 **Skip to Step 3d** (convergence) after each reply.
 
+**Error recovery**: If `mcp__codex__codex` or `mcp__codex__codex-reply` fails during the debate (connection error, timeout, unexpected response), fall back to Step 3c with the debate context accumulated so far. Include any Codex responses already received as prior context in the subagent prompt.
+
 ### Step 3c: Subagent Fallback
 
-If Codex MCP is not available, spawn an `Agent` subagent to play the adversarial role. The subagent acts as a complexity defender — its job is to steel-man the existing design and challenge your simplification proposals.
+If Codex MCP is not available, spawn an `Agent` subagent to play the adversarial role. The subagent acts as the complexity advocate — its job is to steel-man the existing design and challenge your simplification proposals.
 
 ```
 Agent(
   description: "Adversarial complexity debate",
-  prompt: "You are a complexity advocate in an adversarial debate. Your job is to DEFEND the design choices in this proposal and CHALLENGE simplification suggestions. You are NOT a yes-man — push back hard where complexity is warranted, but concede honestly where it isn't.
+  prompt: "You are the Complexity Advocate in an adversarial debate. Your job is to DEFEND the design choices in this proposal and CHALLENGE simplification suggestions. You are NOT a yes-man — push back hard where complexity is warranted, but concede honestly where it isn't.
 
 CONTENT BEING REVIEWED:
 <the full spec/PR/plan content>
@@ -159,11 +164,11 @@ Provide your full adversarial response in a single message."
 )
 ```
 
-After receiving the subagent's response, continue the debate by spawning additional rounds if needed — send your counter-arguments as a new `Agent` call with the accumulated debate context. Continue until convergence (Step 3d).
+After receiving the subagent's response, continue the debate by spawning additional rounds — send your counter-arguments as a new `Agent` call with the accumulated debate context. **Minimum 2 rounds of counter-arguments before evaluating convergence** (Step 3d). The subagent path is inherently less adversarial than cross-model debate, so push harder: invert your own positions, challenge the advocate's concessions, and probe for complexity you might be blind to.
 
 ### Step 3d: Convergence
 
-After each opponent reply (whether from Codex or subagent), evaluate:
+After each advocate reply (whether from Codex or subagent), evaluate:
 - Did this turn surface a new complexity concern or simplification?
 - Did either position change on an existing concern?
 - Are there unexplored areas of the input?
@@ -188,8 +193,8 @@ For each complexity concern that survived the debate:
 | Status | Meaning |
 |--------|---------|
 | **Confirmed** | Both models agree this is unnecessarily complex |
-| **Reviewer only** | You flagged it, the opponent defended the complexity (include their defense) |
-| **Opponent only** | The opponent surfaced it, you initially missed it |
+| **Reviewer only** | You flagged it, the advocate defended the complexity (include their defense) |
+| **Advocate only** | The advocate surfaced it, you initially missed it |
 | **Withdrawn** | Initially flagged but withdrawn after debate (briefly note why) |
 
 ### Output Structure
@@ -208,9 +213,9 @@ For each complexity concern that survived the debate:
 **What's proposed**: [Brief description of the complex approach]
 **Simpler alternative**: [Concrete description of the simpler approach]
 **What you'd lose**: [Honest assessment of trade-offs]
-**Debate status**: Confirmed / Reviewer only / Opponent only
+**Debate status**: Confirmed / Reviewer only / Advocate only
 - **Reviewer**: [1-sentence position]
-- **Opponent**: [1-sentence position]
+- **Advocate**: [1-sentence position]
 **Impact**: High / Medium / Low — [Why]
 
 ### 2. ...
