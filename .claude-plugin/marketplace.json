@@ -15,7 +15,7 @@
     {
       "name": "complexity-check",
       "source": "./plugins/complexity-check",
-      "description": "Adversarial cross-model debate to catch unnecessary complexity in specs and PRs before peer review"
+      "description": "Cross-model constructive challenge to catch unnecessary complexity in specs and PRs before peer review"
     }
   ]
 }

@@ -1,5 +1,5 @@
 {
   "name": "complexity-check",
   "version": "0.1.0",
-  "description": "Adversarial debate between Claude and GPT to catch unnecessary complexity in specs and PRs before peer review"
+  "description": "Cross-model constructive challenge to catch unnecessary complexity in specs and PRs before peer review"
 }
