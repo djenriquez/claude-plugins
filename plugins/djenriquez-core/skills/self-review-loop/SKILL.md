@@ -6,6 +6,11 @@ disable-model-invocation: true
 allowed-tools:
   - Bash(git:*)
   - Bash(gh:*)
+  - Bash(npm:*)
+  - Bash(npx:*)
+  - Bash(make:*)
+  - Bash(pytest:*)
+  - Bash(go:*)
   - Read
   - Write
   - Edit
@@ -36,7 +41,28 @@ If $ARGUMENTS is empty, ask the user which PR to work on.
 
 Any other format is not supported. If the argument doesn't match these patterns, ask the user to provide a PR number.
 
-### 1b. Fetch PR details
+### 1b. Pre-flight: verify /code-review is available
+
+Before doing anything else, confirm that the `/code-review` skill (from `abatilo-core`) is available. Spawn a lightweight sub-agent to check:
+
+```
+Agent(
+  description: "Check code-review availability",
+  prompt: "Run: /code-review\n\nIf the skill is recognized and starts executing (it will ask for arguments or begin reviewing), that confirms it is available. Report back 'AVAILABLE'. If the skill is not found or errors with 'unknown skill', report back 'NOT AVAILABLE'.",
+  mode: "bypassPermissions"
+)
+```
+
+If the skill is **not available**, stop immediately and inform the user:
+
+```
+/self-review-loop requires the `/code-review` skill from the `abatilo-core` plugin, which is not currently installed.
+
+Install it with:
+  /plugin install abatilo-core
+```
+
+### 1c. Fetch PR details
 
 ```
 gh pr view <N>
@@ -44,14 +70,14 @@ gh pr view <N>
 
 Confirm the PR is open. If merged or closed, inform the user and stop.
 
-### 1c. Check out the PR branch
+### 1d. Check out the PR branch
 
 ```
 gh pr checkout <N>
 git pull
 ```
 
-### 1d. Initialize the loop state
+### 1e. Initialize the loop state
 
 Set up tracking for the loop:
 
@@ -82,6 +108,8 @@ Agent(
 ```
 
 The sub-agent will invoke `/code-review`, which in turn spawns its own agent team (via `TeamCreate`). The `/code-review` skill handles its own team cleanup in its Step 7, so when the sub-agent returns, the review team should already be torn down along with the sub-agent itself.
+
+> **Trust assumption**: The sub-agent uses `bypassPermissions` to avoid dozens of permission prompts across multiple turns and nested agent spawns. This means the sub-agent — and the `/code-review` agents it spawns — run without user approval for each tool call. This is safe because `/code-review` only reads code (Glob, Grep, Read, git diff) and sends messages between its own agents. It does not edit files, push code, or make external calls. If `/code-review` upstream changes to include destructive operations, this trust boundary would need revisiting.
 
 ### 2b. Capture the review output
 
@@ -137,7 +165,24 @@ For each finding you are addressing:
 2. Make the code change using `Edit`
 3. Verify the change makes sense in context
 
-### 2f. Commit and push
+### 2f. Verify changes
+
+After applying all changes for this turn, run the project's test suite and/or linter if one exists. Detect the test runner by checking for common patterns:
+
+- `package.json` with a `test` script → `npm test` or equivalent
+- `Makefile` with a `test` target → `make test`
+- `pytest.ini`, `pyproject.toml`, or `setup.cfg` with pytest config → `pytest`
+- `go.mod` → `go test ./...`
+- `.github/workflows/` CI config → inspect for the test command used in CI
+
+If a test runner is found, run it. If tests fail:
+1. Examine the failure and determine if it was caused by changes made in this turn
+2. If yes, fix the issue before proceeding — this counts as part of the same turn's changes
+3. If the failure is pre-existing (also fails on the PR's base branch), note it in the changelog but proceed
+
+If no test runner is detected, skip this step and note "no test suite detected" in the turn summary.
+
+### 2g. Commit and push
 
 If any files were changed:
 
@@ -159,7 +204,7 @@ git push
 
 If no files were changed (all findings skipped or minor-only), skip the commit.
 
-### 2g. Update the changelog
+### 2h. Update the changelog
 
 Append this turn's results to the changelog and skipped lists. Record:
 - Turn number
@@ -168,7 +213,7 @@ Append this turn's results to the changelog and skipped lists. Record:
 - What was skipped (with reasons)
 - Commit SHA (if a commit was made)
 
-### 2h. Increment and continue
+### 2i. Increment and continue
 
 Increment `turn` by 1 and go back to Step 2a.
 
