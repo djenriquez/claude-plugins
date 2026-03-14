@@ -1,0 +1,5 @@
+{
+  "name": "djenriquez-core",
+  "version": "0.1.0",
+  "description": "Claude Code plugin collection by @djenriquez — spec review, issue-to-spec, complexity check, and PR feedback handling"
+}
