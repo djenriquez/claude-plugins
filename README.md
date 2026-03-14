@@ -49,6 +49,32 @@ Add this repo as a Claude Code marketplace source:
 /plugin install spec-review@djenriquez-plugins
 ```
 
+### handle-pr-feedback
+
+Reads unresolved review comments on a GitHub PR, triages each one, makes code changes, pushes a commit, replies to every comment with the action taken, and resolves each thread.
+
+#### Usage
+
+```
+/handle-pr-feedback #42
+/handle-pr-feedback 42
+```
+
+#### How It Works
+
+1. Checks out the PR branch and fetches unresolved review threads via the GitHub GraphQL API
+2. For each thread, analyzes the comment and decides whether to **address** (make a code change) or **skip** (with explanation)
+3. Commits and pushes all changes in a single commit
+4. Replies to each comment thread with the action taken or reason for skipping
+5. Resolves every thread
+
+#### Installation
+
+```
+/plugin marketplace add djenriquez/claude-plugins
+/plugin install handle-pr-feedback@djenriquez-plugins
+```
+
 ## Acknowledgments
 
 The spec-review skill's multi-agent architecture (three-phase orchestration, specialist agents, risk lanes, cross-review) is adapted from [@abatilo](https://github.com/abatilo)'s [`abatilo-core` code-review skill](https://github.com/abatilo/vimrc).
