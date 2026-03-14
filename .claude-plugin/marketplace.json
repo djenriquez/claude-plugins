@@ -3,19 +3,9 @@
   "owner": { "name": "djenriquez" },
   "plugins": [
     {
-      "name": "spec-review",
-      "source": "./plugins/spec-review",
-      "description": "Multi-agent spec review skill for catching ambiguity, gaps, and risks before implementation"
-    },
-    {
-      "name": "issue-to-spec",
-      "source": "./plugins/issue-to-spec",
-      "description": "Orchestrates the investigation and spec authoring workflow from a GitHub issue through interview, spec writing, complexity assessment, and optional spec review hardening"
-    },
-    {
-      "name": "complexity-check",
-      "source": "./plugins/complexity-check",
-      "description": "Cross-model constructive challenge to catch unnecessary complexity in specs and PRs before peer review"
+      "name": "djenriquez-core",
+      "source": "./plugins/djenriquez-core",
+      "description": "Spec review, issue-to-spec, PR feedback handling, and self-review loop"
     }
   ]
 }
