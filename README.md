@@ -77,6 +77,24 @@ Reads unresolved review comments on a GitHub PR, triages each one, makes code ch
 4. Replies to each comment thread with the action taken or reason for skipping
 5. Resolves every thread
 
+### /self-review-loop
+
+Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agent each turn to run `/code-review` (from `abatilo-core`), then evaluates and applies the feedback. Loops until only minor/nit feedback remains or 5 turns complete.
+
+```
+/self-review-loop #42
+/self-review-loop 42
+```
+
+1. Spawns a fresh sub-agent with no prior context to run `/code-review` against the PR
+2. Parses the review output and triages each finding (address or skip)
+3. Applies changes, commits, and pushes
+4. Tears down the review agent and its spawned team
+5. Repeats with a new fresh agent until the review comes back clean or 5 turns are reached
+6. Reports a full changelog of all changes across all turns
+
+Requires the `abatilo-core` plugin (provides `/code-review`).
+
 ## Acknowledgments
 
 The spec-review skill's multi-agent architecture (three-phase orchestration, specialist agents, risk lanes, cross-review) is adapted from [@abatilo](https://github.com/abatilo)'s [`abatilo-core` code-review skill](https://github.com/abatilo/vimrc).
