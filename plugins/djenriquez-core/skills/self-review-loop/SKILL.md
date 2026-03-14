@@ -11,6 +11,11 @@ allowed-tools:
   - Bash(make:*)
   - Bash(pytest:*)
   - Bash(go:*)
+  - Bash(cargo:*)
+  - Bash(bundle:*)
+  - Bash(dotnet:*)
+  - Bash(mvn:*)
+  - Bash(gradle:*)
   - Read
   - Write
   - Edit
@@ -18,6 +23,7 @@ allowed-tools:
   - Grep
   - Agent
   - Skill
+  - AskUserQuestion
 ---
 
 # Self-Review Loop
@@ -43,37 +49,31 @@ Any other format is not supported. If the argument doesn't match these patterns,
 
 ### 1b. Pre-flight: discover the code review skill
 
-Before doing anything else, determine which code review skill is available. Try them in order of preference:
+Before doing anything else, determine which code review skill is available. Check for skill files on disk rather than spawning agents — this is lightweight and avoids the cost of executing the skill just to test availability.
 
 **Attempt 1 — Official `code-review` plugin** (from `claude-code-marketplace`):
 
+Use `Glob` to search for the skill file:
+
 ```
-Agent(
-  description: "Check code-review availability",
-  prompt: "Run: /code-review\n\nIf the skill is recognized and starts executing (it will ask for arguments or begin reviewing), report back exactly 'AVAILABLE: code-review'. If the skill is not found or errors with 'unknown skill', report back exactly 'NOT AVAILABLE'.",
-  mode: "bypassPermissions"
-)
+Glob(pattern: "**/skills/code-review/SKILL.md", path: "~/.claude/plugins")
 ```
 
-If the agent reports `AVAILABLE: code-review`, set `review_skill` to `code-review` and proceed to Step 1c.
+If a match is found, set `review_skill` to `code-review` and proceed to Step 1c.
 
 **Attempt 2 — `abatilo-core:code-review` plugin** (fallback):
 
-If Attempt 1 returned `NOT AVAILABLE`, try the namespaced variant:
+If Attempt 1 found no match, search for the namespaced variant:
 
 ```
-Agent(
-  description: "Check abatilo-core code-review",
-  prompt: "Run: /abatilo-core:code-review\n\nIf the skill is recognized and starts executing (it will ask for arguments or begin reviewing), report back exactly 'AVAILABLE: abatilo-core:code-review'. If the skill is not found or errors with 'unknown skill', report back exactly 'NOT AVAILABLE'.",
-  mode: "bypassPermissions"
-)
+Glob(pattern: "**/abatilo-core/*/skills/code-review/SKILL.md", path: "~/.claude/plugins")
 ```
 
-If the agent reports `AVAILABLE: abatilo-core:code-review`, set `review_skill` to `abatilo-core:code-review` and proceed to Step 1c.
+If a match is found, set `review_skill` to `abatilo-core:code-review` and proceed to Step 1c.
 
 **Neither available — stop:**
 
-If both attempts returned `NOT AVAILABLE`, stop immediately and inform the user:
+If both attempts found no match, stop immediately and inform the user:
 
 ```
 /self-review-loop requires a code review skill, but none was found.
@@ -107,6 +107,7 @@ Set up tracking for the loop:
 - `changelog`: empty list — accumulates ALL changes across ALL turns
 - `all_skipped`: empty list — accumulates ALL skipped feedback across ALL turns
 - `stop_reason`: null — will be set when the loop terminates
+- `files_changed_per_turn`: empty map of turn → set of files changed — used for oscillation detection
 
 ---
 
@@ -130,7 +131,7 @@ Agent(
 
 The sub-agent will invoke the code review skill, which may in turn spawn its own agent team (via `TeamCreate`). The code review skill handles its own team cleanup, so when the sub-agent returns, any review team should already be torn down along with the sub-agent itself.
 
-> **Trust assumption**: The sub-agent uses `bypassPermissions` to avoid dozens of permission prompts across multiple turns and nested agent spawns. This means the sub-agent — and any agents it spawns — run without user approval for each tool call. This is safe because code review skills only read code (Glob, Grep, Read, git diff) and send messages between their own agents. They do not edit files, push code, or make external calls. If the upstream code review skill changes to include destructive operations, this trust boundary would need revisiting.
+> **Trust assumption**: The sub-agent uses `bypassPermissions` to avoid dozens of permission prompts across multiple turns and nested agent spawns. This means the sub-agent — and any agents it spawns — run without user approval for each tool call. This is safe because code review skills only read code (Glob, Grep, Read, git diff) and send messages between their own agents. They do not edit files, push code, or make external calls. The orchestrator itself (this skill) is the one that edits files and pushes — it runs under the skill's own `allowed-tools` list, NOT under `bypassPermissions`. If the upstream code review skill changes to include destructive operations, this trust boundary would need revisiting.
 
 ### 2b. Capture the review output
 
@@ -140,18 +141,21 @@ When the sub-agent returns, capture its full output. This contains the structure
 
 Parse the review output and check if the loop should stop:
 
-**Stop condition — only minor feedback remains:**
-A review qualifies as "minor-only" if ALL of the following are true:
+**Stop condition — only non-actionable feedback remains:**
+A review qualifies as "non-actionable" if ALL of the following are true:
 - The verdict is **APPROVE**
 - There are **zero** findings in the Critical or High tiers
-- All remaining findings are classified as `suggestion`, `nitpick`, or `thought`
+- All remaining findings are classified as `suggestion`, `nitpick`, `thought`, `risk`, or `question` (none of these require code changes — `risk` is an acknowledged trade-off and `question` is a request for clarification, not a code fix)
 
 **Stop condition — max turns reached:**
 - `turn` equals `max_turns` (5)
 
 If either stop condition is met, set `stop_reason` to `"clean_review"` or `"max_turns"` respectively and proceed to Step 3.
 
-If neither stop condition is met, continue to 2d.
+**Stop condition — oscillation detected:**
+After turn 2, check `files_changed_per_turn` for thrashing. If the set of files changed in the current turn's triage (Step 2d) overlaps significantly (>50%) with the files changed two turns ago, the loop is oscillating — reviewers are undoing each other's changes. Set `stop_reason` to `"oscillation"` and proceed to Step 3. When reporting, note which files were thrashing and the conflicting feedback.
+
+If no stop condition is met, continue to 2d.
 
 ### 2d. Triage the feedback
 
@@ -194,6 +198,11 @@ After applying all changes for this turn, run the project's test suite and/or li
 - `Makefile` with a `test` target → `make test`
 - `pytest.ini`, `pyproject.toml`, or `setup.cfg` with pytest config → `pytest`
 - `go.mod` → `go test ./...`
+- `Cargo.toml` → `cargo test`
+- `Gemfile` with rspec → `bundle exec rspec`
+- `*.csproj` or `*.sln` → `dotnet test`
+- `pom.xml` → `mvn test`
+- `build.gradle` or `build.gradle.kts` → `gradle test`
 - `.github/workflows/` CI config → inspect for the test command used in CI
 
 If a test runner is found, run it. If tests fail:
@@ -233,6 +242,7 @@ Append this turn's results to the changelog and skipped lists. Record:
 - What was addressed (with file references)
 - What was skipped (with reasons)
 - Commit SHA (if a commit was made)
+- Update `files_changed_per_turn[turn]` with the set of files modified this turn
 
 ### 2i. Increment and continue
 
@@ -248,7 +258,7 @@ After the loop terminates, present a comprehensive summary to the user.
 ## Self-Review Complete: PR #<N>
 
 **Turns completed**: <turn count>
-**Stop reason**: <"Clean review — only minor feedback remaining" or "Maximum turns (5) reached">
+**Stop reason**: <"Clean review — only non-actionable feedback remaining" or "Maximum turns (5) reached" or "Oscillation detected — turns were undoing each other's changes">
 
 ### Turn-by-Turn Summary
 
@@ -291,6 +301,7 @@ If a later turn's review gives feedback that contradicts a change made in an ear
 - Do NOT revert the earlier change automatically
 - Evaluate both positions and pick the one that is objectively better for the codebase
 - Record the conflict and your reasoning in the skipped list
+- If this happens repeatedly on the same files, the oscillation detector (Step 2c) will catch it and break the loop
 
 ### Safety
 
