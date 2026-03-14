@@ -1,6 +1,6 @@
 ---
 name: self-review-loop
-description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to run /code-review against the PR, then evaluates and applies feedback. Loops until only minor/nit feedback remains or 5 turns complete. Each turn cleans up the previous review agent and its spawned team before continuing."
+description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to run a code review skill against the PR, then evaluates and applies feedback. Loops until only minor/nit feedback remains or 5 turns complete. Auto-discovers the available code review skill — prefers the official code-review plugin, falls back to abatilo-core:code-review."
 argument-hint: "#N or N (PR number)"
 disable-model-invocation: true
 allowed-tools:
@@ -41,25 +41,46 @@ If $ARGUMENTS is empty, ask the user which PR to work on.
 
 Any other format is not supported. If the argument doesn't match these patterns, ask the user to provide a PR number.
 
-### 1b. Pre-flight: verify /code-review is available
+### 1b. Pre-flight: discover the code review skill
 
-Before doing anything else, confirm that the `/code-review` skill (from `abatilo-core`) is available. Spawn a lightweight sub-agent to check:
+Before doing anything else, determine which code review skill is available. Try them in order of preference:
+
+**Attempt 1 — Official `code-review` plugin** (from `claude-code-marketplace`):
 
 ```
 Agent(
   description: "Check code-review availability",
-  prompt: "Run: /code-review\n\nIf the skill is recognized and starts executing (it will ask for arguments or begin reviewing), that confirms it is available. Report back 'AVAILABLE'. If the skill is not found or errors with 'unknown skill', report back 'NOT AVAILABLE'.",
+  prompt: "Run: /code-review\n\nIf the skill is recognized and starts executing (it will ask for arguments or begin reviewing), report back exactly 'AVAILABLE: code-review'. If the skill is not found or errors with 'unknown skill', report back exactly 'NOT AVAILABLE'.",
   mode: "bypassPermissions"
 )
 ```
 
-If the skill is **not available**, stop immediately and inform the user:
+If the agent reports `AVAILABLE: code-review`, set `review_skill` to `code-review` and proceed to Step 1c.
+
+**Attempt 2 — `abatilo-core:code-review` plugin** (fallback):
+
+If Attempt 1 returned `NOT AVAILABLE`, try the namespaced variant:
 
 ```
-/self-review-loop requires the `/code-review` skill from the `abatilo-core` plugin, which is not currently installed.
+Agent(
+  description: "Check abatilo-core code-review",
+  prompt: "Run: /abatilo-core:code-review\n\nIf the skill is recognized and starts executing (it will ask for arguments or begin reviewing), report back exactly 'AVAILABLE: abatilo-core:code-review'. If the skill is not found or errors with 'unknown skill', report back exactly 'NOT AVAILABLE'.",
+  mode: "bypassPermissions"
+)
+```
 
-Install it with:
-  /plugin install abatilo-core
+If the agent reports `AVAILABLE: abatilo-core:code-review`, set `review_skill` to `abatilo-core:code-review` and proceed to Step 1c.
+
+**Neither available — stop:**
+
+If both attempts returned `NOT AVAILABLE`, stop immediately and inform the user:
+
+```
+/self-review-loop requires a code review skill, but none was found.
+
+Install one of the following:
+  claude plugin install code-review@claude-code-marketplace    (official)
+  /plugin install abatilo-core                                 (community)
 ```
 
 ### 1c. Fetch PR details
@@ -97,19 +118,19 @@ Repeat the following for each turn until a stop condition is met.
 
 **CRITICAL**: The sub-agent must have NO context from previous turns. This prevents bias — the reviewer should evaluate the code as-is, not relative to what it used to be. Each turn gets a completely fresh agent that knows nothing about prior feedback or changes.
 
-Spawn the sub-agent:
+Spawn the sub-agent, using the `review_skill` discovered in Step 1b:
 
 ```
 Agent(
   description: "Code review turn N",
-  prompt: "Run /code-review against PR #<N>. Do not add any additional context or commentary — just run the skill and report back the full review output exactly as produced.",
+  prompt: "Run /<review_skill> against PR #<N>. Do not add any additional context or commentary — just run the skill and report back the full review output exactly as produced.",
   mode: "bypassPermissions"
 )
 ```
 
-The sub-agent will invoke `/code-review`, which in turn spawns its own agent team (via `TeamCreate`). The `/code-review` skill handles its own team cleanup in its Step 7, so when the sub-agent returns, the review team should already be torn down along with the sub-agent itself.
+The sub-agent will invoke the code review skill, which may in turn spawn its own agent team (via `TeamCreate`). The code review skill handles its own team cleanup, so when the sub-agent returns, any review team should already be torn down along with the sub-agent itself.
 
-> **Trust assumption**: The sub-agent uses `bypassPermissions` to avoid dozens of permission prompts across multiple turns and nested agent spawns. This means the sub-agent — and the `/code-review` agents it spawns — run without user approval for each tool call. This is safe because `/code-review` only reads code (Glob, Grep, Read, git diff) and sends messages between its own agents. It does not edit files, push code, or make external calls. If `/code-review` upstream changes to include destructive operations, this trust boundary would need revisiting.
+> **Trust assumption**: The sub-agent uses `bypassPermissions` to avoid dozens of permission prompts across multiple turns and nested agent spawns. This means the sub-agent — and any agents it spawns — run without user approval for each tool call. This is safe because code review skills only read code (Glob, Grep, Read, git diff) and send messages between their own agents. They do not edit files, push code, or make external calls. If the upstream code review skill changes to include destructive operations, this trust boundary would need revisiting.
 
 ### 2b. Capture the review output
 
