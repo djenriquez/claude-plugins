@@ -34,6 +34,7 @@ The skill spawns a team of specialist reviewers, dynamically selected based on w
 | api-reviewer | API surface, backward compat, protobuf conventions, idempotency |
 | operations-reviewer | Failure modes, observability, rollback, SLO impact, on-call burden |
 | scope-reviewer | Incremental delivery, dependency risks, timeline, scope creep |
+| complexity-reviewer | Premature abstractions, over-engineering, speculative generality, accidental complexity |
 
 Review rigor scales with risk:
 
@@ -50,16 +51,6 @@ Orchestrates the full investigation-to-spec workflow starting from a GitHub issu
 ```
 /issue-to-spec #42
 /issue-to-spec 42
-```
-
-### /complexity-check
-
-Cross-model constructive challenge to catch unnecessary complexity in specs and PRs before peer review. Uses Codex MCP (preferred) or a subagent fallback for adversarial stress-testing.
-
-```
-/complexity-check path/to/spec.md
-/complexity-check #42
-/complexity-check staged
 ```
 
 ### /handle-pr-feedback
