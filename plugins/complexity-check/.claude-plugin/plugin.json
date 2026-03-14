@@ -1,5 +1,0 @@
-{
-  "name": "complexity-check",
-  "version": "0.1.0",
-  "description": "Cross-model constructive challenge to catch unnecessary complexity in specs and PRs before peer review"
-}

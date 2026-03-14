@@ -2,13 +2,18 @@
 
 Claude Code plugins by [@djenriquez](https://github.com/djenriquez).
 
-## Plugins
+## Installation
 
-### spec-review
+```
+/plugin marketplace add djenriquez/claude-plugins
+/plugin install djenriquez-core
+```
+
+## Skills
+
+### /spec-review
 
 Multi-agent spec review that catches ambiguity, missing edge cases, architectural infeasibility, API design gaps, operational blindspots, and scope risks — before a single line of code is written.
-
-#### Usage
 
 ```
 /spec-review path/to/spec.md
@@ -17,8 +22,6 @@ Multi-agent spec review that catches ambiguity, missing edge cases, architectura
 /spec-review staged
 /spec-review                       # uses conversation context
 ```
-
-#### How It Works
 
 The skill spawns a team of specialist reviewers, dynamically selected based on what the spec covers:
 
@@ -40,40 +43,39 @@ Review rigor scales with risk:
 
 Three phases: parallel specialist review → lead-mediated cross-review → deduplicated synthesis with binary verdict (APPROVED / REVISIONS NEEDED).
 
-#### Installation
+### /issue-to-spec
 
-Add this repo as a Claude Code marketplace source:
+Orchestrates the full investigation-to-spec workflow starting from a GitHub issue — explores the issue and codebase, interviews the user, authors a spec, assesses complexity, and conditionally launches `/spec-review` to harden it.
 
 ```
-/plugin marketplace add djenriquez/claude-plugins
-/plugin install spec-review@djenriquez-plugins
+/issue-to-spec #42
+/issue-to-spec 42
 ```
 
-### handle-pr-feedback
+### /complexity-check
+
+Cross-model constructive challenge to catch unnecessary complexity in specs and PRs before peer review. Uses Codex MCP (preferred) or a subagent fallback for adversarial stress-testing.
+
+```
+/complexity-check path/to/spec.md
+/complexity-check #42
+/complexity-check staged
+```
+
+### /handle-pr-feedback
 
 Reads unresolved review comments on a GitHub PR, triages each one, makes code changes, pushes a commit, replies to every comment with the action taken, and resolves each thread.
-
-#### Usage
 
 ```
 /handle-pr-feedback #42
 /handle-pr-feedback 42
 ```
 
-#### How It Works
-
 1. Checks out the PR branch and fetches unresolved review threads via the GitHub GraphQL API
 2. For each thread, analyzes the comment and decides whether to **address** (make a code change) or **skip** (with explanation)
 3. Commits and pushes all changes in a single commit
 4. Replies to each comment thread with the action taken or reason for skipping
 5. Resolves every thread
-
-#### Installation
-
-```
-/plugin marketplace add djenriquez/claude-plugins
-/plugin install handle-pr-feedback@djenriquez-plugins
-```
 
 ## Acknowledgments
 

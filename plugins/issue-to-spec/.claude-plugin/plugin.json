@@ -1,5 +1,0 @@
-{
-  "name": "issue-to-spec",
-  "version": "0.1.0",
-  "description": "Orchestrates the investigation and spec authoring workflow from a GitHub issue through interview, spec writing, complexity assessment, and optional spec review hardening"
-}
