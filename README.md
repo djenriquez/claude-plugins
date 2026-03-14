@@ -2,13 +2,18 @@
 
 Claude Code plugins by [@djenriquez](https://github.com/djenriquez).
 
-## Plugins
+## Installation
 
-### spec-review
+```
+/plugin marketplace add djenriquez/claude-plugins
+/plugin install djenriquez-core
+```
+
+## Skills
+
+### /spec-review
 
 Multi-agent spec review that catches ambiguity, missing edge cases, architectural infeasibility, API design gaps, operational blindspots, and scope risks — before a single line of code is written.
-
-#### Usage
 
 ```
 /spec-review path/to/spec.md
@@ -17,8 +22,6 @@ Multi-agent spec review that catches ambiguity, missing edge cases, architectura
 /spec-review staged
 /spec-review                       # uses conversation context
 ```
-
-#### How It Works
 
 The skill spawns a team of specialist reviewers, dynamically selected based on what the spec covers:
 
@@ -31,6 +34,7 @@ The skill spawns a team of specialist reviewers, dynamically selected based on w
 | api-reviewer | API surface, backward compat, protobuf conventions, idempotency |
 | operations-reviewer | Failure modes, observability, rollback, SLO impact, on-call burden |
 | scope-reviewer | Incremental delivery, dependency risks, timeline, scope creep |
+| complexity-reviewer | Premature abstractions, over-engineering, speculative generality, accidental complexity |
 
 Review rigor scales with risk:
 
@@ -40,27 +44,23 @@ Review rigor scales with risk:
 
 Three phases: parallel specialist review → lead-mediated cross-review → deduplicated synthesis with binary verdict (APPROVED / REVISIONS NEEDED).
 
-#### Installation
+### /issue-to-spec
 
-Add this repo as a Claude Code marketplace source:
+Orchestrates the full investigation-to-spec workflow starting from a GitHub issue — explores the issue and codebase, interviews the user, authors a spec, assesses complexity, and conditionally launches `/spec-review` to harden it.
 
 ```
-/plugin marketplace add djenriquez/claude-plugins
-/plugin install spec-review@djenriquez-plugins
+/issue-to-spec #42
+/issue-to-spec 42
 ```
 
-### handle-pr-feedback
+### /handle-pr-feedback
 
 Reads unresolved review comments on a GitHub PR, triages each one, makes code changes, pushes a commit, replies to every comment with the action taken, and resolves each thread.
-
-#### Usage
 
 ```
 /handle-pr-feedback #42
 /handle-pr-feedback 42
 ```
-
-#### How It Works
 
 1. Checks out the PR branch and fetches unresolved review threads via the GitHub GraphQL API
 2. For each thread, analyzes the comment and decides whether to **address** (make a code change) or **skip** (with explanation)
@@ -68,12 +68,24 @@ Reads unresolved review comments on a GitHub PR, triages each one, makes code ch
 4. Replies to each comment thread with the action taken or reason for skipping
 5. Resolves every thread
 
-#### Installation
+### /self-review-loop
+
+Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agent each turn to run a code review, then evaluates and applies the feedback. Loops until only minor/nit feedback remains or 5 turns complete.
 
 ```
-/plugin marketplace add djenriquez/claude-plugins
-/plugin install handle-pr-feedback@djenriquez-plugins
+/self-review-loop #42
+/self-review-loop 42
 ```
+
+1. Auto-discovers the available code review skill (prefers official `code-review` plugin, falls back to `abatilo-core:code-review`)
+2. Spawns a fresh sub-agent with no prior context to run the review against the PR
+3. Parses the review output and triages each finding (address or skip)
+4. Runs tests/linters to verify changes, then commits and pushes
+5. Tears down the review agent and its spawned team
+6. Repeats with a new fresh agent until the review comes back clean or 5 turns are reached
+7. Reports a full changelog of all changes across all turns
+
+Requires one of: `code-review` from `claude-code-marketplace` (official) or `abatilo-core` (community).
 
 ## Acknowledgments
 

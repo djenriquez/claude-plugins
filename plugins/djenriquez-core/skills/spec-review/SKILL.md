@@ -77,7 +77,7 @@ Note the spec length (sections, paragraphs, word count). Larger specs warrant mo
 
 ### Dynamic Agent Selection
 
-Analyze the spec and select which specialists are relevant. Not every spec needs all 7 agents. Err toward including rather than excluding for L1/L2.
+Analyze the spec and select which specialists are relevant. Not every spec needs all 8 agents. Err toward including rather than excluding for L1/L2.
 
 | # | Agent | Spawn guidance |
 |---|-------|----------------|
@@ -88,6 +88,7 @@ Analyze the spec and select which specialists are relevant. Not every spec needs
 | 5 | api-reviewer | Spec defines or modifies an API. Backward compat, protobuf conventions, naming, idempotency. |
 | 6 | operations-reviewer | Production-impacting changes. Failure modes, observability, rollback, SLO impact. |
 | 7 | scope-reviewer | L1/L2 only. Multi-team, multi-phase, or large specs. Incremental delivery, dependency risks. |
+| 8 | complexity-reviewer | L1/L2. Specs introducing new abstractions, multi-layer designs, configurable systems, or framework-like patterns. Catches premature abstraction, over-engineering, and accidental complexity. |
 
 For **L0**: spawn only agents 1 and 2.
 
@@ -154,10 +155,11 @@ After collecting all Phase 1 findings:
    | clarity-reviewer | completeness-reviewer |
    | completeness-reviewer | product-reviewer |
    | product-reviewer | scope-reviewer |
-   | feasibility-reviewer | scope-reviewer |
+   | feasibility-reviewer | complexity-reviewer |
    | api-reviewer | operations-reviewer |
    | operations-reviewer | feasibility-reviewer |
    | scope-reviewer | product-reviewer |
+   | complexity-reviewer | feasibility-reviewer |
 
    Prioritize routing:
    - **Contradictions**: two agents disagree

@@ -1,5 +1,0 @@
-{
-  "name": "handle-pr-feedback",
-  "version": "0.1.0",
-  "description": "Reads unresolved PR review comments, addresses or skips each one, pushes changes, replies with actions taken, and resolves threads"
-}
