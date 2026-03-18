@@ -2,7 +2,7 @@
 name: spec-review
 description: "Orchestrates a three-phase parallel spec review using an agent team. Phase 1: dynamically selected specialists each review the spec and self-critique findings. Phase 2: lead-mediated cross-review where specialists challenge each other's findings. Phase 3: deduplicated synthesis with priority-based output and binary approval verdict."
 argument-hint: "[file path, #N (GitHub issue/PR), URL, 'staged', or omit for conversation context]"
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools:
   - Bash(git:*)
   - Bash(gh:*)

@@ -2,7 +2,7 @@
 name: handle-pr-feedback
 description: "Reads unresolved review comments on a GitHub PR, triages each one (address or skip), makes code changes, pushes a commit, replies to every comment with the action taken or reason for skipping, and resolves each thread."
 argument-hint: "#N or N (PR number)"
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools:
   - Bash(git:*)
   - Bash(gh:*)
