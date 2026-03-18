@@ -2,7 +2,7 @@
 name: self-review-loop
 description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to run a code review skill against the PR, then evaluates and applies feedback. Loops until only minor/nit feedback remains or 5 turns complete. Auto-discovers the available code review skill — prefers the official code-review plugin, falls back to abatilo-core:code-review."
 argument-hint: "#N or N (PR number)"
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools:
   - Bash(git:*)
   - Bash(gh:*)

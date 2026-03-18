@@ -2,7 +2,7 @@
 name: issue-to-spec
 description: "Orchestrates the full investigation-to-spec workflow starting from a GitHub issue. Phase 1: explore the issue and codebase to build context. Phase 2: interview the user from a problem-solving perspective. Phase 3: author a spec and publish it to docs/specs/. Phase 4: assess complexity and conditionally launch /spec-review. Phase 5: harden the spec with review feedback."
 argument-hint: "#N (GitHub issue number)"
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools:
   - Bash(git:*)
   - Bash(gh:*)
