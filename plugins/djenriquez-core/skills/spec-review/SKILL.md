@@ -19,6 +19,10 @@ allowed-tools:
   - SendMessage
   - WebSearch
   - WebFetch
+  - ToolSearch
+mcpServers:
+  - codex
+  - gemini-cli
 ---
 
 # Spec Review Agent Team
@@ -96,21 +100,31 @@ State which agents you're spawning and why before proceeding.
 
 ## Step 3: Create Team and Spawn Agents
 
-### 3a. Create the team
+### 3a. Load the shared review protocol
+
+Before spawning agents, read the shared review protocol that governs all specialists:
+
+```
+Glob(pattern: "**/protocols/review-protocol.md", path: "~/.claude/plugins")
+```
+
+Read the file found. This protocol text will be included in every agent's task prompt.
+
+### 3b. Create the team
 
 ```
 TeamCreate(team_name: "spec-review-<short-identifier>")
 ```
 
-### 3b. Create tasks for each selected agent
+### 3c. Create tasks for each selected agent
 
 For each selected agent, call `TaskCreate` with subject, description, and activeForm.
 
-### 3c. Spawn all agents in a SINGLE message
+### 3d. Spawn all agents in a SINGLE message
 
-Each specialist has a custom agent definition (in `agents/`) with its review protocol, specialist instructions, and persistent memory. You do NOT need to assemble prompts — the agent's `.md` file provides its system prompt automatically.
+Each specialist has a custom agent definition (in `agents/`) with its specialist instructions and persistent memory. The shared review protocol (taxonomy, qualification, self-critique, cross-review, output format) is injected via the task prompt.
 
-Spawn using `subagent_type` matching the agent name. The Task prompt contains only the dynamic content:
+Spawn using `subagent_type` matching the agent name:
 
 ```
 Task(
@@ -118,7 +132,7 @@ Task(
   name: "clarity-reviewer",
   team_name: "spec-review-<identifier>",
   run_in_background: true,
-  prompt: "RISK LANE: L1\n\nSELF-CRITIQUE REQUIREMENT:\nThis is an L1/L2 review. After your specialist review, stress-test your findings through self-critique before sending them. Follow your Self-Critique protocol and prune or downgrade findings that don't survive scrutiny.\n(For L0 reviews, replace the above with: SELF-CRITIQUE: Not required for L0. Send findings directly.)\n\nSPEC CONTEXT:\n<Title, purpose, and any relevant background about what this spec covers>\n\nRELATED CODEBASE CONTEXT:\n<Brief description of the existing system this spec targets, if applicable>\n\nSPEC CONTENT:\n<the full spec text>\n\nYour task has been created as Task #N. Update it to in_progress when you start, and mark it completed when done sending findings."
+  prompt: "REVIEW PROTOCOL:\n<contents of review-protocol.md>\n\nRISK LANE: L1\n\nSELF-CRITIQUE REQUIREMENT:\nThis is an L1/L2 review. After your specialist review, stress-test your findings through self-critique before sending them. Follow the Self-Critique protocol and prune or downgrade findings that don't survive scrutiny.\n(For L0 reviews, replace the above with: SELF-CRITIQUE: Not required for L0. Send findings directly.)\n\nSPEC CONTEXT:\n<Title, purpose, and any relevant background about what this spec covers>\n\nRELATED CODEBASE CONTEXT:\n<Brief description of the existing system this spec targets, if applicable>\n\nSPEC CONTENT:\n<the full spec text>\n\nYour task has been created as Task #N. Update it to in_progress when you start, and mark it completed when done sending findings."
 )
 ```
 
@@ -126,7 +140,7 @@ Repeat for every selected agent — all `Task` calls in ONE message.
 
 After spawning, use `TaskUpdate` to set `owner` on each task to the corresponding agent name.
 
-**CRITICAL**: Each agent's prompt MUST contain the full spec text. Agents cannot see the spec unless you include it in their prompt.
+**CRITICAL**: Each agent's prompt MUST contain the full review protocol AND the full spec text. Agents cannot see either unless you include them in their prompt.
 
 ## Step 4: Phase 1 — Collect Specialist Findings
 
@@ -176,24 +190,7 @@ After collecting all Phase 1 findings:
 
 ## Step 6: Phase 3 — Synthesize the Final Review
 
-### Comment Taxonomy
-
-| Label | Meaning | Blocking? |
-|-------|---------|-----------|
-| `blocker` | Must resolve before implementation begins. Cite concrete harm. | Yes |
-| `risk` | Gap or failure mode to consciously accept. | Discuss |
-| `question` | Seeking clarification from the spec author. | No |
-| `suggestion` | Concrete alternative wording or addition with rationale. | No |
-| `nitpick` | Minor wording or formatting preference. | No |
-| `thought` | Observation or future consideration, not a request. | No |
-
-### Comment Framing
-
-- Questions over statements: "What happens when X?" NOT "This is wrong"
-- Personal perspective: "I find this ambiguous because..." NOT "This is unclear"
-- Focus on the spec, not the author: "This section omits X" NOT "You forgot X"
-- No diminishing language: never "simply," "just," "obviously," "clearly"
-- No surprise late blockers: if the approach is wrong, say so immediately
+Use the comment taxonomy, priority levels, and framing rules from the review protocol (loaded in Step 3a) when classifying and writing findings in the synthesis.
 
 ### Deduplication
 
@@ -277,7 +274,56 @@ Before delivering, verify you are NOT:
 - Framing opinions as mandates
 - Bikeshedding on wording when meaning is clear
 
-## Step 7: Clean Up
+## Step 7: MCP Cross-Model Debate (conditional)
+
+After synthesizing the agent team's review, stress-test the findings with external models before delivering.
+
+**Skip this step if no MCPs are available.**
+
+### 7a. Discover and execute debates
+
+Read `protocols/mcp-debate.md` (find via `Glob(pattern: "**/protocols/mcp-debate.md", path: "~/.claude/plugins")`). Follow the discovery and execution instructions.
+
+### 7b. Debate prompt
+
+Construct the debate prompt with:
+
+> You are reviewing a spec review produced by a team of specialist reviewers. Your job is adversarial: find what they got wrong, what they missed, and where severity is miscalibrated.
+>
+> ## Original Spec
+> <full spec text>
+>
+> ## Synthesized Review
+> <full Phase 3 output — all findings, priorities, and verdict>
+>
+> ## Challenge Questions
+> 1. Which findings are false positives — flagging something that isn't actually a problem?
+> 2. What did the reviewers collectively miss? What gaps, risks, or ambiguities did no agent catch?
+> 3. Which findings have miscalibrated severity — blockers that should be suggestions, or suggestions that should be blockers?
+> 4. Does the verdict (APPROVED / REVISIONS NEEDED) follow from the findings, or is it too lenient/strict?
+> 5. Are any findings redundant despite deduplication — same concern wearing different hats?
+
+### 7c. Incorporate debate findings
+
+Evaluate each MCP point against the same finding qualification bar:
+
+- **False positive challenges**: Withdraw if convincing. Tag: `[withdrawn after <Codex|Gemini> challenge]`.
+- **New findings**: Add if they pass the qualification bar. Tag: `[surfaced by <Codex|Gemini>]`.
+- **Severity adjustments**: Adjust if compelling. Tag: `[severity adjusted per <Codex|Gemini>]`.
+- **Redundancy**: Merge if an MCP identifies same-concern duplicates.
+
+Re-check the verdict if Critical findings were added or withdrawn.
+
+Add a "Cross-Model Debate" section to the output:
+
+```
+### Cross-Model Debate
+- **Models consulted**: [Codex, Gemini, or both]
+- **Findings modified**: [count] ([list: withdrawn, added, severity-adjusted])
+- **Verdict impact**: [unchanged / changed from X to Y]
+```
+
+## Step 8: Clean Up
 
 After delivering the review, shut down all agents and delete the team. Agents persist learnings via their local memory directories — they do not need to stay alive for context retention.
 

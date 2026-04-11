@@ -1,5 +1,5 @@
 {
   "name": "djenriquez-core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Claude Code plugin collection by @djenriquez — spec review, issue-to-spec, PR feedback handling, self-review loop, and PR digest"
 }
