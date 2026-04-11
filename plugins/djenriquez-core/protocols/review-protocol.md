@@ -39,7 +39,7 @@ Format: `[taxonomy-label/P0-P3] Section/file:line — Description`. For blockers
 ## Comment Framing
 
 - Questions over statements: "What happens when X?" NOT "This is wrong"
-- Personal perspective: "I find this unclear because..." NOT "This is wrong"
+- Personal perspective: "I find this unclear because..." NOT "This is unclear"
 - Focus on the content, not the author: "This section does X" NOT "You forgot X"
 - No diminishing language: never "simply," "just," "obviously," "clearly"
 - Brief: at most 1 paragraph body per finding

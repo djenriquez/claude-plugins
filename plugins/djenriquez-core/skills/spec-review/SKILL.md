@@ -294,7 +294,7 @@ Construct the debate prompt with:
 > <full spec text>
 >
 > ## Synthesized Review
-> <full Phase 3 output �� all findings, priorities, and verdict>
+> <full Phase 3 output — all findings, priorities, and verdict>
 >
 > ## Challenge Questions
 > 1. Which findings are false positives — flagging something that isn't actually a problem?

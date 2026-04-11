@@ -25,7 +25,7 @@ Construct a debate prompt containing:
 ### Codex (if available)
 
 1. Start with `mcp__codex__codex(prompt: <debate prompt>)`
-2. Continue via `mcp__codex__codex-reply` until convergence.
+2. Continue via `mcp__codex__codex-reply` until convergence or **5 rounds maximum**.
 3. **Convergence check** after each reply — all three must be "no" to stop:
    - Did this turn surface a new finding or angle?
    - Did either position change?
