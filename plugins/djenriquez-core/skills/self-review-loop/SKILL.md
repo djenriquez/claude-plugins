@@ -24,6 +24,10 @@ allowed-tools:
   - Agent
   - Skill
   - AskUserQuestion
+  - ToolSearch
+mcpServers:
+  - codex
+  - gemini-cli
 ---
 
 # Self-Review Loop
@@ -250,7 +254,72 @@ Increment `turn` by 1 and go back to Step 2a.
 
 ---
 
-## Step 3: Final Summary
+## Step 3: MCP Cross-Model Debate (conditional)
+
+After the review loop completes, stress-test the final state of the PR with external models. This catches issues that the Claude Code reviewer may have consistently missed across all turns, or changes that were incorrectly skipped.
+
+**Skip this step if no MCPs are available.**
+
+### 3a. Discover and execute debates
+
+Read `protocols/mcp-debate.md` (find via `Glob(pattern: "**/protocols/mcp-debate.md", path: "~/.claude/plugins")`). Follow the discovery and execution instructions. If no MCPs are available, skip to Step 4.
+
+### 3b. Gather context and debate prompt
+
+Collect the material the MCPs need:
+
+```
+gh pr diff <N>
+```
+
+Construct the debate prompt with:
+
+> You are performing a final code review of a PR that has already been through multiple rounds of automated review and fixes. Your job is adversarial: find what the reviewer consistently missed, identify changes that were incorrectly skipped, and surface any regressions introduced by the fixes themselves.
+>
+> ## PR Diff
+> <full current diff>
+>
+> ## Last Review Verdict
+> <verdict and findings from the final review turn>
+>
+> ## Changes Applied Across All Turns
+> <changelog summary>
+>
+> ## Feedback Skipped Across All Turns
+> <all skipped items with reasons>
+>
+> ## Challenge Questions
+> 1. What bugs, logic errors, or correctness issues remain in the diff that the reviewer never caught?
+> 2. Which skipped findings were actually worth addressing — was the skip justification wrong?
+> 3. Did any of the fixes introduce new issues (regressions, inconsistencies, subtle behavior changes)?
+> 4. Are there cross-cutting concerns (error handling patterns, naming consistency, test coverage) that no single-turn reviewer would catch?
+> 5. Is the code ready to merge, or are there remaining issues that warrant another fix?
+
+### 3c. Triage and apply MCP feedback
+
+Evaluate each point using the same triage criteria from Step 2d:
+
+- **Address** if it identifies a real bug, logic error, correctness issue, or a skipped finding that was genuinely worth fixing
+- **Skip** if it's subjective, out-of-scope, or based on a misunderstanding of the code
+
+For findings you address:
+1. Read the file, make the change via `Edit`
+2. Run tests if a test runner was detected earlier (Step 2f)
+3. If any files were changed, commit and push:
+
+```
+git add <files>
+git commit -m "Address MCP cross-model review feedback
+
+- <summary of change 1>
+- <summary of change 2>
+..."
+git push
+```
+
+Record all MCP-sourced changes and skips in the changelog under a "Cross-Model Debate" section.
+
+## Step 4: Final Summary
 
 After the loop terminates, present a comprehensive summary to the user.
 
@@ -281,6 +350,14 @@ After the loop terminates, present a comprehensive summary to the user.
 
 - <finding summary> — <why it was skipped> (turn N)
 - ...
+
+### Cross-Model Debate (if conducted)
+
+- **Models consulted**: [Codex, Gemini, both, or "skipped — no MCPs available"]
+- **Findings surfaced**: <count>
+- **Addressed**: <count> — <brief summary>
+- **Skipped**: <count> — <brief summary>
+- **Commit**: <SHA> (or "no changes")
 
 ### Final Review State
 
