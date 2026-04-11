@@ -260,18 +260,11 @@ After the review loop completes, stress-test the final state of the PR with exte
 
 **Skip this step if no MCPs are available.**
 
-### 3a. Discover available MCPs
+### 3a. Discover and execute debates
 
-Use `ToolSearch` to probe for debate partners:
+Read `protocols/mcp-debate.md` (find via `Glob(pattern: "**/protocols/mcp-debate.md", path: "~/.claude/plugins")`). Follow the discovery and execution instructions. If no MCPs are available, skip to Step 4.
 
-```
-ToolSearch(query: "codex", max_results: 3)
-ToolSearch(query: "gemini", max_results: 3)
-```
-
-If neither returns results, skip to Step 4.
-
-### 3b. Gather context for debate
+### 3b. Gather context and debate prompt
 
 Collect the material the MCPs need:
 
@@ -279,15 +272,7 @@ Collect the material the MCPs need:
 gh pr diff <N>
 ```
 
-Also prepare:
-- The last review output (from the final turn of Step 2)
-- The changelog summary (all changes applied and all feedback skipped across turns)
-
-### 3c. Conduct debates
-
-For each available MCP, submit the PR for adversarial review. Run sequentially — the second debate benefits from the first.
-
-**Prompt structure** (adapt for each MCP's tool interface):
+Construct the debate prompt with:
 
 > You are performing a final code review of a PR that has already been through multiple rounds of automated review and fixes. Your job is adversarial: find what the reviewer consistently missed, identify changes that were incorrectly skipped, and surface any regressions introduced by the fixes themselves.
 >
@@ -310,15 +295,7 @@ For each available MCP, submit the PR for adversarial review. Run sequentially �
 > 4. Are there cross-cutting concerns (error handling patterns, naming consistency, test coverage) that no single-turn reviewer would catch?
 > 5. Is the code ready to merge, or are there remaining issues that warrant another fix?
 
-**Codex** (if available):
-1. Start with `mcp__codex__codex(prompt: <debate prompt>)`
-2. Continue via `mcp__codex__codex-reply` until convergence — stop when a reply surfaces no new findings and no positions change.
-
-**Gemini** (if available):
-1. Call `mcp__gemini-cli__ask-gemini(prompt: <debate prompt>)`
-2. If substantial points need follow-up, call again with targeted questions. Otherwise one round suffices.
-
-### 3d. Triage and apply MCP feedback
+### 3c. Triage and apply MCP feedback
 
 Evaluate each point using the same triage criteria from Step 2d:
 
