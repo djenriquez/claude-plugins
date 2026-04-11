@@ -19,6 +19,10 @@ allowed-tools:
   - SendMessage
   - WebSearch
   - WebFetch
+  - ToolSearch
+mcpServers:
+  - codex
+  - gemini-cli
 ---
 
 # Spec Review Agent Team
@@ -277,7 +281,76 @@ Before delivering, verify you are NOT:
 - Framing opinions as mandates
 - Bikeshedding on wording when meaning is clear
 
-## Step 7: Clean Up
+## Step 7: MCP Cross-Model Debate (conditional)
+
+After synthesizing the agent team's review, stress-test the findings with external models before delivering. This surfaces blind spots, miscalibrated severity, and findings the Claude Code agent team may have collectively missed.
+
+**Skip this step if no MCPs are available.**
+
+### 7a. Discover available MCPs
+
+Use `ToolSearch` to probe for debate partners:
+
+```
+ToolSearch(query: "codex", max_results: 3)
+ToolSearch(query: "gemini", max_results: 3)
+```
+
+Record which are available. If neither returns results, skip to Step 8.
+
+### 7b. Conduct debates
+
+For each available MCP, submit the synthesized review for adversarial critique. Run debates sequentially — the second debate benefits from the first's findings.
+
+**Prompt structure** (adapt for each MCP's tool interface):
+
+> You are reviewing a spec review produced by a team of specialist reviewers. Your job is adversarial: find what they got wrong, what they missed, and where severity is miscalibrated.
+>
+> ## Original Spec
+> <full spec text>
+>
+> ## Synthesized Review
+> <full Phase 3 output — all findings, priorities, and verdict>
+>
+> ## Challenge Questions
+> 1. Which findings are false positives — flagging something that isn't actually a problem?
+> 2. What did the reviewers collectively miss? What gaps, risks, or ambiguities did no agent catch?
+> 3. Which findings have miscalibrated severity — blockers that should be suggestions, or suggestions that should be blockers?
+> 4. Does the verdict (APPROVED / REVISIONS NEEDED) follow from the findings, or is it too lenient/strict?
+> 5. Are any findings redundant despite deduplication — same concern wearing different hats?
+
+**Codex** (if available):
+1. Start with `mcp__codex__codex(prompt: <debate prompt>)`
+2. Continue via `mcp__codex__codex-reply` until convergence — stop when a reply surfaces no new findings, no position changes, and no unexplored angles remain.
+
+**Gemini** (if available):
+1. Call `mcp__gemini-cli__ask-gemini(prompt: <debate prompt>)`
+2. If the response raises substantial points that need follow-up, call again with targeted follow-up questions. Otherwise, one round is sufficient.
+
+### 7c. Incorporate debate findings
+
+Evaluate each point raised by the MCPs against the same finding qualification bar used by the agent team:
+
+- **False positive challenges**: If an MCP convincingly argues a finding is wrong, withdraw it. Note: `[withdrawn after <Codex|Gemini> challenge]`.
+- **New findings**: If an MCP surfaces a genuinely missed concern that passes the qualification bar, add it to the appropriate tier. Tag: `[surfaced by <Codex|Gemini>]`.
+- **Severity adjustments**: If an MCP makes a compelling case for re-prioritization, adjust. Tag: `[severity adjusted per <Codex|Gemini>]`.
+- **Redundancy**: If an MCP identifies findings that are the same concern, merge them.
+
+After incorporating, re-check the verdict:
+- If Critical findings were added → verdict may need to change to REVISIONS NEEDED
+- If all Critical findings were withdrawn → verdict may need to change to APPROVED
+- If no Critical findings changed → verdict stands
+
+Add a brief "Cross-Model Debate" section to the output, after the verdict:
+
+```
+### Cross-Model Debate
+- **Models consulted**: [Codex, Gemini, or both]
+- **Findings modified**: [count] ([list: withdrawn, added, severity-adjusted])
+- **Verdict impact**: [unchanged / changed from X to Y]
+```
+
+## Step 8: Clean Up
 
 After delivering the review, shut down all agents and delete the team. Agents persist learnings via their local memory directories — they do not need to stay alive for context retention.
 
