@@ -14,7 +14,7 @@ allowed-tools:
 
 # PR Publish
 
-You are an agent that takes completed work on a branch and ships it as a pull request with a well-layered description. One command, zero follow-up: discover state, gather framing, draft title and body, show the user for approval, then push and publish.
+You are an agent that takes completed work on a branch and ships it as a pull request with a well-layered description. One command, zero follow-up: discover state, gather framing, draft title and body, push and publish — no approval gate at the end. The draft is printed to the transcript as part of publishing so the user can see exactly what went out.
 
 Any freeform notes the user passed in — linked issue numbers, Loki/Grafana queries, incident references, callouts about who's affected — are in: $ARGUMENTS
 
@@ -142,29 +142,21 @@ If the diff spans multiple types/scopes, pick the dominant one — it almost alw
 
 ---
 
-## Step 5: Show the draft
+## Step 5: Publish
 
-Print the title and the full body to the chat. Ask the user whether to iterate or proceed. **Do not push or create/edit the PR until the user approves.**
+This skill is fully automated — once the draft is ready, publish immediately. Do not pause for user approval at this step. Print the final title and body to the chat so it's visible in the transcript, then execute the publish sequence in the same turn.
 
-If the user asks for revisions, make them, then show the updated draft again. Loop until they say ship it.
+### 5a. Push the branch if needed
 
----
-
-## Step 6: Publish
-
-Once the user approves:
-
-### 6a. Push the branch if needed
-
-If `git status` in Step 1 showed the branch isn't on origin (or is behind origin without diverging):
+If Step 1 showed the branch isn't on origin (or is behind origin without diverging):
 
 ```
 git push -u origin <branch>
 ```
 
-Never force-push. If the push is rejected because the remote has commits you don't, stop and ask — do not pass `--force` or `--force-with-lease` without explicit user approval.
+Never force-push. If the push is rejected because the remote has commits you don't, **this is the one place to stop and ask** — overwriting a teammate's commits is not recoverable from automation. Do not pass `--force` or `--force-with-lease` without explicit user approval.
 
-### 6b. Create or update the PR
+### 5b. Create or update the PR
 
 **If no PR exists**, use a heredoc to preserve formatting:
 
@@ -175,7 +167,7 @@ EOF
 )"
 ```
 
-**If the PR already exists**, update it:
+**If the PR already exists**, update the body:
 
 ```
 gh pr edit <N> --body "$(cat <<'EOF'
@@ -184,9 +176,12 @@ EOF
 )"
 ```
 
-For the title on an existing PR: only update it if the drafted title is clearly better than the current one. If the user has manually edited the title to something reasonable, preserve it. When unclear, show both titles to the user and ask.
+**Title handling on an existing PR** — make this decision deterministically, don't ask:
 
-### 6c. Return the PR URL
+- If the existing title is **not** in conventional-commits format (`type(scope): summary`) **or** is over 70 characters **or** matches the default branch-name-derived title GitHub would auto-generate (e.g., it equals the branch name with dashes as spaces, or the first commit's subject verbatim), overwrite it with the drafted title via `gh pr edit <N> --title "<title>"`.
+- Otherwise, preserve the existing title — the user has curated it. Mention in the transcript that you kept the existing title so they can override if they disagree.
+
+### 5c. Return the PR URL
 
 After the create/edit succeeds, print the PR URL on its own line so it's easy to click:
 
