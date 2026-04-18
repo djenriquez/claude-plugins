@@ -212,12 +212,15 @@ These are the load-bearing constraints. Violations of these rules produce the ex
 
 ---
 
-## Reference example
+## What "good" looks like
 
-This skill's layering was designed from the rewrite of `coreweave/aviato#798` — *"fix(runner): correlate sandboxNotFound responses + widen namespace lookup"*. If you have access to that repo, fetch the final state to mirror the structure:
+A well-layered PR body for a non-trivial fix satisfies these tests:
 
-```
-gh pr view 798 --repo coreweave/aviato --json title,body
-```
+- **Summary readable by an outsider.** Hand the first two paragraphs to a teammate who has never opened this repo. If they can't explain, in their own words, who was affected and roughly why, the Summary is too internal — strip the symbol names and reframe from the user's perspective.
+- **What changed distinguishes the primary fix.** The labeled bold line names the single change that closes the reported bug. Secondary hardening lives in a separate bulleted group. A reviewer skimming should be able to answer "which change do I need to scrutinize most?" in five seconds.
+- **Root cause cites evidence, not guesses.** It names specific files, functions, or proto fields, and points to a concrete artifact — a log pattern with match counts, a dashboard panel with a timestamp, a reproduction command. "We think it was a race" is not a root cause.
+- **How it's fixed is grouped by theme, not by commit.** Themes like *Correlation*, *Structured error signalling*, *Shared budget*, *Observability* let a reviewer skip areas outside their expertise. A commit-by-commit walkthrough forces them to linearize.
+- **Before/after table earns its rows.** Each row is a distinct failure mode. If two rows would describe the same failure from slightly different angles, collapse them or drop the table.
+- **Test plan separates done from pending.** `[x]` items are verifiable right now (CI, unit tests, local lint). `[ ]` items are concrete post-deploy checks the reviewer or oncall can actually execute — not "monitor in prod".
 
-Pay attention to how the Summary avoids internal names, how "What changed" separates the primary fix from related hardening, how the Root cause section cites specific file/function names and evidence, and how the Before/after table captures distinct failure modes in one row each.
+If a draft fails any of these tests, revise before asking the user to approve.
