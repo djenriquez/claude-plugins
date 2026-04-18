@@ -112,6 +112,8 @@ Set up tracking for the loop:
 - `all_skipped`: empty list — accumulates ALL skipped feedback across ALL turns
 - `stop_reason`: null — will be set when the loop terminates
 - `files_changed_per_turn`: empty map of turn → set of files changed — used for oscillation detection
+- `cleanliness_findings_per_turn`: empty map of turn → list of {pattern, file, action, summary} — records every finding from the cleanliness pass
+- `cleanliness_iterations_per_turn`: empty map of turn → integer — how many rounds the cleanliness pass took this turn
 
 ---
 
@@ -188,13 +190,66 @@ For each finding, record:
 
 ### 2e. Apply changes
 
+Before writing any code this turn, load `references/cleanliness-standards.md` (find via `Glob(pattern: "**/skills/self-review-loop/references/cleanliness-standards.md", path: "~/.claude/plugins")`). Internalize the three patterns the code you write must not violate:
+
+- **No duplication** — when three or more call sites share the same shape, extract a helper rather than copying the block
+- **Return early** — use guard clauses so the happy path stays at the outermost level of indentation, not buried four `if`s deep
+- **Atomic functions** — one nameable responsibility per function, roughly screen-sized; split anything that does "X and Y and Z"
+
+Getting these right up front saves iterations of the cleanliness pass in Step 2f.
+
 For each finding you are addressing:
 
 1. Read the referenced file
 2. Make the code change using `Edit`
 3. Verify the change makes sense in context
+4. Self-check against the three patterns above — if the new code violates one, fix it now rather than waiting for Step 2f to flag it
 
-### 2f. Verify changes
+### 2f. Cleanliness pass (blocking)
+
+If Step 2e changed no files this turn, skip this step and proceed to Step 2g.
+
+The orchestrator just wrote code. That code must not introduce duplication, deep nesting, or long functions — the three patterns defined in `references/cleanliness-standards.md`. A dedicated fresh agent reviews only the diff produced this turn and surfaces violations. Unlike the main code review, these findings are **blocking**: they are fixed in the same turn, not triaged away.
+
+**Capture the turn's diff:**
+
+```
+git diff
+```
+
+This shows the uncommitted working-tree changes — everything Step 2e wrote. Reviewing this narrow diff ensures the agent flags only code this skill introduced, not pre-existing patterns in surrounding context.
+
+**Spawn the cleanliness agent** (fresh context, no knowledge of prior turns):
+
+```
+Agent(
+  description: "Cleanliness pass turn N",
+  prompt: "Review ONLY the diff below for violations of the three patterns in references/cleanliness-standards.md (find via Glob pattern **/skills/self-review-loop/references/cleanliness-standards.md under ~/.claude/plugins): duplication, deep nesting, long functions. Ignore everything else — no general readability, style, naming, or taste comments. Do not flag pre-existing code visible in surrounding context; flag only what this diff introduced or materially changed.\n\nDIFF:\n<paste git diff output here>\n\nReturn findings using the output format specified at the end of cleanliness-standards.md. If the diff is clean, return 'No findings'.",
+  mode: "bypassPermissions"
+)
+```
+
+**Apply findings:**
+
+Every finding must be addressed unless applying it would:
+
+- Introduce a regression (the fix is objectively incompatible with the code's correctness)
+- Contradict a review finding already applied this turn or in a previous turn (resolve by picking the objectively better shape and record the conflict)
+- Require changes outside the scope of the PR
+
+Skipping for any other reason is not permitted here. "It reads fine" and "this is a nit" are not valid justifications — the cleanliness pass only flags patterns that are blocking by design. When a finding is skipped, record the specific reason under `cleanliness_findings_per_turn` with action `skipped`.
+
+For each addressed finding: read the file, apply the Edit, move on. Record action `addressed` with a one-line summary.
+
+**Re-run with an iteration cap:**
+
+Cleanliness fixes sometimes introduce fresh cleanliness issues (an extracted helper grows too long, a flattened block exposes duplication). Re-run the cleanliness agent against the new diff until it returns "No findings" or `max_cleanliness_iterations` (3) is reached.
+
+If the cap is hit with findings still outstanding, record them under `cleanliness_findings_per_turn` with action `skipped` and reason `"hit cleanliness iteration cap"`, then proceed to Step 2g. Hitting this cap repeatedly across turns is a signal that the orchestrator's fix style is fighting the standards — inspect the diff manually rather than looping further.
+
+Increment `cleanliness_iterations_per_turn[turn]` with each round.
+
+### 2g. Verify changes
 
 After applying all changes for this turn, run the project's test suite and/or linter if one exists. Detect the test runner by checking for common patterns:
 
@@ -216,9 +271,9 @@ If a test runner is found, run it. If tests fail:
 
 If no test runner is detected, skip this step and note "no test suite detected" in the turn summary.
 
-### 2g. Commit and push
+### 2h. Commit and push
 
-If any files were changed:
+If any files were changed (across Step 2e and/or Step 2f):
 
 ```
 git add <file1> <file2> ...
@@ -227,28 +282,36 @@ git add <file1> <file2> ...
 ```
 git commit -m "Address code review feedback (turn N)
 
+Review feedback:
 - <summary of change 1>
 - <summary of change 2>
+
+Cleanliness pass:
+- <summary of cleanliness fix 1>
+- <summary of cleanliness fix 2>
 ..."
 ```
+
+Omit the "Cleanliness pass" section when the cleanliness pass produced no changes. A single commit per turn is the convention — do not split review-driven and cleanliness-driven edits into separate commits.
 
 ```
 git push
 ```
 
-If no files were changed (all findings skipped or minor-only), skip the commit.
+If no files were changed (all findings skipped or minor-only, and cleanliness pass also had no findings), skip the commit.
 
-### 2h. Update the changelog
+### 2i. Update the changelog
 
 Append this turn's results to the changelog and skipped lists. Record:
 - Turn number
-- Number of findings in each tier
-- What was addressed (with file references)
-- What was skipped (with reasons)
+- Number of findings in each tier (from the main review)
+- What was addressed from the main review (with file references)
+- What was skipped from the main review (with reasons)
+- Cleanliness pass activity: iterations taken, findings surfaced, each with action (addressed or skipped-with-reason)
 - Commit SHA (if a commit was made)
-- Update `files_changed_per_turn[turn]` with the set of files modified this turn
+- Update `files_changed_per_turn[turn]` with the set of files modified this turn (union of review and cleanliness edits)
 
-### 2i. Increment and continue
+### 2j. Increment and continue
 
 Increment `turn` by 1 and go back to Step 2a.
 
@@ -304,7 +367,7 @@ Evaluate each point using the same triage criteria from Step 2d:
 
 For findings you address:
 1. Read the file, make the change via `Edit`
-2. Run tests if a test runner was detected earlier (Step 2f)
+2. Run tests if a test runner was detected earlier (Step 2g)
 3. If any files were changed, commit and push:
 
 ```
@@ -336,6 +399,7 @@ After the loop terminates, present a comprehensive summary to the user.
 - **Findings**: <X Critical, Y High, Z Medium, W Low>
 - **Addressed**: <count>
 - **Skipped**: <count>
+- **Cleanliness pass**: <N findings across M iterations; K addressed, L skipped> (or "skipped — no Step 2e changes")
 - **Commit**: <SHA> (or "no changes")
 
 #### Turn 2
@@ -349,6 +413,16 @@ After the loop terminates, present a comprehensive summary to the user.
 ### All Feedback Skipped
 
 - <finding summary> — <why it was skipped> (turn N)
+- ...
+
+### All Cleanliness Fixes
+
+- [pattern] [file:line] — <what was changed> (turn N)
+- ...
+
+### Cleanliness Findings Skipped
+
+- [pattern] [file:line] — <specific reason, e.g. "conflicts with review finding from turn 1" or "hit cleanliness iteration cap"> (turn N)
 - ...
 
 ### Cross-Model Debate (if conducted)
