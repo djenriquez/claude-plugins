@@ -5,7 +5,7 @@
     {
       "name": "djenriquez-core",
       "source": "./plugins/djenriquez-core",
-      "description": "Spec review, issue-to-spec, PR feedback handling, self-review loop, and PR digest"
+      "description": "Spec review, issue-to-spec, PR feedback handling, self-review loop, PR digest, and PR publication"
     }
   ]
 }
