@@ -199,25 +199,13 @@ Adapt this structure to the specific problem — not every section is needed for
 
 ### 3b.5 Structural sanity pass
 
-Before presenting the spec, validate the proposed package/module layout against the structural standards. Bad structure baked into a spec is the most expensive kind to remove later — once code is written into a misshapen package, every consumer's import paths cement the shape.
+Before presenting the spec, validate the proposed package/module layout against the structural standards. Bad structure baked into a spec is the most expensive kind to remove later — once code is written, every consumer's import paths cement the shape.
 
-**Load standards:**
+Load `structure-standards.md` via `Glob(pattern: "**/djenriquez-core/references/structure-standards.md", path: "~/.claude/plugins")` and `Read` it. If the target codebase is Go (`go.mod` at the repo root), also load `structure-standards-go.md` from the same directory.
 
-```
-Glob(pattern: "**/djenriquez-core/references/structure-standards.md", path: "~/.claude/plugins")
-```
+For each new package or module the spec introduces, the Design section should make the shape legible — what the package is responsible for, what it exposes, and why it lives apart from neighboring packages — concrete enough that a reviewer can challenge each. If a package fails any standard, redesign before presenting. If multiple new packages are proposed, sketch the dependency graph so cycles are visible.
 
-`Read` the file. If the target codebase is Go (look for `go.mod` at the repo root via `Glob`), also load `structure-standards-go.md` from the same directory.
-
-**Walk the proposed design.** For every new package or module the spec introduces, the spec must explicitly state:
-
-1. **Single responsibility** — describe its purpose in one sentence with no "and" clauses
-2. **Public surface** — list the exported types, functions, or interfaces consumers will use
-3. **Why not in an existing package** — what makes this a separate package rather than additions to neighboring code
-
-If a proposed package fails the standards (Pattern 1's "and" test, looks like a grab-bag, mixes layers, etc.), redesign before presenting. Update the Design section so each package's responsibility, surface, and dependencies are explicit. Skip this sub-step only if the spec introduces no new packages or modules.
-
-For specs that propose multiple new packages, briefly note the dependency graph between them in the Design section so cycles are visible at the spec level.
+Skip this sub-step entirely if the spec introduces no new packages or modules.
 
 ### 3c. Present the spec
 

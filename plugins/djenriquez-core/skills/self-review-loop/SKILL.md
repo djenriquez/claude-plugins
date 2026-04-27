@@ -207,43 +207,25 @@ For each finding you are addressing:
 3. Verify the change makes sense in context
 4. Self-check against the three patterns above — if the new code violates one, fix it now rather than waiting for Step 2g to flag it
 
-### 2f. Structural pass (conditional, blocking only when boundaries move)
+### 2f. Structural pass (conditional)
 
-The cleanliness pass that follows handles intra-function patterns (duplication, deep nesting, long functions). This pass handles **inter-package shape**: responsibility, cohesion, public surface, layering, and encapsulation. Run it only when this turn's edits *moved package boundaries* — for pure within-file edits the structural pass is unnecessary.
+The cleanliness pass that follows handles intra-function patterns. This pass handles **inter-package shape**: responsibility, cohesion, public surface, layering, encapsulation. Run it when this turn's edits moved package boundaries — created or deleted directories, moved files between packages, introduced new top-level namespaces. For pure within-file edits, set `structural_iterations_per_turn[turn]` to 0 and proceed to Step 2g.
 
-**Detect boundary movement.** Inspect the diff for any of the following:
-
-- New files that establish a new package or module (a new directory, or the first file in a previously empty directory)
-- Deleted files that empty out a package
-- Files moved between packages
-- New top-level directories under existing namespaces (`pkg/`, `internal/`, `cmd/`, top-level for non-Go projects)
-
-If none of these are present, set `structural_iterations_per_turn[turn]` to 0 and proceed to Step 2g.
-
-**Spawn the structural agent** (fresh context, no knowledge of prior turns):
+Spawn a fresh agent with the diff:
 
 ```
 Agent(
   description: "Structural pass turn N",
-  prompt: "Review ONLY the diff below against the patterns in references/structure-standards.md (find via Glob pattern **/djenriquez-core/references/structure-standards.md under ~/.claude/plugins). If go.mod exists at the repo root, also load and apply references/structure-standards-go.md from the same directory. Focus exclusively on inter-package shape: responsibility, cohesion, public surface, layering, boundaries. Ignore intra-function concerns (the cleanliness pass handles those). Do not flag pre-existing structure visible in surrounding context; flag only what this diff introduced or materially changed.\n\nFor each finding, label severity:\n- BLOCKING when the finding concerns a package or module that this diff INTRODUCES (newly created)\n- ADVISORY when the finding concerns existing structure that this diff modifies\n\nDIFF:\n<paste git diff output here>\n\nNEW PACKAGES INTRODUCED THIS TURN:\n<list new package paths or 'none'>\n\nReturn findings using the Structure Agent Output Format specified at the end of structure-standards.md. If the structure is sound, return 'No findings'.",
+  prompt: "Review the diff below against references/structure-standards.md (Glob: **/djenriquez-core/references/structure-standards.md under ~/.claude/plugins). If go.mod exists at the repo root, also apply references/structure-standards-go.md. Focus on inter-package shape only — leave intra-function concerns to the cleanliness pass. Flag only what the diff introduced or materially changed, not pre-existing structure visible in context.\n\nLabel each finding's severity: blocking when it concerns a package the diff INTRODUCES (newly created), advisory when it concerns existing structure the diff modifies.\n\nDIFF:\n<paste git diff>\n\nNEW PACKAGES THIS TURN:\n<list or 'none'>\n\nUse the Structure Agent Output Format from structure-standards.md. Return 'No findings' if the structure is sound.",
   mode: "bypassPermissions"
 )
 ```
 
-**Apply findings:**
+**Blocking findings** must be addressed before proceeding, or skipped with a documented reason (regression risk, out of PR scope, conflicts with a prior review fix). **Advisory findings** are recorded for the turn summary as follow-up candidates and don't gate the loop.
 
-- **Blocking findings** must be addressed in this turn before proceeding. Skipping is allowed only if applying the fix would (a) introduce a regression, (b) require changes outside the PR's scope, or (c) directly contradict a review finding already applied — record the specific reason under `structural_findings_per_turn` with action `skipped`.
-- **Advisory findings** are recorded under `structural_findings_per_turn[turn]` with action `noted`. They surface in the turn summary as candidates for a follow-up PR but do NOT gate the loop.
+If structural fixes change the diff, re-run the agent. Stop when findings stabilize, or after a few rounds — repeated thrash is a signal to inspect manually rather than keep iterating.
 
-For each addressed finding: read the file(s), apply the moves/renames/restructuring via `Edit` and shell file operations as needed, move on. Record action `addressed` with a one-line summary.
-
-**Re-run with an iteration cap:**
-
-Structural fixes (file moves, renames, splits) materially change the diff and can introduce new structural issues — a freshly split package may now have low cohesion, or a renamed file may now duplicate concerns elsewhere. Re-run the structural agent until it returns "No findings" (advisory findings don't gate re-runs) or `max_structural_iterations` (2) is reached.
-
-If the cap is hit with blocking findings outstanding, record them under `structural_findings_per_turn` with action `skipped` and reason `"hit structural iteration cap"`, then proceed to Step 2g. Repeated cap-hits across turns is a signal that the orchestrator's restructuring style is fighting the standards — inspect the diff manually rather than looping further.
-
-Increment `structural_iterations_per_turn[turn]` with each round.
+Record each finding under `structural_findings_per_turn[turn]` (pattern, path, severity, action). Increment `structural_iterations_per_turn[turn]` with each round.
 
 ### 2g. Cleanliness pass (blocking)
 
@@ -473,7 +455,7 @@ After the loop terminates, present a comprehensive summary to the user.
 
 ### Structural Findings Skipped
 
-- [pattern] [path/] — <specific reason, e.g. "out of PR scope" or "hit structural iteration cap"> (turn N)
+- [pattern] [path/] — <specific reason, e.g. "out of PR scope" or "stalled after a few rounds"> (turn N)
 - ...
 
 ### All Cleanliness Fixes

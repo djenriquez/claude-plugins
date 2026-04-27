@@ -1,13 +1,13 @@
 # Code Structure Standards
 
-Five non-negotiable patterns for how code is organized into packages and modules. Read by:
+Five patterns for how code is organized into packages and modules. Read by:
 - `/issue-to-spec` during spec authoring (Step 3b.5) — validates proposed package layout before code is written
 - `/spec-review`'s `structure-reviewer` agent — challenges structural decisions in the spec
 - `/self-review-loop`'s structural pass — catches drift when a turn's edits move package boundaries
 
 Findings carry one of two severities. **Blocking** when the spec or diff *introduces* a new package or module that violates the pattern — restructure before the shape sets. **Advisory** when modifying existing structure — recorded for follow-up but doesn't gate progress. The calling skill provides the new-vs-existing context.
 
-The bar is "the alternative is concretely better," not "could be organized differently." Use judgment when a situation doesn't map cleanly — principles matter more than thresholds.
+The bar is "the alternative is concretely better," not "could be organized differently." Use judgment — principles matter more than thresholds.
 
 For Go projects, also load `structure-standards-go.md`.
 
@@ -19,13 +19,13 @@ For Go projects, also load `structure-standards-go.md`.
 
 **Flag when:**
 - Package name or description requires "and" to be accurate (`admin and auth and audit`)
-- Package contains 3+ unrelated nameable concerns
+- Package mixes unrelated nameable concerns
 - Name is a generic catch-all: `utils`, `helpers`, `common`, `shared`, `lib`, `misc`
 - A subset of files could lift into a new package and stand alone with a clean name
 
 **Don't fix when:**
-- The two concerns are genuinely entangled — separating leaks shared state across the boundary
-- Package is small (under ~5 files) and the "second responsibility" is one helper with no other home yet
+- The concerns are genuinely entangled — separating leaks shared state across the boundary
+- Package is small and the "second responsibility" is one helper with no other home yet
 - The "second responsibility" is a low-level primitive used everywhere in the package
 
 **Example:**
@@ -183,16 +183,16 @@ The cycle dissolves; both packages depend on a smaller, more stable contract.
 ## Structure Review
 
 ### Findings
-1. **[pattern]** `path/` — <one-sentence description>
+1. **<pattern name>** `path/` — <one-sentence description>
    Severity: blocking | advisory
    Fix: <one-sentence direction>
 
-2. **[pattern]** `path/` — ...
+2. **<pattern name>** `path/` — ...
 
 (or "No findings" if the structure is sound)
 
 ### Summary
-<N findings across P patterns; X blocking, Y advisory>
+<short take>
 ```
 
-`[pattern]` is one of: `responsibility`, `cohesion`, `surface`, `layering`, `boundaries`. The orchestrator uses the `path/` reference and severity to decide which findings gate the turn vs. record for follow-up.
+Name the pattern in plain English (responsibility, cohesion, surface, layering, boundaries — or whatever fits the finding). The orchestrator keys on `path/` and severity to decide which findings gate the turn vs. record for follow-up.

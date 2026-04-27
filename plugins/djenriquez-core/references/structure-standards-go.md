@@ -49,7 +49,7 @@ u := users.Get(id)
 - Tests in package A define a mock for an interface declared in A; usually the interface should move to the consumer
 
 **Don't fix when:**
-- The interface has 3+ implementations across the codebase (genuinely shared)
+- The interface has multiple implementations across the codebase (genuinely shared)
 - The interface is a deliberate plugin contract or extension point
 
 ---
@@ -75,7 +75,7 @@ u := users.Get(id)
 
 **Flag when:**
 - `internal/` contains packages named `utils`, `common`, `shared`, `helpers`, `lib`
-- `internal/` contains 10+ packages with no clear sub-grouping
+- `internal/` accumulates many packages with no clear sub-grouping
 - A package was moved to `internal/` to fix an export problem without rethinking what it does
 
 **Don't fix when:**
