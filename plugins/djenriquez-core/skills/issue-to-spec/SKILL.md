@@ -197,6 +197,16 @@ Any remaining questions or decisions that need resolution.
 
 Adapt this structure to the specific problem — not every section is needed for every spec. Small bug fixes may only need Problem Statement, Context, Design, and Acceptance Criteria. Large features may need all sections plus additional ones.
 
+### 3b.5 Structural sanity pass
+
+Before presenting the spec, validate the proposed package/module layout against the structural standards. Bad structure baked into a spec is the most expensive kind to remove later — once code is written, every consumer's import paths cement the shape.
+
+Load `structure-standards.md` via `Glob(pattern: "**/djenriquez-core/references/structure-standards.md", path: "~/.claude/plugins")` and `Read` it. If the target codebase is Go (`go.mod` at the repo root), also load `structure-standards-go.md` from the same directory.
+
+For each new package or module the spec introduces, the Design section should make the shape legible — what the package is responsible for, what it exposes, and why it lives apart from neighboring packages — concrete enough that a reviewer can challenge each. If a package fails any standard, redesign before presenting. If multiple new packages are proposed, sketch the dependency graph so cycles are visible.
+
+Skip this sub-step entirely if the spec introduces no new packages or modules.
+
 ### 3c. Present the spec
 
 After writing the spec file, present the full spec to the user. Ask them to review it and flag anything that needs adjustment. Make any requested changes before proceeding.

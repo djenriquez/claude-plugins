@@ -93,6 +93,7 @@ Analyze the spec and select which specialists are relevant. Not every spec needs
 | 6 | operations-reviewer | Production-impacting changes. Failure modes, observability, rollback, SLO impact. |
 | 7 | scope-reviewer | L1/L2 only. Multi-team, multi-phase, or large specs. Incremental delivery, dependency risks. |
 | 8 | complexity-reviewer | L1/L2. Specs introducing new abstractions, multi-layer designs, configurable systems, or framework-like patterns. Catches premature abstraction, over-engineering, and accidental complexity. |
+| 9 | structure-reviewer | L1/L2. Specs introducing new packages/modules or restructuring existing ones. Catches misshapen package boundaries, low cohesion, leaky encapsulation, and grab-bag namespaces. Loads `references/structure-standards.md` (and the Go addendum if applicable). |
 
 For **L0**: spawn only agents 1 and 2.
 
@@ -174,6 +175,7 @@ After collecting all Phase 1 findings:
    | operations-reviewer | feasibility-reviewer |
    | scope-reviewer | product-reviewer |
    | complexity-reviewer | feasibility-reviewer |
+   | structure-reviewer | complexity-reviewer |
 
    Prioritize routing:
    - **Contradictions**: two agents disagree
