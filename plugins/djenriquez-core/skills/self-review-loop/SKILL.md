@@ -114,6 +114,8 @@ Set up tracking for the loop:
 - `files_changed_per_turn`: empty map of turn → set of files changed — used for oscillation detection
 - `cleanliness_findings_per_turn`: empty map of turn → list of {pattern, file, action, summary} — records every finding from the cleanliness pass
 - `cleanliness_iterations_per_turn`: empty map of turn → integer — how many rounds the cleanliness pass took this turn
+- `structural_findings_per_turn`: empty map of turn → list of {pattern, path, severity, action, summary} — records every finding from the structural pass (both blocking and advisory)
+- `structural_iterations_per_turn`: empty map of turn → integer — how many rounds the structural pass took this turn (0 if pass did not run)
 
 ---
 
@@ -196,18 +198,38 @@ Before writing any code this turn, load `references/cleanliness-standards.md` (f
 - **Return early** — use guard clauses so the happy path stays at the outermost level of indentation, not buried four `if`s deep
 - **Atomic functions** — one nameable responsibility per function, roughly screen-sized; split anything that does "X and Y and Z"
 
-Getting these right up front saves iterations of the cleanliness pass in Step 2f.
+Getting these right up front saves iterations of the cleanliness pass in Step 2g.
 
 For each finding you are addressing:
 
 1. Read the referenced file
 2. Make the code change using `Edit`
 3. Verify the change makes sense in context
-4. Self-check against the three patterns above — if the new code violates one, fix it now rather than waiting for Step 2f to flag it
+4. Self-check against the three patterns above — if the new code violates one, fix it now rather than waiting for Step 2g to flag it
 
-### 2f. Cleanliness pass (blocking)
+### 2f. Structural pass (conditional)
 
-If Step 2e changed no files this turn, skip this step and proceed to Step 2g.
+The cleanliness pass that follows handles intra-function patterns. This pass handles **inter-package shape**: responsibility, cohesion, public surface, layering, encapsulation. Run it when this turn's edits moved package boundaries — created or deleted directories, moved files between packages, introduced new top-level namespaces. For pure within-file edits, set `structural_iterations_per_turn[turn]` to 0 and proceed to Step 2g.
+
+Spawn a fresh agent with the diff:
+
+```
+Agent(
+  description: "Structural pass turn N",
+  prompt: "Review the diff below against references/structure-standards.md (Glob: **/djenriquez-core/references/structure-standards.md under ~/.claude/plugins). If go.mod exists at the repo root, also apply references/structure-standards-go.md. Focus on inter-package shape only — leave intra-function concerns to the cleanliness pass. Flag only what the diff introduced or materially changed, not pre-existing structure visible in context.\n\nLabel each finding's severity: blocking when it concerns a package the diff INTRODUCES (newly created), advisory when it concerns existing structure the diff modifies.\n\nDIFF:\n<paste git diff>\n\nNEW PACKAGES THIS TURN:\n<list or 'none'>\n\nUse the Structure Agent Output Format from structure-standards.md. Return 'No findings' if the structure is sound.",
+  mode: "bypassPermissions"
+)
+```
+
+**Blocking findings** must be addressed before proceeding, or skipped with a documented reason (regression risk, out of PR scope, conflicts with a prior review fix). **Advisory findings** are recorded for the turn summary as follow-up candidates and don't gate the loop.
+
+If structural fixes change the diff, re-run the agent. Stop when findings stabilize, or after a few rounds — repeated thrash is a signal to inspect manually rather than keep iterating.
+
+Record each finding under `structural_findings_per_turn[turn]` (pattern, path, severity, action). Increment `structural_iterations_per_turn[turn]` with each round.
+
+### 2g. Cleanliness pass (blocking)
+
+If Step 2e and Step 2f changed no files this turn, skip this step and proceed to Step 2h.
 
 The orchestrator just wrote code. That code must not introduce duplication, deep nesting, or long functions — the three patterns defined in `references/cleanliness-standards.md`. A dedicated fresh agent reviews only the diff produced this turn and surfaces violations. Unlike the main code review, these findings are **blocking**: they are fixed in the same turn, not triaged away.
 
@@ -217,7 +239,7 @@ The orchestrator just wrote code. That code must not introduce duplication, deep
 git diff
 ```
 
-This shows the uncommitted working-tree changes — everything Step 2e wrote. Reviewing this narrow diff ensures the agent flags only code this skill introduced, not pre-existing patterns in surrounding context.
+This shows the uncommitted working-tree changes — everything Step 2e and Step 2f wrote. Reviewing this narrow diff ensures the agent flags only code this skill introduced, not pre-existing patterns in surrounding context.
 
 **Spawn the cleanliness agent** (fresh context, no knowledge of prior turns):
 
@@ -245,11 +267,11 @@ For each addressed finding: read the file, apply the Edit, move on. Record actio
 
 Cleanliness fixes sometimes introduce fresh cleanliness issues (an extracted helper grows too long, a flattened block exposes duplication). Re-run the cleanliness agent against the new diff until it returns "No findings" or `max_cleanliness_iterations` (3) is reached.
 
-If the cap is hit with findings still outstanding, record them under `cleanliness_findings_per_turn` with action `skipped` and reason `"hit cleanliness iteration cap"`, then proceed to Step 2g. Hitting this cap repeatedly across turns is a signal that the orchestrator's fix style is fighting the standards — inspect the diff manually rather than looping further.
+If the cap is hit with findings still outstanding, record them under `cleanliness_findings_per_turn` with action `skipped` and reason `"hit cleanliness iteration cap"`, then proceed to Step 2h. Hitting this cap repeatedly across turns is a signal that the orchestrator's fix style is fighting the standards — inspect the diff manually rather than looping further.
 
 Increment `cleanliness_iterations_per_turn[turn]` with each round.
 
-### 2g. Verify changes
+### 2h. Verify changes
 
 After applying all changes for this turn, run the project's test suite and/or linter if one exists. Detect the test runner by checking for common patterns:
 
@@ -271,9 +293,9 @@ If a test runner is found, run it. If tests fail:
 
 If no test runner is detected, skip this step and note "no test suite detected" in the turn summary.
 
-### 2h. Commit and push
+### 2i. Commit and push
 
-If any files were changed (across Step 2e and/or Step 2f):
+If any files were changed (across Step 2e, Step 2f, and/or Step 2g):
 
 ```
 git add <file1> <file2> ...
@@ -286,32 +308,37 @@ Review feedback:
 - <summary of change 1>
 - <summary of change 2>
 
+Structural pass:
+- <summary of structural fix 1>
+- <summary of structural fix 2>
+
 Cleanliness pass:
 - <summary of cleanliness fix 1>
 - <summary of cleanliness fix 2>
 ..."
 ```
 
-Omit the "Cleanliness pass" section when the cleanliness pass produced no changes. A single commit per turn is the convention — do not split review-driven and cleanliness-driven edits into separate commits.
+Omit the "Structural pass" or "Cleanliness pass" sections when those passes produced no changes (or did not run). A single commit per turn is the convention — do not split review-driven, structural, and cleanliness-driven edits into separate commits.
 
 ```
 git push
 ```
 
-If no files were changed (all findings skipped or minor-only, and cleanliness pass also had no findings), skip the commit.
+If no files were changed (all findings skipped or minor-only, and the structural and cleanliness passes also had no changes), skip the commit.
 
-### 2i. Update the changelog
+### 2j. Update the changelog
 
 Append this turn's results to the changelog and skipped lists. Record:
 - Turn number
 - Number of findings in each tier (from the main review)
 - What was addressed from the main review (with file references)
 - What was skipped from the main review (with reasons)
+- Structural pass activity: whether the pass ran, iterations taken, blocking findings (each addressed or skipped-with-reason), advisory findings (noted for follow-up)
 - Cleanliness pass activity: iterations taken, findings surfaced, each with action (addressed or skipped-with-reason)
 - Commit SHA (if a commit was made)
-- Update `files_changed_per_turn[turn]` with the set of files modified this turn (union of review and cleanliness edits)
+- Update `files_changed_per_turn[turn]` with the set of files modified this turn (union of review, structural, and cleanliness edits)
 
-### 2j. Increment and continue
+### 2k. Increment and continue
 
 Increment `turn` by 1 and go back to Step 2a.
 
@@ -367,7 +394,7 @@ Evaluate each point using the same triage criteria from Step 2d:
 
 For findings you address:
 1. Read the file, make the change via `Edit`
-2. Run tests if a test runner was detected earlier (Step 2g)
+2. Run tests if a test runner was detected earlier (Step 2h)
 3. If any files were changed, commit and push:
 
 ```
@@ -399,7 +426,8 @@ After the loop terminates, present a comprehensive summary to the user.
 - **Findings**: <X Critical, Y High, Z Medium, W Low>
 - **Addressed**: <count>
 - **Skipped**: <count>
-- **Cleanliness pass**: <N findings across M iterations; K addressed, L skipped> (or "skipped — no Step 2e changes")
+- **Structural pass**: <ran/skipped — N blocking findings, M advisory; K addressed, L skipped, P noted> (or "skipped — boundaries did not move")
+- **Cleanliness pass**: <N findings across M iterations; K addressed, L skipped> (or "skipped — no Step 2e/2f changes")
 - **Commit**: <SHA> (or "no changes")
 
 #### Turn 2
@@ -413,6 +441,21 @@ After the loop terminates, present a comprehensive summary to the user.
 ### All Feedback Skipped
 
 - <finding summary> — <why it was skipped> (turn N)
+- ...
+
+### All Structural Fixes
+
+- [pattern] [path/] — <what was changed> (turn N)
+- ...
+
+### Structural Concerns Noted (Advisory)
+
+- [pattern] [path/] — <description of concern; candidate for follow-up PR> (turn N)
+- ...
+
+### Structural Findings Skipped
+
+- [pattern] [path/] — <specific reason, e.g. "out of PR scope" or "stalled after a few rounds"> (turn N)
 - ...
 
 ### All Cleanliness Fixes
