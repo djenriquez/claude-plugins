@@ -1,0 +1,37 @@
+{
+  "name": "djenriquez-core",
+  "version": "0.7.0",
+  "description": "Agent workflow plugin collection by @djenriquez: spec review, issue-to-spec, PR feedback handling, self-review loop, PR digest, and PR publication",
+  "author": {
+    "name": "djenriquez",
+    "url": "https://github.com/djenriquez"
+  },
+  "homepage": "https://github.com/djenriquez/claude-plugins/tree/main/plugins/djenriquez-core",
+  "repository": "https://github.com/djenriquez/claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "spec-review",
+    "pull-requests",
+    "github",
+    "workflow"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "djenriquez Core",
+    "shortDescription": "Spec review, PR feedback, PR digest, and publishing workflows.",
+    "longDescription": "A collection of agent workflow skills for spec review, issue-to-spec drafting, PR feedback handling, self-review loops, PR digestion, and PR publication. The plugin preserves Claude Code metadata and adds Codex discovery metadata.",
+    "developerName": "djenriquez",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/djenriquez/claude-plugins/tree/main/plugins/djenriquez-core",
+    "defaultPrompt": [
+      "Review this spec",
+      "Digest this pull request",
+      "Publish this branch as a PR"
+    ],
+    "brandColor": "#2563EB"
+  }
+}

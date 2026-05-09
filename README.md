@@ -1,13 +1,31 @@
-# claude-plugins
+# djenriquez agent plugins
 
-Claude Code plugins by [@djenriquez](https://github.com/djenriquez).
+Agent workflow plugins by [@djenriquez](https://github.com/djenriquez), packaged for Claude Code and Codex.
 
 ## Installation
+
+### Claude Code
 
 ```
 /plugin marketplace add djenriquez/claude-plugins
 /plugin install djenriquez-core
 ```
+
+### Codex
+
+Codex marketplace metadata lives at:
+
+```
+.agents/plugins/marketplace.json
+```
+
+The `djenriquez-core` entry points to:
+
+```
+./plugins/djenriquez-core
+```
+
+Install `djenriquez-core` from that Codex marketplace entry after this repository is available as a Codex plugin marketplace/source.
 
 ## Skills
 
@@ -85,7 +103,7 @@ Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agen
 6. Repeats with a new fresh agent until the review comes back clean or 5 turns are reached
 7. Reports a full changelog of all changes across all turns
 
-Requires one of: `code-review` from `claude-code-marketplace` (official) or `abatilo-core` (community).
+Requires a code review skill available in the current harness. In Claude Code, that can be the `code-review` plugin or `abatilo-core`. In Codex, enable a code review skill such as `abatilo-core:code-review`.
 
 ## Acknowledgments
 

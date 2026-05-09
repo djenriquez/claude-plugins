@@ -1,0 +1,20 @@
+{
+  "name": "djenriquez-plugins",
+  "interface": {
+    "displayName": "djenriquez Plugins"
+  },
+  "plugins": [
+    {
+      "name": "djenriquez-core",
+      "source": {
+        "source": "local",
+        "path": "./plugins/djenriquez-core"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

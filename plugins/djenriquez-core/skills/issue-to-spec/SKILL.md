@@ -1,6 +1,6 @@
 ---
 name: issue-to-spec
-description: "Orchestrates the full investigation-to-spec workflow starting from a GitHub issue. Phase 1: explore the issue and codebase to build context. Phase 2: interview the user from a problem-solving perspective. Phase 3: author a spec and publish it to docs/specs/. Phase 4: assess complexity and conditionally launch /spec-review. Phase 5: harden the spec with review feedback."
+description: "Orchestrates the full investigation-to-spec workflow starting from a GitHub issue. Phase 1: explore the issue and codebase to build context. Phase 2: interview the user from a problem-solving perspective. Phase 3: author a spec and publish it to docs/specs/. Phase 4: assess complexity and conditionally launch the spec-review skill. Phase 5: harden the spec with review feedback."
 argument-hint: "#N (GitHub issue number)"
 disable-model-invocation: false
 allowed-tools:
@@ -26,7 +26,7 @@ Your workflow:
 2. Interview the user to fill gaps
 3. Author and publish a spec
 4. Assess complexity
-5. Conditionally run /spec-review to harden the spec
+5. Conditionally run the spec-review skill to harden the spec
 6. Incorporate feedback and deliver the final spec
 
 The target issue is: $ARGUMENTS
@@ -64,7 +64,7 @@ Check for linked PRs — if any exist, pull their diffs as implementation contex
 
 Using the issue as your guide, explore the relevant parts of the codebase:
 
-- Use `Glob` and `Grep` to find files, modules, and APIs related to the issue
+- Search and glob files to find modules and APIs related to the issue
 - Read key files to understand the current architecture and conventions
 - Identify existing patterns, data models, and interfaces that the solution must integrate with
 - Look for existing specs or design docs in `docs/` that provide architectural context
@@ -103,16 +103,16 @@ The interview should focus on:
 
 Before starting the interview, provide a context preamble so the interview is grounded in what you learned in Step 1. Frame the interview around the specific open questions, design decisions, and ambiguities you identified.
 
-**Primary path**: Invoke the `/interview` skill (requires the `abatilo-core` plugin). The `/interview` skill takes no arguments — it reads the current conversation context. Before invoking it, ensure the conversation contains your Step 1 summary (problem statement, affected system areas, open questions, and design decisions needed). This grounds the interview in the right context.
+**Primary path**: Invoke the interview skill (in slash-command harnesses, `/interview`; in Codex, the installed `abatilo-core:interview` skill). The interview skill takes no arguments — it reads the current conversation context. Before invoking it, ensure the conversation contains your Step 1 summary (problem statement, affected system areas, open questions, and design decisions needed). This grounds the interview in the right context.
 
-The `/interview` skill conducts a structured, in-depth interview using `AskUserQuestion` and produces a summary of decisions when complete.
+The interview skill conducts a structured, in-depth interview using the host's structured question capability and produces a summary of decisions when complete.
 
-> **Note on sub-skill permissions**: `/interview` and `/spec-review` run as independent skill invocations with their own `allowed-tools`. They are not constrained by this skill's tool list.
+> **Note on sub-skill permissions**: The interview and spec-review skills run as independent skill invocations with their own tool/capability declarations. They are not constrained by this skill's tool list.
 
-**Fallback**: If `/interview` is not available (skill invocation fails or the user does not have `abatilo-core` installed), conduct the interview yourself using `AskUserQuestion` directly. Follow this process:
+**Fallback**: If the interview skill is not available (skill invocation fails or the user does not have `abatilo-core` installed), conduct the interview yourself using the host's structured question capability directly. Follow this process:
 
 1. Review the open questions and ambiguities from Step 1
-2. Group them into rounds of 1-3 related questions using `AskUserQuestion`
+2. Group them into rounds of 1-3 related questions using the same structured question mechanism
 3. For each answer, dig deeper — don't accept surface-level responses. Probe for edge cases, failure modes, and unstated assumptions
 4. Continue until all interview topics above are covered and you have enough detail to write a complete spec
 5. Summarize the full set of decisions and answers back to the user for confirmation
@@ -135,7 +135,7 @@ Derive a descriptive, kebab-case filename from the issue title:
 
 ### 3b. Write the spec
 
-Author a comprehensive spec at `docs/specs/<filename>.md` that synthesizes everything from the issue exploration and interview. The `Write` tool creates parent directories automatically, so `docs/specs/` will be created if it doesn't exist. The spec must be a standalone document — a reader who hasn't seen the issue or interview should understand the full picture.
+Author a comprehensive spec at `docs/specs/<filename>.md` that synthesizes everything from the issue exploration and interview. Use the host's file-writing capability; create `docs/specs/` first if the harness does not create parent directories automatically. The spec must be a standalone document — a reader who hasn't seen the issue or interview should understand the full picture.
 
 #### Spec structure
 
@@ -201,7 +201,7 @@ Adapt this structure to the specific problem — not every section is needed for
 
 Before presenting the spec, validate the proposed package/module layout against the structural standards. Bad structure baked into a spec is the most expensive kind to remove later — once code is written, every consumer's import paths cement the shape.
 
-Load `structure-standards.md` via `Glob(pattern: "**/djenriquez-core/references/structure-standards.md", path: "~/.claude/plugins")` and `Read` it. If the target codebase is Go (`go.mod` at the repo root), also load `structure-standards-go.md` from the same directory.
+Load `references/structure-standards.md` from the installed `djenriquez-core` plugin root and read it. If the target codebase is Go (`go.mod` at the repo root), also load `references/structure-standards-go.md` from the same directory.
 
 For each new package or module the spec introduces, the Design section should make the shape legible — what the package is responsible for, what it exposes, and why it lives apart from neighboring packages — concrete enough that a reviewer can challenge each. If a package fails any standard, redesign before presenting. If multiple new packages are proposed, sketch the dependency graph so cycles are visible.
 
@@ -251,7 +251,7 @@ State your complexity assessment and the reasoning to the user:
 
 If **trivial**: tell the user the spec will be finalized as-is (skip to Step 6 — write the final spec).
 
-If **complex**: tell the user you will now run `/spec-review` to harden the spec, then proceed to Step 5.
+If **complex**: tell the user you will now run the spec-review skill to harden the spec, then proceed to Step 5.
 
 ---
 
@@ -261,15 +261,18 @@ If **complex**: tell the user you will now run `/spec-review` to harden the spec
 
 ### 5a. Launch spec review
 
-**Primary path**: Invoke the `/spec-review` skill, passing the spec file path:
+**Primary path**: Invoke the spec-review skill, passing the spec file path:
 
+Slash-command form:
 ```
 /spec-review docs/specs/<filename>.md
 ```
 
+Codex form: invoke the installed `djenriquez-core:spec-review` skill with `docs/specs/<filename>.md` as the argument.
+
 Wait for the review to complete. The review will produce findings organized by priority tier (Critical, High, Medium, Low) and a verdict (APPROVED or REVISIONS NEEDED).
 
-**Fallback**: If `/spec-review` is not available (skill invocation fails or the plugin is not installed), inform the user that the spec review could not be run automatically. Present the spec as-is and suggest the user install the `spec-review` plugin or manually review the spec for the concerns listed in Step 5b. Then proceed to Step 6 with the current spec.
+**Fallback**: If the spec-review skill is not available (skill invocation fails or the plugin is not installed), inform the user that the spec review could not be run automatically. Present the spec as-is and suggest the user install the `spec-review` plugin or manually review the spec for the concerns listed in Step 5b. Then proceed to Step 6 with the current spec.
 
 ### 5b. Process review feedback
 
