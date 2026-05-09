@@ -125,7 +125,7 @@ For files with significant changes in the diff, read the full file (not just the
 - Files that appear to be the "core" of the change (vs. test files or config)
 - Files where the diff hunks alone don't tell the full story
 
-Use `Read` to examine these files. Limit this to the most important 5-8 files to avoid excessive context gathering.
+Examine these files through the host's file-reading capability. Limit this to the most important 5-8 files to avoid excessive context gathering.
 
 ---
 
@@ -244,9 +244,9 @@ Then wait for questions. When answering:
 
 ### What this skill is NOT
 
-- **Not a code review.** You don't produce findings, verdicts, or approval recommendations. Use `/code-review` or `/self-review-loop` for that.
-- **Not a feedback handler.** You don't address review comments or push code. Use `/handle-pr-feedback` for that.
-- **Not a spec review.** You don't evaluate whether the design is sound. Use `/spec-review` for that.
+- **Not a code review.** You don't produce findings, verdicts, or approval recommendations. Use the code-review or self-review-loop skill for that.
+- **Not a feedback handler.** You don't address review comments or push code. Use the handle-pr-feedback skill for that.
+- **Not a spec review.** You don't evaluate whether the design is sound. Use the spec-review skill for that.
 
 ### When this skill is most useful
 
