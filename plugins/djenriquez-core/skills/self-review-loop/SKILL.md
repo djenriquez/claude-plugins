@@ -32,6 +32,13 @@ mcpServers:
 
 # Self-Review Loop
 
+## Harness Adapter
+
+This workflow is harness-agnostic. Use the local harness primitives that provide the same orchestration behavior:
+
+- **Claude Code**: `Agent(...)` launches fresh sub-agents. `mode: "bypassPermissions"` is a Claude-specific convenience for read-only review sub-agents and nested review teams.
+- **Codex**: Treat the user's invocation of `self-review-loop` as authorization to use Codex sub-agents for this loop. `Agent(...)` maps to `spawn_agent`. Use `fork_context: false` for the main review sub-agent so each review starts with no prior turn context. Use `agent_type: "default"` when the sub-agent needs to invoke the discovered `review_skill`; use `agent_type: "explorer"` for structural and cleanliness passes that only inspect a provided diff. Collect each sub-agent's final output with `wait_agent`. Codex tool execution follows the current Codex sandbox and approval behavior; do not require `bypassPermissions`.
+
 You are an orchestrator that iteratively improves a PR by running fresh, unbiased code reviews and applying feedback. Each review is performed by a sub-agent with NO prior context — it sees only the PR diff, ensuring unbiased feedback with no anchoring to previous decisions.
 
 The target PR is: $ARGUMENTS
@@ -83,8 +90,8 @@ If both attempts found no match, stop immediately and inform the user:
 /self-review-loop requires a code review skill, but none was found.
 
 Install one of the following:
-  a code-review skill for the current harness
-  abatilo-core with its code-review skill
+  Claude Code: a `code-review` plugin or `/plugin install abatilo-core`
+  Codex: a Codex plugin/skill that provides code review, such as `abatilo-core:code-review`
 ```
 
 ### 1c. Fetch PR details
@@ -127,7 +134,9 @@ Repeat the following for each turn until a stop condition is met.
 
 **CRITICAL**: The sub-agent must have NO context from previous turns. This prevents bias — the reviewer should evaluate the code as-is, not relative to what it used to be. Each turn gets a completely fresh agent that knows nothing about prior feedback or changes.
 
-Spawn the sub-agent, using the `review_skill` discovered in Step 1b:
+Spawn the sub-agent, using the `review_skill` discovered in Step 1b.
+
+Claude Code:
 
 ```
 Agent(
@@ -137,9 +146,19 @@ Agent(
 )
 ```
 
-The sub-agent will invoke the code review skill, which may in turn spawn its own agent team (via `TeamCreate`). The code review skill handles its own team cleanup, so when the sub-agent returns, any review team should already be torn down along with the sub-agent itself.
+Codex:
 
-> **Trust assumption**: The sub-agent uses `bypassPermissions` to avoid dozens of permission prompts across multiple turns and nested agent spawns. This means the sub-agent — and any agents it spawns — run without user approval for each tool call. This is safe because code review skills only read code (Glob, Grep, Read, git diff) and send messages between their own agents. They do not edit files, push code, or make external calls. The orchestrator itself (this skill) is the one that edits files and pushes — it runs under the skill's own `allowed-tools` list, NOT under `bypassPermissions`. If the upstream code review skill changes to include destructive operations, this trust boundary would need revisiting.
+```
+spawn_agent(
+  agent_type: "default",
+  fork_context: false,
+  message: "Run <review_skill> against PR #<N>. Do not add any additional context or commentary — just run the skill and report back the full review output exactly as produced."
+)
+```
+
+The sub-agent will invoke the code review skill, which may in turn spawn its own review team or sub-agents. The code review skill handles its own cleanup where the harness supports it, so when the sub-agent returns, any nested review team should already be complete along with the sub-agent itself.
+
+> **Trust boundary**: Review sub-agents and any nested reviewer agents are expected to be read-only: they read code, inspect diffs, and exchange findings. They must not edit files, push code, or make destructive changes. In Claude Code, `bypassPermissions` is used only for those read-only review sub-agents to avoid repeated prompts. In Codex, sub-agents follow the current Codex sandbox and approval behavior. The orchestrator itself is the component that edits files, runs verification, commits, and pushes.
 
 ### 2b. Capture the review output
 
@@ -211,13 +230,25 @@ For each finding you are addressing:
 
 The cleanliness pass that follows handles intra-function patterns. This pass handles **inter-package shape**: responsibility, cohesion, public surface, layering, encapsulation. Run it when this turn's edits moved package boundaries — created or deleted directories, moved files between packages, introduced new top-level namespaces. For pure within-file edits, set `structural_iterations_per_turn[turn]` to 0 and proceed to Step 2g.
 
-Spawn a fresh agent with the diff:
+Spawn a fresh agent with the diff.
+
+Claude Code:
 
 ```
 Agent(
   description: "Structural pass turn N",
   prompt: "Review the diff below against references/structure-standards.md from the installed djenriquez-core plugin root. If go.mod exists at the repo root, also apply references/structure-standards-go.md from the same directory. Focus on inter-package shape only — leave intra-function concerns to the cleanliness pass. Flag only what the diff introduced or materially changed, not pre-existing structure visible in context.\n\nLabel each finding's severity: blocking when it concerns a package the diff INTRODUCES (newly created), advisory when it concerns existing structure the diff modifies.\n\nDIFF:\n<paste git diff>\n\nNEW PACKAGES THIS TURN:\n<list or 'none'>\n\nUse the Structure Agent Output Format from structure-standards.md. Return 'No findings' if the structure is sound.",
   mode: "bypassPermissions"
+)
+```
+
+Codex:
+
+```
+spawn_agent(
+  agent_type: "explorer",
+  fork_context: false,
+  message: "Review the diff below against references/structure-standards.md from the installed djenriquez-core plugin root. If go.mod exists at the repo root, also apply references/structure-standards-go.md from the same directory. Focus on inter-package shape only — leave intra-function concerns to the cleanliness pass. Flag only what the diff introduced or materially changed, not pre-existing structure visible in context.\n\nLabel each finding's severity: blocking when it concerns a package the diff INTRODUCES (newly created), advisory when it concerns existing structure the diff modifies.\n\nDIFF:\n<paste git diff>\n\nNEW PACKAGES THIS TURN:\n<list or 'none'>\n\nUse the Structure Agent Output Format from structure-standards.md. Return 'No findings' if the structure is sound."
 )
 ```
 
@@ -241,13 +272,25 @@ git diff
 
 This shows the uncommitted working-tree changes — everything Step 2e and Step 2f wrote. Reviewing this narrow diff ensures the agent flags only code this skill introduced, not pre-existing patterns in surrounding context.
 
-**Spawn the cleanliness agent** (fresh context, no knowledge of prior turns):
+**Spawn the cleanliness agent** (fresh context, no knowledge of prior turns).
+
+Claude Code:
 
 ```
 Agent(
   description: "Cleanliness pass turn N",
   prompt: "Review ONLY the diff below for violations of the three patterns in skills/self-review-loop/references/cleanliness-standards.md from the installed djenriquez-core plugin root: duplication, deep nesting, long functions. Ignore everything else — no general readability, style, naming, or taste comments. Do not flag pre-existing code visible in surrounding context; flag only what this diff introduced or materially changed.\n\nDIFF:\n<paste git diff output here>\n\nReturn findings using the output format specified at the end of cleanliness-standards.md. If the diff is clean, return 'No findings'.",
   mode: "bypassPermissions"
+)
+```
+
+Codex:
+
+```
+spawn_agent(
+  agent_type: "explorer",
+  fork_context: false,
+  message: "Review ONLY the diff below for violations of the three patterns in skills/self-review-loop/references/cleanliness-standards.md from the installed djenriquez-core plugin root: duplication, deep nesting, long functions. Ignore everything else — no general readability, style, naming, or taste comments. Do not flag pre-existing code visible in surrounding context; flag only what this diff introduced or materially changed.\n\nDIFF:\n<paste git diff output here>\n\nReturn findings using the output format specified at the end of cleanliness-standards.md. If the diff is clean, return 'No findings'."
 )
 ```
 
