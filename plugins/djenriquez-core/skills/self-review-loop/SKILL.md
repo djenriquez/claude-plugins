@@ -389,7 +389,7 @@ Increment `turn` by 1 and go back to Step 2a.
 
 ## Step 3: MCP Cross-Model Debate (conditional)
 
-After the review loop completes, stress-test the final state of the PR with external models. This catches issues that the Claude Code reviewer may have consistently missed across all turns, or changes that were incorrectly skipped.
+After the review loop completes, stress-test the final state of the PR with external models. This catches issues that the primary reviewer may have consistently missed across all turns, or changes that were incorrectly skipped.
 
 **Skip this step if no MCPs are available.**
 
@@ -513,7 +513,7 @@ After the loop terminates, present a comprehensive summary to the user.
 
 ### Cross-Model Debate (if conducted)
 
-- **Models consulted**: [Codex, Gemini, both, or "skipped — no MCPs available"]
+- **Models consulted**: [model names, or "skipped — no MCPs available"]
 - **Findings surfaced**: <count>
 - **Addressed**: <count> — <brief summary>
 - **Skipped**: <count> — <brief summary>

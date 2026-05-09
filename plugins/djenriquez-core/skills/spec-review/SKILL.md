@@ -324,9 +324,9 @@ Construct the debate prompt with:
 
 Evaluate each MCP point against the same finding qualification bar:
 
-- **False positive challenges**: Withdraw if convincing. Tag: `[withdrawn after <Codex|Gemini> challenge]`.
-- **New findings**: Add if they pass the qualification bar. Tag: `[surfaced by <Codex|Gemini>]`.
-- **Severity adjustments**: Adjust if compelling. Tag: `[severity adjusted per <Codex|Gemini>]`.
+- **False positive challenges**: Withdraw if convincing. Tag: `[withdrawn after <model name> challenge]`.
+- **New findings**: Add if they pass the qualification bar. Tag: `[surfaced by <model name>]`.
+- **Severity adjustments**: Adjust if compelling. Tag: `[severity adjusted per <model name>]`.
 - **Redundancy**: Merge if an MCP identifies same-concern duplicates.
 
 Re-check the verdict if Critical findings were added or withdrawn.
@@ -335,7 +335,7 @@ Add a "Cross-Model Debate" section to the output:
 
 ```
 ### Cross-Model Debate
-- **Models consulted**: [Codex, Gemini, or both]
+- **Models consulted**: [model names, or "skipped — no MCPs available"]
 - **Findings modified**: [count] ([list: withdrawn, added, severity-adjusted])
 - **Verdict impact**: [unchanged / changed from X to Y]
 ```
