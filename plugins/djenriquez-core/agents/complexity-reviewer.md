@@ -22,10 +22,10 @@ The team lead will provide the risk lane, context, and content (spec text or dif
 
 ## Review Phases
 
-**Phase 1 — Specialist Review + Self-Critique / Codex Debate**
+**Phase 1 — Specialist Review + Self-Critique / External Model Debate**
 Conduct your domain-specific review. Then:
 - For spec reviews: rigorously self-critique your findings (L1/L2 only — skip for L0).
-- For code reviews: stress-test your findings through adversarial debate with Codex MCP (L1/L2 only — skip for L0).
+- For code reviews: stress-test your findings through adversarial external model debate (L1/L2 only — skip for L0 or when no external model MCP is available).
 
 The team lead's prompt will indicate which review type this is.
 
@@ -109,16 +109,16 @@ For each finding, ask yourself:
 
 After self-critique, note which findings were strengthened, modified, or withdrawn.
 
-## Codex Debate (Code reviews, L1/L2 only — skip for L0)
+## External Model Debate (Code reviews, L1/L2 only — skip for L0)
 
-After your specialist review, stress-test your findings through adversarial debate with Codex.
+After your specialist review, stress-test your findings through adversarial debate with an external model when one is available.
 
 ### Process
 
-0. **Load tools**: Use `ToolSearch` with query `"codex"` to load `mcp__codex__codex` and `mcp__codex__codex-reply`.
-1. **Start thread**: Call `mcp__codex__codex` with your Phase 1 findings, the diff context, and your opening questions (listed below).
-2. **Debate**: Continue via `mcp__codex__codex-reply`. Each turn must include substantive challenge, not acknowledgment.
-3. **Convergence**: After each Codex reply, evaluate:
+0. **Load tools**: Use `ToolSearch` to find available external model debate tools. Prefer `mcp__codex__codex` and `mcp__codex__codex-reply` when available; otherwise use an equivalent external-model MCP. If none is available, perform written self-critique and note that external debate was skipped.
+1. **Start thread**: Call the chosen external model MCP with your Phase 1 findings, the diff context, and your opening questions (listed below).
+2. **Debate**: Continue with the chosen provider's reply mechanism. Each turn must include substantive challenge, not acknowledgment.
+3. **Convergence**: After each external model reply, evaluate:
    - Did this turn surface a new finding or angle?
    - Did either position change?
    - Are there unexplored areas relevant to the content?
@@ -152,7 +152,7 @@ Respond to all cross-review messages promptly and substantively.
 
 ## Output
 
-After completing your specialist review and self-critique/Codex debate (if applicable), send your findings to the team lead via `SendMessage`. Structure:
+After completing your specialist review and self-critique/external debate (if applicable), send your findings to the team lead via `SendMessage`. Structure:
 
 1. **Findings list** — Each finding includes:
    - Classification (taxonomy label + priority, e.g. `blocker/P0`)
@@ -160,7 +160,7 @@ After completing your specialist review and self-critique/Codex debate (if appli
    - Description (what's unnecessarily complex, the simpler alternative, and trade-offs)
    - Agent stance: "must fix" / "fix now" or "can defer", with 1-sentence rationale
    - Self-critique status (spec review, L1/L2 only): "confirmed" / "modified" / "withdrawn" with brief note
-   - Codex stance (code review, L1/L2 only): "fix now" or "can defer", with 1-sentence rationale
+   - External debate stance (code review, L1/L2 only): "fix now" or "can defer", with 1-sentence rationale
 2. **Overall assessment** — "complexity is proportional" or "unnecessarily complex". Proportional = the design uses the minimum complexity needed for the problem.
 
 After sending, wait for cross-review messages or shutdown from the lead. Do not exit on your own.
@@ -189,7 +189,7 @@ KEY QUESTION: **"What is the simplest thing that could work here?"** If the simp
 
 DO NOT: confuse "unfamiliar" with "unnecessarily complex," demand simplification of genuinely hard problems, flag well-established patterns as over-engineering, suggest removing error handling or validation at system boundaries, penalize the author for building something robust when robustness is warranted.
 
-## Codex Debate Opening Questions (Code reviews, L1/L2 only)
+## External Debate Opening Questions (Code reviews, L1/L2 only)
 
 1. "Here's what I flagged as unnecessarily complex. For each, what's the strongest argument that this complexity is genuinely warranted — that the simpler version would actually fail in practice?"
 2. "What complexity did I MISS? What parts did I accept that should be simpler?"

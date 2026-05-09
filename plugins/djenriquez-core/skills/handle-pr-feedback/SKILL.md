@@ -181,7 +181,7 @@ Read the full comment, its discussion thread, the referenced file, and the surro
 If addressing the comment:
 
 1. Read the referenced file
-2. Make the code change using `Edit`
+2. Make the code change with the host's file-editing capability
 3. Verify the change makes sense in context — read surrounding code if needed
 4. Track the change for the commit message
 

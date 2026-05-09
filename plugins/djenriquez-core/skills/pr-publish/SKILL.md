@@ -70,7 +70,7 @@ A good PR description answers three questions the diff alone can't:
 
 **Only ask about things that would materially change the framing.** If the diff is self-evidently a one-liner doc fix, you don't need observability evidence. Use judgment.
 
-When asking, prefer a single batched question over a back-and-forth. Use `AskUserQuestion` so the user can fill all blanks at once.
+When asking, prefer a single batched question over a back-and-forth. Use the host's structured question capability when available so the user can fill all blanks at once.
 
 ---
 
