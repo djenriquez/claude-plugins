@@ -27,6 +27,14 @@ mcpServers:
 
 # Spec Review Agent Team
 
+## Harness Adapter
+
+This workflow is harness-agnostic. Use the local harness primitives that provide the same orchestration behavior:
+
+- **Claude Code**: `TeamCreate` / `TeamDelete` create and clean up the review team. `TaskCreate`, `TaskUpdate`, `TaskList`, and `TaskGet` track work. `Task(...)` spawns custom reviewers by `subagent_type`, and `SendMessage` carries Phase 1 findings and Phase 2 challenges.
+- **Codex**: Treat the user's invocation of `spec-review` as authorization to use Codex sub-agents for this review workflow. `TeamCreate` / `TeamDelete` are bookkeeping only; track the selected reviewers in your plan or local notes. `Task(...)` maps to `spawn_agent`; use `agent_type: "explorer"` for read-only specialist review agents. `SendMessage` maps to sub-agent final answers collected with `wait_agent`; for Phase 2 challenges, use `send_input` when a reviewer must respond after its initial answer. `TaskCreate`, `TaskUpdate`, `TaskList`, and `TaskGet` map to `update_plan` or local orchestration notes.
+- **Codex reviewer prompts**: Because Codex may not register Claude custom agent definitions, include the relevant `agents/<reviewer>.md` instructions in each sub-agent prompt along with `protocols/review-protocol.md`, the risk lane, spec context, related codebase context, and the full spec text.
+
 **YOU MUST SPAWN AN AGENT TEAM.** Do NOT review the spec yourself. You are the team lead — your job is orchestration, not review.
 
 Your workflow:
@@ -114,19 +122,23 @@ Read the file found. This protocol text will be included in every agent's task p
 
 ### 3b. Create the team
 
+In harnesses with explicit team tools, create the team:
+
 ```
 TeamCreate(team_name: "spec-review-<short-identifier>")
 ```
 
+In Codex, treat the team name as bookkeeping in your plan or local orchestration notes.
+
 ### 3c. Create tasks for each selected agent
 
-For each selected agent, call `TaskCreate` with subject, description, and activeForm.
+For each selected agent, call `TaskCreate` with subject, description, and activeForm when the harness supports it. In Codex, track the same task state in `update_plan` or local orchestration notes.
 
 ### 3d. Spawn all agents in a SINGLE message
 
 Each specialist has a custom agent definition (in `agents/`) with its specialist instructions and persistent memory. The shared review protocol (taxonomy, qualification, self-critique, cross-review, output format) is injected via the task prompt.
 
-Spawn using `subagent_type` matching the agent name:
+In Claude Code, spawn using `subagent_type` matching the agent name:
 
 ```
 Task(
@@ -140,7 +152,9 @@ Task(
 
 Repeat for every selected agent — all `Task` calls in ONE message.
 
-After spawning, use `TaskUpdate` to set `owner` on each task to the corresponding agent name.
+In Codex, spawn one `explorer` sub-agent per selected reviewer with `spawn_agent`. Include that reviewer's `agents/<reviewer>.md` content in the prompt, followed by the same dynamic prompt content shown above.
+
+After spawning, use `TaskUpdate` to set `owner` on each task to the corresponding agent name when the harness supports it. In Codex, record the owner in `update_plan` or local orchestration notes.
 
 **CRITICAL**: Each agent's prompt MUST contain the full review protocol AND the full spec text. Agents cannot see either unless you include them in their prompt.
 
@@ -149,10 +163,10 @@ After spawning, use `TaskUpdate` to set `owner` on each task to the correspondin
 Agents work in parallel:
 1. Each agent conducts its specialist review of the spec
 2. Each agent self-critiques findings to harden them (L1/L2 only)
-3. Each agent sends hardened findings to you via `SendMessage`
+3. Each agent sends hardened findings to you via `SendMessage` or returns them as its final sub-agent answer
 4. Each agent then goes idle, waiting for Phase 2
 
-Wait for **all** agents to report. Messages are delivered automatically — you do not need to poll.
+Wait for **all** agents to report. In Claude Code, messages are delivered automatically. In Codex, collect sub-agent outputs with `wait_agent`.
 
 **Error recovery**: If an agent fails or crashes, re-spawn it with the same prompt and reassign its task.
 
@@ -183,7 +197,7 @@ After collecting all Phase 1 findings:
    - **Domain overlap**: a finding where another specialist has relevant expertise
    - **High-severity findings** (blockers and P0/P1 risks) that deserve a second opinion
 
-2. **Route challenges** via `SendMessage` to the best-positioned agent. Include the original finding, its source agent, and what you want challenged.
+2. **Route challenges** via `SendMessage` or Codex `send_input` to the best-positioned agent. Include the original finding, its source agent, and what you want challenged.
 
 3. **Collect responses**: the challenged agent evaluates and responds. Max 1 challenge round per finding.
 
@@ -328,7 +342,7 @@ Add a "Cross-Model Debate" section to the output:
 
 ## Step 8: Clean Up
 
-After delivering the review, shut down all agents and delete the team. Agents persist learnings via their local memory directories — they do not need to stay alive for context retention.
+After delivering the review, close or delete agents and teams when the harness supports it. If the harness only supports local bookkeeping, stop tracking the team after all final outputs are collected. Agents persist learnings through the harness's normal memory behavior; they do not need to stay alive for context retention.
 
 ## Calibration Principles
 
