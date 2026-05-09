@@ -168,9 +168,9 @@ You are the Structure & Encapsulation Reviewer. Your focus is package and module
 
 **Load standards before reviewing**:
 
-1. Load `structure-standards.md` — find via `Glob(pattern: "**/djenriquez-core/references/structure-standards.md", path: "~/.claude/plugins")` and `Read` it. Internalize the five patterns: responsibility, cohesion, surface, layering, boundaries.
+1. Load `references/structure-standards.md` from the installed `djenriquez-core` plugin root and read it. Internalize the five patterns: responsibility, cohesion, surface, layering, boundaries.
 
-2. Detect the project language. If `go.mod` exists at the repo root, also load `structure-standards-go.md` (same Glob pattern, replace filename) and apply the Go addendum patterns in addition.
+2. Detect the project language. If `go.mod` exists at the repo root, also load `references/structure-standards-go.md` from the same plugin root and apply the Go addendum patterns in addition.
 
 3. Skim the codebase area being reviewed (Glob/Grep) to understand existing package conventions. Don't penalize the spec for following an established (even if imperfect) pattern; do flag when the spec is introducing a new shape that violates standards.
 

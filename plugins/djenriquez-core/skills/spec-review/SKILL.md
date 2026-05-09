@@ -106,7 +106,8 @@ State which agents you're spawning and why before proceeding.
 Before spawning agents, read the shared review protocol that governs all specialists:
 
 ```
-Glob(pattern: "**/protocols/review-protocol.md", path: "~/.claude/plugins")
+Find the installed `djenriquez-core` plugin root, then read:
+protocols/review-protocol.md
 ```
 
 Read the file found. This protocol text will be included in every agent's task prompt.
@@ -284,7 +285,7 @@ After synthesizing the agent team's review, stress-test the findings with extern
 
 ### 7a. Discover and execute debates
 
-Read `protocols/mcp-debate.md` (find via `Glob(pattern: "**/protocols/mcp-debate.md", path: "~/.claude/plugins")`). Follow the discovery and execution instructions.
+Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the discovery and execution instructions.
 
 ### 7b. Debate prompt
 

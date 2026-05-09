@@ -53,14 +53,14 @@ Any other format is not supported. If the argument doesn't match these patterns,
 
 ### 1b. Pre-flight: discover the code review skill
 
-Before doing anything else, determine which code review skill is available. Check for skill files on disk rather than spawning agents — this is lightweight and avoids the cost of executing the skill just to test availability.
+Before doing anything else, determine which code review skill is available. Use the current harness's skill discovery first (for example, registered slash skills or listed Codex skills). If discovery is unavailable, check installed plugin roots on disk rather than spawning agents — this is lightweight and avoids the cost of executing the skill just to test availability.
 
-**Attempt 1 — Official `code-review` plugin** (from `claude-code-marketplace`):
+**Attempt 1 — `code-review` skill**:
 
-Use `Glob` to search for the skill file:
+Use harness skill discovery or search installed plugin roots for the skill file:
 
 ```
-Glob(pattern: "**/skills/code-review/SKILL.md", path: "~/.claude/plugins")
+**/skills/code-review/SKILL.md
 ```
 
 If a match is found, set `review_skill` to `code-review` and proceed to Step 1c.
@@ -70,7 +70,7 @@ If a match is found, set `review_skill` to `code-review` and proceed to Step 1c.
 If Attempt 1 found no match, search for the namespaced variant:
 
 ```
-Glob(pattern: "**/abatilo-core/*/skills/code-review/SKILL.md", path: "~/.claude/plugins")
+**/abatilo-core/**/skills/code-review/SKILL.md
 ```
 
 If a match is found, set `review_skill` to `abatilo-core:code-review` and proceed to Step 1c.
@@ -83,8 +83,8 @@ If both attempts found no match, stop immediately and inform the user:
 /self-review-loop requires a code review skill, but none was found.
 
 Install one of the following:
-  claude plugin install code-review@claude-code-marketplace    (official)
-  /plugin install abatilo-core                                 (community)
+  a code-review skill for the current harness
+  abatilo-core with its code-review skill
 ```
 
 ### 1c. Fetch PR details
@@ -192,7 +192,7 @@ For each finding, record:
 
 ### 2e. Apply changes
 
-Before writing any code this turn, load `references/cleanliness-standards.md` (find via `Glob(pattern: "**/skills/self-review-loop/references/cleanliness-standards.md", path: "~/.claude/plugins")`). Internalize the three patterns the code you write must not violate:
+Before writing any code this turn, load `skills/self-review-loop/references/cleanliness-standards.md` from the installed `djenriquez-core` plugin root. Internalize the three patterns the code you write must not violate:
 
 - **No duplication** — when three or more call sites share the same shape, extract a helper rather than copying the block
 - **Return early** — use guard clauses so the happy path stays at the outermost level of indentation, not buried four `if`s deep
@@ -216,7 +216,7 @@ Spawn a fresh agent with the diff:
 ```
 Agent(
   description: "Structural pass turn N",
-  prompt: "Review the diff below against references/structure-standards.md (Glob: **/djenriquez-core/references/structure-standards.md under ~/.claude/plugins). If go.mod exists at the repo root, also apply references/structure-standards-go.md. Focus on inter-package shape only — leave intra-function concerns to the cleanliness pass. Flag only what the diff introduced or materially changed, not pre-existing structure visible in context.\n\nLabel each finding's severity: blocking when it concerns a package the diff INTRODUCES (newly created), advisory when it concerns existing structure the diff modifies.\n\nDIFF:\n<paste git diff>\n\nNEW PACKAGES THIS TURN:\n<list or 'none'>\n\nUse the Structure Agent Output Format from structure-standards.md. Return 'No findings' if the structure is sound.",
+  prompt: "Review the diff below against references/structure-standards.md from the installed djenriquez-core plugin root. If go.mod exists at the repo root, also apply references/structure-standards-go.md from the same directory. Focus on inter-package shape only — leave intra-function concerns to the cleanliness pass. Flag only what the diff introduced or materially changed, not pre-existing structure visible in context.\n\nLabel each finding's severity: blocking when it concerns a package the diff INTRODUCES (newly created), advisory when it concerns existing structure the diff modifies.\n\nDIFF:\n<paste git diff>\n\nNEW PACKAGES THIS TURN:\n<list or 'none'>\n\nUse the Structure Agent Output Format from structure-standards.md. Return 'No findings' if the structure is sound.",
   mode: "bypassPermissions"
 )
 ```
@@ -246,7 +246,7 @@ This shows the uncommitted working-tree changes — everything Step 2e and Step 
 ```
 Agent(
   description: "Cleanliness pass turn N",
-  prompt: "Review ONLY the diff below for violations of the three patterns in references/cleanliness-standards.md (find via Glob pattern **/skills/self-review-loop/references/cleanliness-standards.md under ~/.claude/plugins): duplication, deep nesting, long functions. Ignore everything else — no general readability, style, naming, or taste comments. Do not flag pre-existing code visible in surrounding context; flag only what this diff introduced or materially changed.\n\nDIFF:\n<paste git diff output here>\n\nReturn findings using the output format specified at the end of cleanliness-standards.md. If the diff is clean, return 'No findings'.",
+  prompt: "Review ONLY the diff below for violations of the three patterns in skills/self-review-loop/references/cleanliness-standards.md from the installed djenriquez-core plugin root: duplication, deep nesting, long functions. Ignore everything else — no general readability, style, naming, or taste comments. Do not flag pre-existing code visible in surrounding context; flag only what this diff introduced or materially changed.\n\nDIFF:\n<paste git diff output here>\n\nReturn findings using the output format specified at the end of cleanliness-standards.md. If the diff is clean, return 'No findings'.",
   mode: "bypassPermissions"
 )
 ```
@@ -352,7 +352,7 @@ After the review loop completes, stress-test the final state of the PR with exte
 
 ### 3a. Discover and execute debates
 
-Read `protocols/mcp-debate.md` (find via `Glob(pattern: "**/protocols/mcp-debate.md", path: "~/.claude/plugins")`). Follow the discovery and execution instructions. If no MCPs are available, skip to Step 4.
+Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the discovery and execution instructions. If no MCPs are available, skip to Step 4.
 
 ### 3b. Gather context and debate prompt
 
