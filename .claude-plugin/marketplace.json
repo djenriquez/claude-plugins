@@ -5,7 +5,7 @@
     {
       "name": "djenriquez-core",
       "source": "./plugins/djenriquez-core",
-      "description": "Spec review, issue-to-spec, PR feedback handling, self-review loop, PR digest, and PR publication"
+      "description": "Spec review, issue-to-spec, PR feedback handling, self-review loop with squashed publish commits, PR digest, PR publication, and advisory Go code-health standards"
     }
   ]
 }

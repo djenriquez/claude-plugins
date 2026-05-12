@@ -1,6 +1,6 @@
 ---
 name: self-review-loop
-description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to run a code review skill against the PR, then evaluates and applies feedback. Loops until only minor/nit feedback remains or 5 turns complete. Auto-discovers the available code review skill — prefers the official code-review plugin, falls back to abatilo-core:code-review."
+description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to run a code review skill against the PR, then evaluates and applies feedback. Loops until only minor/nit feedback remains or 5 turns complete. Keeps per-turn commits local, squashes them into one final review commit, then pushes once. Auto-discovers the available code review skill — prefers the official code-review plugin, falls back to abatilo-core:code-review."
 argument-hint: "#N or N (PR number)"
 disable-model-invocation: false
 allowed-tools:
@@ -37,7 +37,7 @@ mcpServers:
 This workflow is harness-agnostic. Use the local harness primitives that provide the same orchestration behavior:
 
 - **Claude Code**: `Agent(...)` launches fresh sub-agents. `mode: "bypassPermissions"` is a Claude-specific convenience for read-only review sub-agents and nested review teams.
-- **Codex**: Treat the user's invocation of `self-review-loop` as authorization to use Codex sub-agents for this loop. `Agent(...)` maps to `spawn_agent`. Use `fork_context: false` for the main review sub-agent so each review starts with no prior turn context. Use `agent_type: "default"` when the sub-agent needs to invoke the discovered `review_skill`; use `agent_type: "explorer"` for structural and cleanliness passes that only inspect a provided diff. Collect each sub-agent's final output with `wait_agent`. Codex tool execution follows the current Codex sandbox and approval behavior; do not require `bypassPermissions`.
+- **Codex**: Treat the user's invocation of `self-review-loop` as authorization to use Codex sub-agents for this loop. `Agent(...)` maps to `spawn_agent`. Use `fork_context: false` for the main review sub-agent so each review starts with no prior turn context. Use `agent_type: "default"` when the sub-agent needs to invoke the discovered `review_skill`; use `agent_type: "explorer"` for structural passes that only inspect a provided diff. Collect each sub-agent's final output with `wait_agent`. Codex tool execution follows the current Codex sandbox and approval behavior; do not require `bypassPermissions`.
 
 You are an orchestrator that iteratively improves a PR by running fresh, unbiased code reviews and applying feedback. Each review is performed by a sub-agent with NO prior context — it sees only the PR diff, ensuring unbiased feedback with no anchoring to previous decisions.
 
@@ -97,16 +97,25 @@ Install one of the following:
 ### 1c. Fetch PR details
 
 ```
-gh pr view <N>
+gh pr view <N> --json number,state,baseRefName,headRefName,title,body
 ```
 
-Confirm the PR is open. If merged or closed, inform the user and stop.
+Confirm the PR is open. If merged or closed, inform the user and stop. Capture the PR base branch and head branch from the PR details; later review turns need the local diff against the base branch because per-turn commits will not be pushed immediately.
 
 ### 1d. Check out the PR branch
 
 ```
 gh pr checkout <N>
 git pull
+git fetch origin <pr_base_ref>
+```
+
+After the pull, record the commit at the start of the self-review work and the upstream branch:
+
+```
+git rev-parse HEAD
+git rev-parse --abbrev-ref --symbolic-full-name @{u}
+git branch --show-current
 ```
 
 ### 1e. Initialize the loop state
@@ -115,12 +124,18 @@ Set up tracking for the loop:
 
 - `turn`: 1
 - `max_turns`: 5
+- `review_base_sha`: the `HEAD` SHA immediately after Step 1d's `git pull` — the base used when squashing local review commits
+- `upstream_ref`: the branch's tracking ref from Step 1d, usually `origin/<branch>`
+- `current_branch`: the checked-out PR branch from Step 1d
+- `pr_base_ref`: the PR's base branch from Step 1c
+- `pr_head_ref`: the PR's head branch from Step 1c
+- `local_review_commits`: empty list — accumulates local-only commits created by this skill across all turns and MCP feedback
+- `final_review_commit`: null — set after Step 4 creates the single squashed commit that is pushed
 - `changelog`: empty list — accumulates ALL changes across ALL turns
 - `all_skipped`: empty list — accumulates ALL skipped feedback across ALL turns
 - `stop_reason`: null — will be set when the loop terminates
 - `files_changed_per_turn`: empty map of turn → set of files changed — used for oscillation detection
-- `cleanliness_findings_per_turn`: empty map of turn → list of {pattern, file, action, summary} — records every finding from the cleanliness pass
-- `cleanliness_iterations_per_turn`: empty map of turn → integer — how many rounds the cleanliness pass took this turn
+- `code_health_notes`: empty list — accumulates advisory Go code-health observations that were useful but not required for this PR
 - `structural_findings_per_turn`: empty map of turn → list of {pattern, path, severity, action, summary} — records every finding from the structural pass (both blocking and advisory)
 - `structural_iterations_per_turn`: empty map of turn → integer — how many rounds the structural pass took this turn (0 if pass did not run)
 
@@ -136,12 +151,20 @@ Repeat the following for each turn until a stop condition is met.
 
 Spawn the sub-agent, using the `review_skill` discovered in Step 1b.
 
+Because per-turn commits are local until Step 4, the reviewer must review the checked-out local branch state, not the remote GitHub PR diff. Tell the sub-agent to use GitHub only for PR metadata and to use this local diff as the code under review:
+
+```
+git diff "origin/<pr_base_ref>"...HEAD
+```
+
+The PR number is metadata only for review turns. The review target is local `HEAD` against `origin/<pr_base_ref>`.
+
 Claude Code:
 
 ```
 Agent(
   description: "Code review turn N",
-  prompt: "Run /<review_skill> against PR #<N>. Do not add any additional context or commentary — just run the skill and report back the full review output exactly as produced.",
+  prompt: "Run /<review_skill> against the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Review the local diff from `git diff origin/<pr_base_ref>...HEAD`; do not use `gh pr diff <N>` as the diff source because self-review commits stay local until the final squash. Use `gh pr view <N>` only for PR metadata. Do not add any additional context or commentary — just run the skill and report back the full review output exactly as produced.",
   mode: "bypassPermissions"
 )
 ```
@@ -152,13 +175,13 @@ Codex:
 spawn_agent(
   agent_type: "default",
   fork_context: false,
-  message: "Run <review_skill> against PR #<N>. Do not add any additional context or commentary — just run the skill and report back the full review output exactly as produced."
+  message: "Run <review_skill> against the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Review the local diff from `git diff origin/<pr_base_ref>...HEAD`; do not use `gh pr diff <N>` as the diff source because self-review commits stay local until the final squash. Use `gh pr view <N>` only for PR metadata. Do not add any additional context or commentary — just run the skill and report back the full review output exactly as produced."
 )
 ```
 
 The sub-agent will invoke the code review skill, which may in turn spawn its own review team or sub-agents. The code review skill handles its own cleanup where the harness supports it, so when the sub-agent returns, any nested review team should already be complete along with the sub-agent itself.
 
-> **Trust boundary**: Review sub-agents and any nested reviewer agents are expected to be read-only: they read code, inspect diffs, and exchange findings. They must not edit files, push code, or make destructive changes. In Claude Code, `bypassPermissions` is used only for those read-only review sub-agents to avoid repeated prompts. In Codex, sub-agents follow the current Codex sandbox and approval behavior. The orchestrator itself is the component that edits files, runs verification, commits, and pushes.
+> **Trust boundary**: Review sub-agents and any nested reviewer agents are expected to be read-only: they read code, inspect diffs, and exchange findings. They must not edit files, push code, or make destructive changes. In Claude Code, `bypassPermissions` is used only for those read-only review sub-agents to avoid repeated prompts. In Codex, sub-agents follow the current Codex sandbox and approval behavior. The orchestrator itself is the component that edits files, runs verification, creates local commits, squashes them, and pushes once at the end.
 
 ### 2b. Capture the review output
 
@@ -211,24 +234,22 @@ For each finding, record:
 
 ### 2e. Apply changes
 
-Before writing any code this turn, load `skills/self-review-loop/references/cleanliness-standards.md` from the installed `djenriquez-core` plugin root. Internalize the three patterns the code you write must not violate:
+Before writing any Go code this turn, detect whether `go.mod` exists at the repo root. If it does, load `references/code-health-standards-go.md` from the installed `djenriquez-core` plugin root.
 
-- **No duplication** — when three or more call sites share the same shape, extract a helper rather than copying the block
-- **Return early** — use guard clauses so the happy path stays at the outermost level of indentation, not buried four `if`s deep
-- **Atomic functions** — one nameable responsibility per function, roughly screen-sized; split anything that does "X and Y and Z"
+Use the code-health standard to shape the code you are already changing: prefer clear control flow, behavior-preserving slices, explicit error handling, clear goroutine lifetimes, consumer-side interfaces, and package extraction based on ownership rather than aesthetics.
 
-Getting these right up front saves iterations of the cleanliness pass in Step 2g.
+The code-health standard is advisory, not a blocking gate. Do not rewrite unrelated working code solely to satisfy it. If you notice a worthwhile cleanup that is outside the current finding's scope, record it under `code_health_notes` as a follow-up suggestion instead of forcing it into this turn.
 
 For each finding you are addressing:
 
 1. Read the referenced file
 2. Make the code change using `Edit`
 3. Verify the change makes sense in context
-4. Self-check against the three patterns above — if the new code violates one, fix it now rather than waiting for Step 2g to flag it
+4. For Go code, self-check touched code against `code-health-standards-go.md`; fix local issues when the fix is low-churn and directly improves the addressed finding, otherwise record an advisory note
 
 ### 2f. Structural pass (conditional)
 
-The cleanliness pass that follows handles intra-function patterns. This pass handles **inter-package shape**: responsibility, cohesion, public surface, layering, encapsulation. Run it when this turn's edits moved package boundaries — created or deleted directories, moved files between packages, introduced new top-level namespaces. For pure within-file edits, set `structural_iterations_per_turn[turn]` to 0 and proceed to Step 2g.
+This pass handles **inter-package shape**: responsibility, cohesion, public surface, layering, encapsulation. Run it when this turn's edits moved package boundaries — created or deleted directories, moved files between packages, introduced new top-level namespaces. For pure within-file edits, set `structural_iterations_per_turn[turn]` to 0 and proceed to Step 2g.
 
 Spawn a fresh agent with the diff.
 
@@ -237,7 +258,7 @@ Claude Code:
 ```
 Agent(
   description: "Structural pass turn N",
-  prompt: "Review the diff below against references/structure-standards.md from the installed djenriquez-core plugin root. If go.mod exists at the repo root, also apply references/structure-standards-go.md from the same directory. Focus on inter-package shape only — leave intra-function concerns to the cleanliness pass. Flag only what the diff introduced or materially changed, not pre-existing structure visible in context.\n\nLabel each finding's severity: blocking when it concerns a package the diff INTRODUCES (newly created), advisory when it concerns existing structure the diff modifies.\n\nDIFF:\n<paste git diff>\n\nNEW PACKAGES THIS TURN:\n<list or 'none'>\n\nUse the Structure Agent Output Format from structure-standards.md. Return 'No findings' if the structure is sound.",
+  prompt: "Review the diff below against references/structure-standards.md from the installed djenriquez-core plugin root. If go.mod exists at the repo root, also apply references/structure-standards-go.md and use references/code-health-standards-go.md as supporting advisory guidance for package extraction. Focus on inter-package shape only. Flag only what the diff introduced or materially changed, not pre-existing structure visible in context.\n\nLabel each finding's severity: blocking when it concerns a package the diff INTRODUCES (newly created), advisory when it concerns existing structure the diff modifies.\n\nDIFF:\n<paste git diff>\n\nNEW PACKAGES THIS TURN:\n<list or 'none'>\n\nUse the Structure Agent Output Format from structure-standards.md. Return 'No findings' if the structure is sound.",
   mode: "bypassPermissions"
 )
 ```
@@ -248,7 +269,7 @@ Codex:
 spawn_agent(
   agent_type: "explorer",
   fork_context: false,
-  message: "Review the diff below against references/structure-standards.md from the installed djenriquez-core plugin root. If go.mod exists at the repo root, also apply references/structure-standards-go.md from the same directory. Focus on inter-package shape only — leave intra-function concerns to the cleanliness pass. Flag only what the diff introduced or materially changed, not pre-existing structure visible in context.\n\nLabel each finding's severity: blocking when it concerns a package the diff INTRODUCES (newly created), advisory when it concerns existing structure the diff modifies.\n\nDIFF:\n<paste git diff>\n\nNEW PACKAGES THIS TURN:\n<list or 'none'>\n\nUse the Structure Agent Output Format from structure-standards.md. Return 'No findings' if the structure is sound."
+  message: "Review the diff below against references/structure-standards.md from the installed djenriquez-core plugin root. If go.mod exists at the repo root, also apply references/structure-standards-go.md and use references/code-health-standards-go.md as supporting advisory guidance for package extraction. Focus on inter-package shape only. Flag only what the diff introduced or materially changed, not pre-existing structure visible in context.\n\nLabel each finding's severity: blocking when it concerns a package the diff INTRODUCES (newly created), advisory when it concerns existing structure the diff modifies.\n\nDIFF:\n<paste git diff>\n\nNEW PACKAGES THIS TURN:\n<list or 'none'>\n\nUse the Structure Agent Output Format from structure-standards.md. Return 'No findings' if the structure is sound."
 )
 ```
 
@@ -258,63 +279,7 @@ If structural fixes change the diff, re-run the agent. Stop when findings stabil
 
 Record each finding under `structural_findings_per_turn[turn]` (pattern, path, severity, action). Increment `structural_iterations_per_turn[turn]` with each round.
 
-### 2g. Cleanliness pass (blocking)
-
-If Step 2e and Step 2f changed no files this turn, skip this step and proceed to Step 2h.
-
-The orchestrator just wrote code. That code must not introduce duplication, deep nesting, or long functions — the three patterns defined in `references/cleanliness-standards.md`. A dedicated fresh agent reviews only the diff produced this turn and surfaces violations. Unlike the main code review, these findings are **blocking**: they are fixed in the same turn, not triaged away.
-
-**Capture the turn's diff:**
-
-```
-git diff
-```
-
-This shows the uncommitted working-tree changes — everything Step 2e and Step 2f wrote. Reviewing this narrow diff ensures the agent flags only code this skill introduced, not pre-existing patterns in surrounding context.
-
-**Spawn the cleanliness agent** (fresh context, no knowledge of prior turns).
-
-Claude Code:
-
-```
-Agent(
-  description: "Cleanliness pass turn N",
-  prompt: "Review ONLY the diff below for violations of the three patterns in skills/self-review-loop/references/cleanliness-standards.md from the installed djenriquez-core plugin root: duplication, deep nesting, long functions. Ignore everything else — no general readability, style, naming, or taste comments. Do not flag pre-existing code visible in surrounding context; flag only what this diff introduced or materially changed.\n\nDIFF:\n<paste git diff output here>\n\nReturn findings using the output format specified at the end of cleanliness-standards.md. If the diff is clean, return 'No findings'.",
-  mode: "bypassPermissions"
-)
-```
-
-Codex:
-
-```
-spawn_agent(
-  agent_type: "explorer",
-  fork_context: false,
-  message: "Review ONLY the diff below for violations of the three patterns in skills/self-review-loop/references/cleanliness-standards.md from the installed djenriquez-core plugin root: duplication, deep nesting, long functions. Ignore everything else — no general readability, style, naming, or taste comments. Do not flag pre-existing code visible in surrounding context; flag only what this diff introduced or materially changed.\n\nDIFF:\n<paste git diff output here>\n\nReturn findings using the output format specified at the end of cleanliness-standards.md. If the diff is clean, return 'No findings'."
-)
-```
-
-**Apply findings:**
-
-Every finding must be addressed unless applying it would:
-
-- Introduce a regression (the fix is objectively incompatible with the code's correctness)
-- Contradict a review finding already applied this turn or in a previous turn (resolve by picking the objectively better shape and record the conflict)
-- Require changes outside the scope of the PR
-
-Skipping for any other reason is not permitted here. "It reads fine" and "this is a nit" are not valid justifications — the cleanliness pass only flags patterns that are blocking by design. When a finding is skipped, record the specific reason under `cleanliness_findings_per_turn` with action `skipped`.
-
-For each addressed finding: read the file, apply the Edit, move on. Record action `addressed` with a one-line summary.
-
-**Re-run with an iteration cap:**
-
-Cleanliness fixes sometimes introduce fresh cleanliness issues (an extracted helper grows too long, a flattened block exposes duplication). Re-run the cleanliness agent against the new diff until it returns "No findings" or `max_cleanliness_iterations` (3) is reached.
-
-If the cap is hit with findings still outstanding, record them under `cleanliness_findings_per_turn` with action `skipped` and reason `"hit cleanliness iteration cap"`, then proceed to Step 2h. Hitting this cap repeatedly across turns is a signal that the orchestrator's fix style is fighting the standards — inspect the diff manually rather than looping further.
-
-Increment `cleanliness_iterations_per_turn[turn]` with each round.
-
-### 2h. Verify changes
+### 2g. Verify changes
 
 After applying all changes for this turn, run the project's test suite and/or linter if one exists. Detect the test runner by checking for common patterns:
 
@@ -336,9 +301,9 @@ If a test runner is found, run it. If tests fail:
 
 If no test runner is detected, skip this step and note "no test suite detected" in the turn summary.
 
-### 2i. Commit and push
+### 2h. Commit locally
 
-If any files were changed (across Step 2e, Step 2f, and/or Step 2g):
+If any files were changed (across Step 2e and/or Step 2f):
 
 ```
 git add <file1> <file2> ...
@@ -354,22 +319,16 @@ Review feedback:
 Structural pass:
 - <summary of structural fix 1>
 - <summary of structural fix 2>
-
-Cleanliness pass:
-- <summary of cleanliness fix 1>
-- <summary of cleanliness fix 2>
 ..."
 ```
 
-Omit the "Structural pass" or "Cleanliness pass" sections when those passes produced no changes (or did not run). A single commit per turn is the convention — do not split review-driven, structural, and cleanliness-driven edits into separate commits.
+Omit the "Structural pass" section when it produced no changes (or did not run). A single local commit per turn is the convention — do not split review-driven and structural edits into separate commits.
 
-```
-git push
-```
+Do **not** push here. These per-turn commits are local checkpoints only. Append the local commit SHA to `local_review_commits`; Step 4 will squash all local review commits into one final commit before pushing.
 
-If no files were changed (all findings skipped or minor-only, and the structural and cleanliness passes also had no changes), skip the commit.
+If no files were changed (all findings skipped or minor-only, and the structural pass also had no changes), skip the commit.
 
-### 2j. Update the changelog
+### 2i. Update the changelog
 
 Append this turn's results to the changelog and skipped lists. Record:
 - Turn number
@@ -377,11 +336,11 @@ Append this turn's results to the changelog and skipped lists. Record:
 - What was addressed from the main review (with file references)
 - What was skipped from the main review (with reasons)
 - Structural pass activity: whether the pass ran, iterations taken, blocking findings (each addressed or skipped-with-reason), advisory findings (noted for follow-up)
-- Cleanliness pass activity: iterations taken, findings surfaced, each with action (addressed or skipped-with-reason)
-- Commit SHA (if a commit was made)
-- Update `files_changed_per_turn[turn]` with the set of files modified this turn (union of review, structural, and cleanliness edits)
+- Code-health notes: advisory Go code-health observations recorded during this turn, if any
+- Local commit SHA (if a commit was made)
+- Update `files_changed_per_turn[turn]` with the set of files modified this turn (union of review and structural edits)
 
-### 2k. Increment and continue
+### 2j. Increment and continue
 
 Increment `turn` by 1 and go back to Step 2a.
 
@@ -402,8 +361,14 @@ Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root.
 Collect the material the MCPs need:
 
 ```
-gh pr diff <N>
+gh pr view <N> --json number,state,baseRefName,headRefName,title,body
+git fetch origin <pr_base_ref>
+git diff "origin/<pr_base_ref>"...HEAD
 ```
+
+Do not use `gh pr diff <N>` here; the remote PR will not include local self-review commits until Step 4 pushes the final squash commit.
+
+If `go.mod` exists at the repo root, also load `references/code-health-standards-go.md` from the installed `djenriquez-core` plugin root and include it in the prompt as advisory review guidance. Code-health concerns should be framed as suggestions unless they identify concrete harm.
 
 Construct the debate prompt with:
 
@@ -421,11 +386,14 @@ Construct the debate prompt with:
 > ## Feedback Skipped Across All Turns
 > <all skipped items with reasons>
 >
+> ## Go Code-Health Standard (if applicable)
+> <code-health-standards-go.md, advisory only>
+>
 > ## Challenge Questions
 > 1. What bugs, logic errors, or correctness issues remain in the diff that the reviewer never caught?
 > 2. Which skipped findings were actually worth addressing — was the skip justification wrong?
 > 3. Did any of the fixes introduce new issues (regressions, inconsistencies, subtle behavior changes)?
-> 4. Are there cross-cutting concerns (error handling patterns, naming consistency, test coverage) that no single-turn reviewer would catch?
+> 4. Are there cross-cutting concerns (error handling patterns, naming consistency, test coverage, or advisory Go code-health issues) that no single-turn reviewer would catch?
 > 5. Is the code ready to merge, or are there remaining issues that warrant another fix?
 
 ### 3c. Triage and apply MCP feedback
@@ -437,8 +405,8 @@ Evaluate each point using the same triage criteria from Step 2d:
 
 For findings you address:
 1. Read the file, make the change via `Edit`
-2. Run tests if a test runner was detected earlier (Step 2h)
-3. If any files were changed, commit and push:
+2. Run tests if a test runner was detected earlier (Step 2g)
+3. If any files were changed, commit locally:
 
 ```
 git add <files>
@@ -447,20 +415,89 @@ git commit -m "Address MCP cross-model review feedback
 - <summary of change 1>
 - <summary of change 2>
 ..."
-git push
 ```
+
+Do **not** push here. Append the local commit SHA to `local_review_commits`; Step 4 will include this commit in the final squash.
 
 Record all MCP-sourced changes and skips in the changelog under a "Cross-Model Debate" section.
 
-## Step 4: Final Summary
+## Step 4: Squash Local Review Commits and Push Once
 
-After the loop terminates, present a comprehensive summary to the user.
+This is the only step that publishes self-review changes to the remote branch. Do not push before this step.
+
+If `local_review_commits` is empty, skip the squash and push. There are no self-review changes to publish.
+
+Before squashing, require a clean working tree:
+
+```
+git status --short
+```
+
+If the working tree is not clean, either commit the remaining self-review changes locally or fix the unexpected state before continuing.
+
+Confirm the commit range to squash:
+
+```
+git log --oneline "$review_base_sha"..HEAD
+```
+
+This range must contain only commits created by this self-review-loop run. If it includes unrelated local or user commits, stop and ask before rewriting local history.
+
+Use this non-interactive soft-reset squash instead of an interactive rebase. It rewrites only local commits that have not been pushed.
+
+Squash all local review commits into one final review commit:
+
+```
+git reset --soft "$review_base_sha"
+git commit -m "Address self-review feedback
+
+Review loop:
+- <summary of addressed review feedback across turns>
+
+Structural pass:
+- <summary of structural fixes, or omit this section>
+
+Cross-model debate:
+- <summary of MCP-sourced fixes, or omit this section>
+
+Verification:
+- <test/lint command and result, or no test suite detected>"
+```
+
+Record the preliminary squashed commit SHA:
+
+```
+git rev-parse HEAD
+```
+
+Set `final_review_commit` to this SHA.
+
+Before pushing, rebase the final squashed commit onto the latest upstream branch if the remote changed while the loop was running:
+
+```
+git pull --rebase
+```
+
+If the rebase reports conflicts, resolve them, run the relevant tests again, and continue the rebase. If the rebase changes the commit SHA, rerun the relevant tests and refresh `final_review_commit` with `git rev-parse HEAD` before reporting. Never use `git push --force` or `git push --force-with-lease` for this workflow.
+
+After the final commit is squashed and rebased if needed, push once:
+
+```
+git push
+```
+
+If the push is rejected because the remote has new commits, repeat the non-force path: pull with rebase, resolve conflicts if any, rerun relevant tests, then push again.
+
+## Step 5: Final Summary
+
+After the loop terminates and the final squash/push step completes, present a comprehensive summary to the user.
 
 ```
 ## Self-Review Complete: PR #<N>
 
 **Turns completed**: <turn count>
 **Stop reason**: <"Clean review — only non-actionable feedback remaining" or "Maximum turns (5) reached" or "Oscillation detected — turns were undoing each other's changes">
+**Published commit**: <final_review_commit SHA> (or "no changes; nothing pushed")
 
 ### Turn-by-Turn Summary
 
@@ -470,8 +507,8 @@ After the loop terminates, present a comprehensive summary to the user.
 - **Addressed**: <count>
 - **Skipped**: <count>
 - **Structural pass**: <ran/skipped — N blocking findings, M advisory; K addressed, L skipped, P noted> (or "skipped — boundaries did not move")
-- **Cleanliness pass**: <N findings across M iterations; K addressed, L skipped> (or "skipped — no Step 2e/2f changes")
-- **Commit**: <SHA> (or "no changes")
+- **Code-health notes**: <N advisory notes> (or "none")
+- **Local commit**: <SHA, squashed before push> (or "no changes")
 
 #### Turn 2
 ...
@@ -501,14 +538,9 @@ After the loop terminates, present a comprehensive summary to the user.
 - [pattern] [path/] — <specific reason, e.g. "out of PR scope" or "stalled after a few rounds"> (turn N)
 - ...
 
-### All Cleanliness Fixes
+### Code-Health Notes
 
-- [pattern] [file:line] — <what was changed> (turn N)
-- ...
-
-### Cleanliness Findings Skipped
-
-- [pattern] [file:line] — <specific reason, e.g. "conflicts with review finding from turn 1" or "hit cleanliness iteration cap"> (turn N)
+- [file:line] — <advisory Go code-health observation or follow-up suggestion> (turn N)
 - ...
 
 ### Cross-Model Debate (if conducted)
@@ -517,7 +549,13 @@ After the loop terminates, present a comprehensive summary to the user.
 - **Findings surfaced**: <count>
 - **Addressed**: <count> — <brief summary>
 - **Skipped**: <count> — <brief summary>
-- **Commit**: <SHA> (or "no changes")
+- **Local commit**: <SHA, included in final squash> (or "no changes")
+
+### Final Squash and Push
+
+- **Squashed commit**: <final_review_commit SHA> (or "not created — no changes")
+- **Pushed**: <yes/no>
+- **Remote handling**: <"normal push", "rebased onto updated upstream before push", or "not pushed — no changes">
 
 ### Final Review State
 
@@ -543,12 +581,15 @@ If a later turn's review gives feedback that contradicts a change made in an ear
 ### Safety
 
 - Never force-push
+- Never push unsquashed per-turn commits
 - Never modify files outside the scope of the PR's changes unless a reviewer explicitly requests it and the change is safe
 - If a requested change seems risky (could break tests, change public API behavior), skip it and record why
 - If applying a fix introduces a new issue you notice, fix that too in the same turn
+- If the remote branch changes during the loop, rebase the final squashed commit onto the latest upstream and push normally
 
 ### Commit hygiene
 
-- One commit per turn (not per finding)
-- Commit messages reference the turn number for traceability
-- Each commit should be independently meaningful
+- Create one local commit per turn (not per finding) for checkpointing and traceability
+- Commit messages for local turn commits reference the turn number
+- Before publishing, squash every local self-review commit into one final review commit
+- The remote branch should receive only the final squashed review commit from this workflow
