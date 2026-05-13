@@ -1,6 +1,6 @@
 ---
 name: self-review-loop
-description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to run a code review skill against the PR, then evaluates and applies feedback. Loops until only minor/nit feedback remains or 5 turns complete. Keeps per-turn commits local, squashes them into one final review commit, then pushes once. Auto-discovers the available code review skill — prefers the official code-review plugin, falls back to abatilo-core:code-review."
+description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then evaluates and applies feedback. Loops until only minor/nit feedback remains or the adaptive turn limit is reached. Keeps per-turn commits local, squashes them into one final review commit, then pushes once. Auto-discovers a compatible review execution mode — prefers a supported code-review skill and falls back to direct Codex review when nested team review is unavailable or unreliable."
 argument-hint: "#N or N (PR number)"
 disable-model-invocation: false
 allowed-tools:
@@ -26,6 +26,7 @@ allowed-tools:
   - AskUserQuestion
   - ToolSearch
 mcpServers:
+  - claude
   - codex
   - gemini-cli
 ---
@@ -37,7 +38,7 @@ mcpServers:
 This workflow is harness-agnostic. Use the local harness primitives that provide the same orchestration behavior:
 
 - **Claude Code**: `Agent(...)` launches fresh sub-agents. `mode: "bypassPermissions"` is a Claude-specific convenience for read-only review sub-agents and nested review teams.
-- **Codex**: Treat the user's invocation of `self-review-loop` as authorization to use Codex sub-agents for this loop. `Agent(...)` maps to `spawn_agent`. Use `fork_context: false` for the main review sub-agent so each review starts with no prior turn context. Use `agent_type: "default"` when the sub-agent needs to invoke the discovered `review_skill`; use `agent_type: "explorer"` for structural passes that only inspect a provided diff. Collect each sub-agent's final output with `wait_agent`. Codex tool execution follows the current Codex sandbox and approval behavior; do not require `bypassPermissions`.
+- **Codex**: Treat the user's invocation of `self-review-loop` as authorization to use Codex sub-agents for this loop. `Agent(...)` maps to `spawn_agent`. Use `fork_context: false` for the main review sub-agent so each review starts with no prior turn context. Select a `review_execution_mode` during setup: use `nested_skill_review` only when the discovered `review_skill` is capability-compatible with Codex execution, and use `direct_codex_review` when nested-team compatibility is absent or unproven. Use `agent_type: "default"` when a compatible skill must be invoked from the sub-agent; use `agent_type: "explorer"` or `default` for direct read-only review and for structural passes that only inspect a provided diff. Collect each sub-agent's final output with `wait_agent`. Codex tool execution follows the current Codex sandbox and approval behavior; do not require `bypassPermissions`.
 
 You are an orchestrator that iteratively improves a PR by running fresh, unbiased code reviews and applying feedback. Each review is performed by a sub-agent with NO prior context — it sees only the PR diff, ensuring unbiased feedback with no anchoring to previous decisions.
 
@@ -58,9 +59,19 @@ If $ARGUMENTS is empty, ask the user which PR to work on.
 
 Any other format is not supported. If the argument doesn't match these patterns, ask the user to provide a PR number.
 
-### 1b. Pre-flight: discover the code review skill
+### 1b. Pre-flight: discover the code review skill and execution mode
 
-Before doing anything else, determine which code review skill is available. Use the current harness's skill discovery first (for example, registered slash skills or listed Codex skills). If discovery is unavailable, check installed plugin roots on disk rather than spawning agents — this is lightweight and avoids the cost of executing the skill just to test availability.
+Before doing anything else, determine both:
+
+- `review_skill`: the best available review skill, if any
+- `review_execution_mode`: how review turns will run
+
+Discovery by `SKILL.md` file existence is not enough to choose nested execution. It only proves a skill is installed; it does not prove the current harness can run that skill's required reviewer agents, team bookkeeping, or nested message flow. Use the current harness's skill discovery first (for example, registered slash skills or listed Codex skills). If discovery is unavailable, check installed plugin roots on disk rather than spawning agents — this is lightweight and avoids the cost of executing the skill just to test availability.
+
+Supported `review_execution_mode` values:
+
+- `nested_skill_review`: a fresh review sub-agent invokes `review_skill`, and that skill is allowed to run its own nested reviewer agents or team workflow.
+- `direct_codex_review`: a fresh Codex sub-agent performs a direct code review from an explicit prompt and does not invoke `abatilo-core:code-review` or any nested team workflow.
 
 **Attempt 1 — `code-review` skill**:
 
@@ -70,7 +81,12 @@ Use harness skill discovery or search installed plugin roots for the skill file:
 **/skills/code-review/SKILL.md
 ```
 
-If a match is found, set `review_skill` to `code-review` and proceed to Step 1c.
+If a match is found, set `review_skill` to `code-review`.
+
+- Claude Code: set `review_execution_mode` to `nested_skill_review` when the skill is registered and the required agent/team tools are available.
+- Codex: set `review_execution_mode` to `nested_skill_review` only if the skill is registered in the active Codex skills list or otherwise has a documented Codex-compatible execution path. If compatibility is not proven, keep `review_skill` for reporting but use `direct_codex_review`.
+
+Record `review_mode_reason` with the specific evidence used for the mode decision, then proceed to Step 1c.
 
 **Attempt 2 — `abatilo-core:code-review` plugin** (fallback):
 
@@ -80,7 +96,17 @@ If Attempt 1 found no match, search for the namespaced variant:
 **/abatilo-core/**/skills/code-review/SKILL.md
 ```
 
-If a match is found, set `review_skill` to `abatilo-core:code-review` and proceed to Step 1c.
+If a match is found, set `review_skill` to `abatilo-core:code-review`, then run a compatibility check before allowing nested execution.
+
+For `abatilo-core:code-review`, nested execution is compatible only when all of the following are true:
+
+- The expected specialist reviewer capability is available, either as registered specialist agent types or as an installed `agents/` directory containing the required reviewer definitions.
+- The active harness can spawn those specialists as read-only reviewers, or can include the `agents/<reviewer>.md` instructions in Codex `explorer` prompts.
+- The active harness can complete the team/message lifecycle without relying on unavailable Claude-only tools.
+
+Codex default: if `abatilo-core:code-review` is the only discovered review skill, or if any compatibility condition is absent or unproven, set `review_execution_mode` to `direct_codex_review`. Do not invoke `abatilo-core:code-review` from the review sub-agent in that case. Record the failed or skipped compatibility condition in `review_mode_reason`.
+
+Only set `review_execution_mode` to `nested_skill_review` for `abatilo-core:code-review` when the compatibility check is explicitly satisfied. Then proceed to Step 1c.
 
 **Neither available — stop:**
 
@@ -123,12 +149,24 @@ git branch --show-current
 Set up tracking for the loop:
 
 - `turn`: 1
-- `max_turns`: 5
 - `review_base_sha`: the `HEAD` SHA immediately after Step 1d's `git pull` — the base used when squashing local review commits
 - `upstream_ref`: the branch's tracking ref from Step 1d, usually `origin/<branch>`
 - `current_branch`: the checked-out PR branch from Step 1d
 - `pr_base_ref`: the PR's base branch from Step 1c
 - `pr_head_ref`: the PR's head branch from Step 1c
+- `changed_file_inventory`: output from `git diff --name-status "origin/<pr_base_ref>"...HEAD`
+- `changed_file_count`: count from `git diff --name-only "origin/<pr_base_ref>"...HEAD`
+- `changed_line_count`: additions plus deletions from `git diff --numstat "origin/<pr_base_ref>"...HEAD`, excluding binary `-` entries
+- `large_pr`: true when `changed_file_count` is greater than 50 or `changed_line_count` is greater than 1000
+- `max_turns`: 3 when `large_pr` is true, otherwise 5. For large PRs, increase up to 5 only if review executions are completing cleanly and quickly: no timeout, no retry, no direct fallback caused by execution failure, and review duration is comfortably below `review_attempt_timeout`
+- `review_skill`: the review skill discovered in Step 1b, or null if direct review is the only viable mode
+- `review_execution_mode`: `nested_skill_review` or `direct_codex_review`, selected in Step 1b
+- `review_mode_reason`: the concrete discovery/compatibility evidence that selected the mode
+- `review_modes_per_turn`: empty map of turn → {mode, skill, reason} — records whether each turn used nested skill review or direct Codex review
+- `review_attempt_timeout`: 10 minutes per review attempt
+- `max_review_retries`: 1 for transport, timeout, null-output, invalid-output, or stream-disconnect failures
+- `review_execution_telemetry`: empty map of turn → {mode, skill, duration, timeout, retry_count, fallback_reason}
+- `mcp_availability`: result of Step 1f's one-time MCP preflight, recording available and unavailable providers
 - `local_review_commits`: empty list — accumulates local-only commits created by this skill across all turns and MCP feedback
 - `final_review_commit`: null — set after Step 4 creates the single squashed commit that is pushed
 - `changelog`: empty list — accumulates ALL changes across ALL turns
@@ -138,6 +176,18 @@ Set up tracking for the loop:
 - `code_health_notes`: empty list — accumulates advisory Go code-health observations that were useful but not required for this PR
 - `structural_findings_per_turn`: empty map of turn → list of {pattern, path, severity, action, summary} — records every finding from the structural pass (both blocking and advisory)
 - `structural_iterations_per_turn`: empty map of turn → integer — how many rounds the structural pass took this turn (0 if pass did not run)
+
+### 1f. Pre-flight MCP availability once
+
+Before entering the review loop, probe external debate tools once:
+
+```
+ToolSearch(query: "claude", max_results: 3)
+ToolSearch(query: "codex", max_results: 3)
+ToolSearch(query: "gemini", max_results: 3)
+```
+
+When the active harness is Codex, prefer Claude for cross-model debate when the Claude MCP is available. Record the results in `mcp_availability`, including Claude availability or unavailability and the tool names/models exposed by the MCPs. Later MCP debate steps must consult this recorded value instead of repeating discovery. If no external-model provider is available, record `mcp_availability` as unavailable and skip the debate explicitly in Step 3 and the final summary.
 
 ---
 
@@ -149,7 +199,7 @@ Repeat the following for each turn until a stop condition is met.
 
 **CRITICAL**: The sub-agent must have NO context from previous turns. This prevents bias — the reviewer should evaluate the code as-is, not relative to what it used to be. Each turn gets a completely fresh agent that knows nothing about prior feedback or changes.
 
-Spawn the sub-agent, using the `review_skill` discovered in Step 1b.
+Spawn the sub-agent using the `review_execution_mode` selected in Step 1b.
 
 Because per-turn commits are local until Step 4, the reviewer must review the checked-out local branch state, not the remote GitHub PR diff. Tell the sub-agent to use GitHub only for PR metadata and to use this local diff as the code under review:
 
@@ -158,6 +208,16 @@ git diff "origin/<pr_base_ref>"...HEAD
 ```
 
 The PR number is metadata only for review turns. The review target is local `HEAD` against `origin/<pr_base_ref>`.
+
+If `large_pr` is true, avoid duplicating a huge full diff into nested prompts. Give reviewers the `changed_file_inventory` and tell them to inspect targeted local diffs as needed:
+
+```
+git diff origin/<pr_base_ref>...HEAD -- <path>
+```
+
+For large PRs, nested prompts must not paste the full diff into every reviewer prompt. Direct review prompts may still ask the single fresh reviewer to inspect the local diff, but should prefer targeted file diffs when the inventory is large.
+
+For `nested_skill_review`, the sub-agent invokes the compatible `review_skill`.
 
 Claude Code:
 
@@ -179,7 +239,29 @@ spawn_agent(
 )
 ```
 
-The sub-agent will invoke the code review skill, which may in turn spawn its own review team or sub-agents. The code review skill handles its own cleanup where the harness supports it, so when the sub-agent returns, any nested review team should already be complete along with the sub-agent itself.
+For `direct_codex_review`, do not invoke `abatilo-core:code-review` or any nested review-team workflow. Spawn exactly one fresh read-only reviewer with no prior context and give it a direct code-review prompt:
+
+```
+spawn_agent(
+  agent_type: "explorer",
+  fork_context: false,
+  message: "Perform a direct code review of the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Inspect the local diff from `git diff origin/<pr_base_ref>...HEAD`; use `gh pr view <N>` only for PR metadata. Do not edit files, push, commit, or spawn additional review teams. Return findings grouped by Critical, High, Medium, and Low, include file/line references where possible, and end with a verdict of APPROVE or REQUEST CHANGES."
+)
+```
+
+Record `review_modes_per_turn[turn]` before waiting for the sub-agent. Include `mode`, `skill`, and `reason`, for example `{mode: "direct_codex_review", skill: "abatilo-core:code-review", reason: "Codex fallback because nested specialist capability was not proven"}`.
+
+Wait at most `review_attempt_timeout` (10 minutes) for each review attempt. Treat any of these as review execution failures:
+
+- timeout
+- transport error
+- null or empty completion
+- invalid review output, such as missing priority tiers and missing verdict
+- stream disconnected before completion
+
+For those failures, retry once (`max_review_retries`: 1). If the retry also fails, do not start another nested review-team execution. Set `review_execution_mode` to `direct_codex_review` for the turn, record `fallback_reason`, and run the single direct reviewer prompt above. Record each attempt in `review_execution_telemetry[turn]` with mode, skill, duration, timeout status, retry count, and fallback reason.
+
+When `nested_skill_review` is used, the sub-agent may invoke the compatible code review skill, which may in turn spawn its own review team or sub-agents. The code review skill handles its own cleanup where the harness supports it, so when the sub-agent returns, any nested review team should already be complete along with the sub-agent itself.
 
 > **Trust boundary**: Review sub-agents and any nested reviewer agents are expected to be read-only: they read code, inspect diffs, and exchange findings. They must not edit files, push code, or make destructive changes. In Claude Code, `bypassPermissions` is used only for those read-only review sub-agents to avoid repeated prompts. In Codex, sub-agents follow the current Codex sandbox and approval behavior. The orchestrator itself is the component that edits files, runs verification, creates local commits, squashes them, and pushes once at the end.
 
@@ -198,7 +280,7 @@ A review qualifies as "non-actionable" if ALL of the following are true:
 - All remaining findings are classified as `suggestion`, `nitpick`, `thought`, `risk`, or `question` (none of these require code changes — `risk` is an acknowledged trade-off and `question` is a request for clarification, not a code fix)
 
 **Stop condition — max turns reached:**
-- `turn` equals `max_turns` (5)
+- `turn` equals `max_turns`
 
 If either stop condition is met, set `stop_reason` to `"clean_review"` or `"max_turns"` respectively and proceed to Step 3.
 
@@ -333,6 +415,7 @@ If no files were changed (all findings skipped or minor-only, and the structural
 Append this turn's results to the changelog and skipped lists. Record:
 - Turn number
 - Number of findings in each tier (from the main review)
+- Review execution telemetry: mode, skill, duration, timeout status, retry count, and fallback reason if any
 - What was addressed from the main review (with file references)
 - What was skipped from the main review (with reasons)
 - Structural pass activity: whether the pass ran, iterations taken, blocking findings (each addressed or skipped-with-reason), advisory findings (noted for follow-up)
@@ -354,7 +437,7 @@ After the review loop completes, stress-test the final state of the PR with exte
 
 ### 3a. Discover and execute debates
 
-Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the discovery and execution instructions. If no MCPs are available, skip to Step 4.
+Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the execution instructions for providers recorded as available in `mcp_availability`. Do not repeat `ToolSearch` here. When running in Codex and Claude is available, run the Claude debate first; use Codex or Gemini only as additional providers or fallback providers according to the recorded preflight result. If `mcp_availability` shows no available providers, skip to Step 4 and record "skipped — no MCPs available from Step 1f preflight" in the changelog and final summary.
 
 ### 3b. Gather context and debate prompt
 
@@ -496,7 +579,9 @@ After the loop terminates and the final squash/push step completes, present a co
 ## Self-Review Complete: PR #<N>
 
 **Turns completed**: <turn count>
-**Stop reason**: <"Clean review — only non-actionable feedback remaining" or "Maximum turns (5) reached" or "Oscillation detected — turns were undoing each other's changes">
+**Stop reason**: <"Clean review — only non-actionable feedback remaining" or "Maximum turns reached" or "Oscillation detected — turns were undoing each other's changes">
+**Large PR mode**: <yes/no — changed_file_count files, changed_line_count changed lines, max_turns N>
+**Review execution**: <nested_skill_review/direct_codex_review/mixed> — <retry/fallback summary>
 **Published commit**: <final_review_commit SHA> (or "no changes; nothing pushed")
 
 ### Turn-by-Turn Summary
@@ -504,6 +589,8 @@ After the loop terminates and the final squash/push step completes, present a co
 #### Turn 1
 - **Verdict**: <APPROVE/REQUEST CHANGES>
 - **Findings**: <X Critical, Y High, Z Medium, W Low>
+- **Review mode**: <nested_skill_review/direct_codex_review> using <review_skill or "direct prompt"> — <review_mode_reason>
+- **Review execution**: <duration, timeout status, retry count, fallback reason if any>
 - **Addressed**: <count>
 - **Skipped**: <count>
 - **Structural pass**: <ran/skipped — N blocking findings, M advisory; K addressed, L skipped, P noted> (or "skipped — boundaries did not move")
@@ -545,7 +632,7 @@ After the loop terminates and the final squash/push step completes, present a co
 
 ### Cross-Model Debate (if conducted)
 
-- **Models consulted**: [model names, or "skipped — no MCPs available"]
+- **Models consulted**: [Claude/Codex/Gemini model names, or "skipped — no MCPs available from Step 1f preflight"]
 - **Findings surfaced**: <count>
 - **Addressed**: <count> — <brief summary>
 - **Skipped**: <count> — <brief summary>

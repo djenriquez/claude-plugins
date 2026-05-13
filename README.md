@@ -88,22 +88,22 @@ Reads unresolved review comments on a GitHub PR, triages each one, makes code ch
 
 ### /self-review-loop
 
-Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agent each turn to run a code review, then evaluates and applies the feedback. Loops until only minor/nit feedback remains or 5 turns complete.
+Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then evaluates and applies the feedback. Loops until only minor/nit feedback remains or the adaptive turn limit is reached.
 
 ```
 /self-review-loop #42
 /self-review-loop 42
 ```
 
-1. Auto-discovers the available code review skill (prefers official `code-review` plugin, falls back to `abatilo-core:code-review`)
-2. Spawns a fresh sub-agent with no prior context to run the review against the PR
+1. Selects a compatible review execution mode for the active harness
+2. Spawns a fresh sub-agent with no prior context to review the PR
 3. Parses the review output and triages each finding (address or skip)
 4. Runs tests/linters to verify changes, then commits and pushes
-5. Tears down the review agent and its spawned team
-6. Repeats with a new fresh agent until the review comes back clean or 5 turns are reached
-7. Reports a full changelog of all changes across all turns
+5. Bounds review-agent failures with a fixed wait and one retry before fallback
+6. Uses file inventories and targeted local diffs for large PRs
+7. Reports a full changelog, including review modes, retries, fallbacks, and MCP debate status
 
-Requires a code review skill available in the current harness. In Claude Code, that can be the `code-review` plugin or `abatilo-core`. In Codex, enable a code review skill such as `abatilo-core:code-review`.
+In Claude Code, the loop can use a compatible `code-review` plugin or `abatilo-core`. In Codex, it can use a direct fallback reviewer when nested review-team capabilities are unavailable or unreliable, so Codex users do not have to rely on nested `abatilo-core:code-review` execution as the default path. When a Claude MCP is available, Codex cross-model debate prefers Claude.
 
 ## Acknowledgments
 
