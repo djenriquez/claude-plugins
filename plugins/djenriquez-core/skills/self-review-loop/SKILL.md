@@ -1,6 +1,6 @@
 ---
 name: self-review-loop
-description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then evaluates and applies feedback. Loops until only minor/nit feedback remains or 5 turns complete. Keeps per-turn commits local, squashes them into one final review commit, then pushes once. Auto-discovers a compatible review execution mode — prefers a supported code-review skill and falls back to direct Codex review when nested team review is unavailable or unreliable."
+description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then evaluates and applies feedback. Loops until only minor/nit feedback remains or the adaptive turn limit is reached. Keeps per-turn commits local, squashes them into one final review commit, then pushes once. Auto-discovers a compatible review execution mode — prefers a supported code-review skill and falls back to direct Codex review when nested team review is unavailable or unreliable."
 argument-hint: "#N or N (PR number)"
 disable-model-invocation: false
 allowed-tools:
@@ -148,16 +148,24 @@ git branch --show-current
 Set up tracking for the loop:
 
 - `turn`: 1
-- `max_turns`: 5
 - `review_base_sha`: the `HEAD` SHA immediately after Step 1d's `git pull` — the base used when squashing local review commits
 - `upstream_ref`: the branch's tracking ref from Step 1d, usually `origin/<branch>`
 - `current_branch`: the checked-out PR branch from Step 1d
 - `pr_base_ref`: the PR's base branch from Step 1c
 - `pr_head_ref`: the PR's head branch from Step 1c
+- `changed_file_inventory`: output from `git diff --name-status "origin/<pr_base_ref>"...HEAD`
+- `changed_file_count`: count from `git diff --name-only "origin/<pr_base_ref>"...HEAD`
+- `changed_line_count`: additions plus deletions from `git diff --numstat "origin/<pr_base_ref>"...HEAD`, excluding binary `-` entries
+- `large_pr`: true when `changed_file_count` is greater than 50 or `changed_line_count` is greater than 1000
+- `max_turns`: 3 when `large_pr` is true, otherwise 5. For large PRs, increase up to 5 only if review executions are completing cleanly and quickly: no timeout, no retry, no direct fallback caused by execution failure, and review duration is comfortably below `review_attempt_timeout`
 - `review_skill`: the review skill discovered in Step 1b, or null if direct review is the only viable mode
 - `review_execution_mode`: `nested_skill_review` or `direct_codex_review`, selected in Step 1b
 - `review_mode_reason`: the concrete discovery/compatibility evidence that selected the mode
 - `review_modes_per_turn`: empty map of turn → {mode, skill, reason} — records whether each turn used nested skill review or direct Codex review
+- `review_attempt_timeout`: 10 minutes per review attempt
+- `max_review_retries`: 1 for transport, timeout, null-output, invalid-output, or stream-disconnect failures
+- `review_execution_telemetry`: empty map of turn → {mode, skill, duration, timeout, retry_count, fallback_reason}
+- `mcp_availability`: result of Step 1f's one-time MCP preflight, recording available and unavailable providers
 - `local_review_commits`: empty list — accumulates local-only commits created by this skill across all turns and MCP feedback
 - `final_review_commit`: null — set after Step 4 creates the single squashed commit that is pushed
 - `changelog`: empty list — accumulates ALL changes across ALL turns
@@ -167,6 +175,17 @@ Set up tracking for the loop:
 - `code_health_notes`: empty list — accumulates advisory Go code-health observations that were useful but not required for this PR
 - `structural_findings_per_turn`: empty map of turn → list of {pattern, path, severity, action, summary} — records every finding from the structural pass (both blocking and advisory)
 - `structural_iterations_per_turn`: empty map of turn → integer — how many rounds the structural pass took this turn (0 if pass did not run)
+
+### 1f. Pre-flight MCP availability once
+
+Before entering the review loop, probe external debate tools once:
+
+```
+ToolSearch(query: "codex", max_results: 3)
+ToolSearch(query: "gemini", max_results: 3)
+```
+
+Record the results in `mcp_availability`, including unavailable providers. Later MCP debate steps must consult this recorded value instead of repeating discovery. If neither provider is available, record `mcp_availability` as unavailable and skip the debate explicitly in Step 3 and the final summary.
 
 ---
 
@@ -187,6 +206,14 @@ git diff "origin/<pr_base_ref>"...HEAD
 ```
 
 The PR number is metadata only for review turns. The review target is local `HEAD` against `origin/<pr_base_ref>`.
+
+If `large_pr` is true, avoid duplicating a huge full diff into nested prompts. Give reviewers the `changed_file_inventory` and tell them to inspect targeted local diffs as needed:
+
+```
+git diff origin/<pr_base_ref>...HEAD -- <path>
+```
+
+For large PRs, nested prompts must not paste the full diff into every reviewer prompt. Direct review prompts may still ask the single fresh reviewer to inspect the local diff, but should prefer targeted file diffs when the inventory is large.
 
 For `nested_skill_review`, the sub-agent invokes the compatible `review_skill`.
 
@@ -222,6 +249,16 @@ spawn_agent(
 
 Record `review_modes_per_turn[turn]` before waiting for the sub-agent. Include `mode`, `skill`, and `reason`, for example `{mode: "direct_codex_review", skill: "abatilo-core:code-review", reason: "Codex fallback because nested specialist capability was not proven"}`.
 
+Wait at most `review_attempt_timeout` (10 minutes) for each review attempt. Treat any of these as review execution failures:
+
+- timeout
+- transport error
+- null or empty completion
+- invalid review output, such as missing priority tiers and missing verdict
+- stream disconnected before completion
+
+For those failures, retry once (`max_review_retries`: 1). If the retry also fails, do not start another nested review-team execution. Set `review_execution_mode` to `direct_codex_review` for the turn, record `fallback_reason`, and run the single direct reviewer prompt above. Record each attempt in `review_execution_telemetry[turn]` with mode, skill, duration, timeout status, retry count, and fallback reason.
+
 When `nested_skill_review` is used, the sub-agent may invoke the compatible code review skill, which may in turn spawn its own review team or sub-agents. The code review skill handles its own cleanup where the harness supports it, so when the sub-agent returns, any nested review team should already be complete along with the sub-agent itself.
 
 > **Trust boundary**: Review sub-agents and any nested reviewer agents are expected to be read-only: they read code, inspect diffs, and exchange findings. They must not edit files, push code, or make destructive changes. In Claude Code, `bypassPermissions` is used only for those read-only review sub-agents to avoid repeated prompts. In Codex, sub-agents follow the current Codex sandbox and approval behavior. The orchestrator itself is the component that edits files, runs verification, creates local commits, squashes them, and pushes once at the end.
@@ -241,7 +278,7 @@ A review qualifies as "non-actionable" if ALL of the following are true:
 - All remaining findings are classified as `suggestion`, `nitpick`, `thought`, `risk`, or `question` (none of these require code changes — `risk` is an acknowledged trade-off and `question` is a request for clarification, not a code fix)
 
 **Stop condition — max turns reached:**
-- `turn` equals `max_turns` (5)
+- `turn` equals `max_turns`
 
 If either stop condition is met, set `stop_reason` to `"clean_review"` or `"max_turns"` respectively and proceed to Step 3.
 
@@ -376,6 +413,7 @@ If no files were changed (all findings skipped or minor-only, and the structural
 Append this turn's results to the changelog and skipped lists. Record:
 - Turn number
 - Number of findings in each tier (from the main review)
+- Review execution telemetry: mode, skill, duration, timeout status, retry count, and fallback reason if any
 - What was addressed from the main review (with file references)
 - What was skipped from the main review (with reasons)
 - Structural pass activity: whether the pass ran, iterations taken, blocking findings (each addressed or skipped-with-reason), advisory findings (noted for follow-up)
@@ -397,7 +435,7 @@ After the review loop completes, stress-test the final state of the PR with exte
 
 ### 3a. Discover and execute debates
 
-Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the discovery and execution instructions. If no MCPs are available, skip to Step 4.
+Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the execution instructions for providers recorded as available in `mcp_availability`. Do not repeat `ToolSearch` here. If `mcp_availability` shows no available providers, skip to Step 4 and record "skipped — no MCPs available from Step 1f preflight" in the changelog and final summary.
 
 ### 3b. Gather context and debate prompt
 
@@ -539,7 +577,9 @@ After the loop terminates and the final squash/push step completes, present a co
 ## Self-Review Complete: PR #<N>
 
 **Turns completed**: <turn count>
-**Stop reason**: <"Clean review — only non-actionable feedback remaining" or "Maximum turns (5) reached" or "Oscillation detected — turns were undoing each other's changes">
+**Stop reason**: <"Clean review — only non-actionable feedback remaining" or "Maximum turns reached" or "Oscillation detected — turns were undoing each other's changes">
+**Large PR mode**: <yes/no — changed_file_count files, changed_line_count changed lines, max_turns N>
+**Review execution**: <nested_skill_review/direct_codex_review/mixed> — <retry/fallback summary>
 **Published commit**: <final_review_commit SHA> (or "no changes; nothing pushed")
 
 ### Turn-by-Turn Summary
@@ -548,6 +588,7 @@ After the loop terminates and the final squash/push step completes, present a co
 - **Verdict**: <APPROVE/REQUEST CHANGES>
 - **Findings**: <X Critical, Y High, Z Medium, W Low>
 - **Review mode**: <nested_skill_review/direct_codex_review> using <review_skill or "direct prompt"> — <review_mode_reason>
+- **Review execution**: <duration, timeout status, retry count, fallback reason if any>
 - **Addressed**: <count>
 - **Skipped**: <count>
 - **Structural pass**: <ran/skipped — N blocking findings, M advisory; K addressed, L skipped, P noted> (or "skipped — boundaries did not move")
@@ -589,7 +630,7 @@ After the loop terminates and the final squash/push step completes, present a co
 
 ### Cross-Model Debate (if conducted)
 
-- **Models consulted**: [model names, or "skipped — no MCPs available"]
+- **Models consulted**: [model names, or "skipped — no MCPs available from Step 1f preflight"]
 - **Findings surfaced**: <count>
 - **Addressed**: <count> — <brief summary>
 - **Skipped**: <count> — <brief summary>
