@@ -30,7 +30,7 @@ Always pass the `model` parameter explicitly on every MCP call below when the pr
 Current pinned models:
 
 - **Claude**: use the model exposed by the discovered Claude MCP tool; when the tool supports a `model` parameter, pass that model explicitly rather than relying on an implicit default
-- **Codex**: `gpt-5.4`
+- **Codex**: `gpt-5.5`
 - **Gemini**: `gemini-3.1-pro`
 
 If a pinned model is rejected by the MCP server (not configured, not yet available, access error), stop and surface the error in the invoking skill's final output so the user knows to update this protocol or their MCP config. Do **not** silently omit the `model` parameter to work around the error — that is the exact failure mode this section exists to prevent.
@@ -41,7 +41,7 @@ Use the Claude MCP tool returned by `ToolSearch(query: "claude", max_results: 3)
 
 ### Provider Example: Codex (if available)
 
-1. Start with `mcp__codex__codex(model: "gpt-5.4", prompt: <debate prompt>)`.
+1. Start with `mcp__codex__codex(model: "gpt-5.5", prompt: <debate prompt>)`.
 2. Continue via `mcp__codex__codex-reply` until convergence or **5 rounds maximum**. The session is bound to the model set on the opening call; replies do not need the parameter re-passed.
 3. **Convergence check** after each reply — continue if ANY is "yes"; stop only when ALL are "no":
    - Did this turn surface a new finding or angle?
