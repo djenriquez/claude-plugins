@@ -179,7 +179,9 @@ Set up tracking for the loop:
 
 ### 1f. Pre-flight MCP availability once
 
-Before entering the review loop, probe external debate tools once:
+Before entering the review loop, read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root and follow its discovery rules once. Record only debate-capable external-model MCPs as available: a provider must expose a direct prompt endpoint for review feedback, not just a provider-named operational namespace.
+
+Check already-loaded callable tools first, then use `ToolSearch` only as a fallback for deferred tools:
 
 ```
 ToolSearch(query: "claude", max_results: 3)
@@ -187,7 +189,9 @@ ToolSearch(query: "codex", max_results: 3)
 ToolSearch(query: "gemini", max_results: 3)
 ```
 
-When the active harness is Codex, prefer Claude for cross-model debate when the Claude MCP is available. Record the results in `mcp_availability`, including Claude availability or unavailability and the tool names/models exposed by the MCPs. Later MCP debate steps must consult this recorded value instead of repeating discovery. If no external-model provider is available, record `mcp_availability` as unavailable and skip the debate explicitly in Step 3 and the final summary.
+After each `ToolSearch` result, verify the returned schema exposes a debate-capable prompt tool before marking that provider available. `mcp__claude_code__` operational tools such as `Read`, `Bash`, or `Agent` do not count unless that namespace also exposes a direct external-model prompt endpoint.
+
+When the active harness is Codex, prefer Claude for cross-model debate only when verified Claude debate tooling is available. Record the results in `mcp_availability`, including each provider's availability or unavailability, exact callable tool names, prompt/model arguments, and exposed model names. Later MCP debate steps must consult this recorded value instead of repeating discovery. If no debate-capable external-model provider is available, record `mcp_availability` as unavailable and skip the debate explicitly in Step 3 and the final summary.
 
 ---
 
@@ -433,11 +437,11 @@ Increment `turn` by 1 and go back to Step 2a.
 
 After the review loop completes, stress-test the final state of the PR with external models. This catches issues that the primary reviewer may have consistently missed across all turns, or changes that were incorrectly skipped.
 
-**Skip this step if no MCPs are available.**
+**Skip this step if no debate-capable external-model MCPs are available.**
 
 ### 3a. Discover and execute debates
 
-Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the execution instructions for providers recorded as available in `mcp_availability`. Do not repeat `ToolSearch` here. When running in Codex and Claude is available, run the Claude debate first; use Codex or Gemini only as additional providers or fallback providers according to the recorded preflight result. If `mcp_availability` shows no available providers, skip to Step 4 and record "skipped — no MCPs available from Step 1f preflight" in the changelog and final summary.
+Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the execution instructions for providers recorded as available in `mcp_availability`. Do not repeat `ToolSearch` here. When running in Codex and verified Claude debate tooling is available, run the Claude debate first; use Codex or Gemini only as additional providers or fallback providers according to the recorded preflight result. If `mcp_availability` shows no debate-capable external-model providers, skip to Step 4 and record "skipped — no debate-capable external-model MCPs available from Step 1f preflight" in the changelog and final summary.
 
 ### 3b. Gather context and debate prompt
 
@@ -632,7 +636,7 @@ After the loop terminates and the final squash/push step completes, present a co
 
 ### Cross-Model Debate (if conducted)
 
-- **Models consulted**: [Claude/Codex/Gemini model names, or "skipped — no MCPs available from Step 1f preflight"]
+- **Models consulted**: [Claude/Codex/Gemini model names, or "skipped — no debate-capable external-model MCPs available from Step 1f preflight"]
 - **Findings surfaced**: <count>
 - **Addressed**: <count> — <brief summary>
 - **Skipped**: <count> — <brief summary>

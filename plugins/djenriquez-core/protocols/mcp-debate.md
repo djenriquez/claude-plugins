@@ -1,10 +1,20 @@
 # MCP External Model Debate Protocol
 
-Stress-test review output with external models before delivering. Skip entirely if no external-model MCPs are available; the invoking skill should continue with its normal self-critique or final checks.
+Stress-test review output with external models before delivering. Skip entirely if no debate-capable external-model MCPs are available; the invoking skill should continue with its normal self-critique or final checks.
 
 ## Discovery
 
-Use `ToolSearch` to probe for available debate partners. Start with the concrete providers this protocol currently knows how to call:
+Treat a provider as available only when the current tool list exposes an exact, callable, debate-capable tool. A debate-capable tool must accept an arbitrary review prompt and return external-model feedback. If it supports model selection, it must also accept the pinned `model` parameter in this protocol.
+
+Do not use provider-name matches alone as availability. In some harnesses, `ToolSearch` searches only deferred tools and cannot discover already-loaded namespaces such as `mcp__claude_code__`. Also, an operational MCP namespace is not automatically a debate provider: for example, `mcp__claude_code__` tools such as `Read`, `Bash`, or `Agent` do not count unless that namespace exposes a direct external-model prompt endpoint.
+
+Check for already-loaded callable tools first:
+
+- Claude is available only if a visible tool exposes a direct external-model prompt endpoint that accepts the debate prompt and returns model feedback. Operational `mcp__claude_code__` tools such as `Read`, `Bash`, or `Agent` do not count.
+- Codex is available only if both `mcp__codex__codex` and `mcp__codex__codex-reply` are visible.
+- Gemini is available only if `mcp__gemini-cli__ask-gemini` is visible.
+
+Use `ToolSearch` only as a fallback for deferred tools:
 
 ```
 ToolSearch(query: "claude", max_results: 3)
@@ -12,7 +22,9 @@ ToolSearch(query: "codex", max_results: 3)
 ToolSearch(query: "gemini", max_results: 3)
 ```
 
-Record which MCPs returned results, using the provider/model names they expose. If the invoking skill is running in Codex and Claude is available, prefer Claude as the first cross-model debate provider. If no listed provider is available and no equivalent external-model MCP is available, skip the debate phase.
+After each `ToolSearch` result, verify the returned schema exposes a direct external-model prompt tool and the required arguments before using it. For Codex and Gemini, prefer the exact callable tools listed above. For Claude, record the exact callable tool name, prompt argument, optional model argument, and model name exposed by the verified schema.
+
+Record only verified debate-capable MCPs as available. If the invoking skill is running in Codex and verified Claude debate tooling is available, prefer Claude as the first cross-model debate provider. If no listed provider is available and no equivalent external-model prompt tool is available, skip the debate phase.
 
 ## Execution
 
@@ -37,7 +49,7 @@ If a pinned model is rejected by the MCP server (not configured, not yet availab
 
 ### Provider Example: Claude (if available)
 
-Use the Claude MCP tool returned by `ToolSearch(query: "claude", max_results: 3)`. Tool names vary by MCP server, so use the discovered tool schema instead of guessing a hard-coded function name. When the tool supports a `model` parameter, pass the discovered Claude model explicitly. Ask the same adversarial challenge questions as the other providers. Continue follow-up rounds until convergence or 5 rounds maximum.
+Use the verified Claude MCP prompt tool recorded during discovery. Tool names vary by MCP server, so use the recorded schema instead of guessing a hard-coded function name. Do not use operational `mcp__claude_code__` tools unless that namespace also exposes a direct external-model prompt endpoint. When the tool supports a `model` parameter, pass the discovered Claude model explicitly. Ask the same adversarial challenge questions as the other providers. Continue follow-up rounds until convergence or 5 rounds maximum.
 
 ### Provider Example: Codex (if available)
 
