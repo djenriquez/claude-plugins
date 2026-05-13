@@ -7,11 +7,12 @@ Stress-test review output with external models before delivering. Skip entirely 
 Use `ToolSearch` to probe for available debate partners. Start with the concrete providers this protocol currently knows how to call:
 
 ```
+ToolSearch(query: "claude", max_results: 3)
 ToolSearch(query: "codex", max_results: 3)
 ToolSearch(query: "gemini", max_results: 3)
 ```
 
-Record which MCPs returned results, using the provider/model names they expose. If neither provider is available and no equivalent external-model MCP is available, skip the debate phase.
+Record which MCPs returned results, using the provider/model names they expose. If the invoking skill is running in Codex and Claude is available, prefer Claude as the first cross-model debate provider. If no listed provider is available and no equivalent external-model MCP is available, skip the debate phase.
 
 ## Execution
 
@@ -28,10 +29,15 @@ Always pass the `model` parameter explicitly on every MCP call below when the pr
 
 Current pinned models:
 
+- **Claude**: use the model exposed by the discovered Claude MCP tool; when the tool supports a `model` parameter, pass that model explicitly rather than relying on an implicit default
 - **Codex**: `gpt-5.4`
 - **Gemini**: `gemini-3.1-pro`
 
 If a pinned model is rejected by the MCP server (not configured, not yet available, access error), stop and surface the error in the invoking skill's final output so the user knows to update this protocol or their MCP config. Do **not** silently omit the `model` parameter to work around the error — that is the exact failure mode this section exists to prevent.
+
+### Provider Example: Claude (if available)
+
+Use the Claude MCP tool returned by `ToolSearch(query: "claude", max_results: 3)`. Tool names vary by MCP server, so use the discovered tool schema instead of guessing a hard-coded function name. When the tool supports a `model` parameter, pass the discovered Claude model explicitly. Ask the same adversarial challenge questions as the other providers. Continue follow-up rounds until convergence or 5 rounds maximum.
 
 ### Provider Example: Codex (if available)
 

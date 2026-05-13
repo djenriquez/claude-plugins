@@ -26,6 +26,7 @@ allowed-tools:
   - AskUserQuestion
   - ToolSearch
 mcpServers:
+  - claude
   - codex
   - gemini-cli
 ---
@@ -181,11 +182,12 @@ Set up tracking for the loop:
 Before entering the review loop, probe external debate tools once:
 
 ```
+ToolSearch(query: "claude", max_results: 3)
 ToolSearch(query: "codex", max_results: 3)
 ToolSearch(query: "gemini", max_results: 3)
 ```
 
-Record the results in `mcp_availability`, including unavailable providers. Later MCP debate steps must consult this recorded value instead of repeating discovery. If neither provider is available, record `mcp_availability` as unavailable and skip the debate explicitly in Step 3 and the final summary.
+When the active harness is Codex, prefer Claude for cross-model debate when the Claude MCP is available. Record the results in `mcp_availability`, including Claude availability or unavailability and the tool names/models exposed by the MCPs. Later MCP debate steps must consult this recorded value instead of repeating discovery. If no external-model provider is available, record `mcp_availability` as unavailable and skip the debate explicitly in Step 3 and the final summary.
 
 ---
 
@@ -435,7 +437,7 @@ After the review loop completes, stress-test the final state of the PR with exte
 
 ### 3a. Discover and execute debates
 
-Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the execution instructions for providers recorded as available in `mcp_availability`. Do not repeat `ToolSearch` here. If `mcp_availability` shows no available providers, skip to Step 4 and record "skipped — no MCPs available from Step 1f preflight" in the changelog and final summary.
+Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the execution instructions for providers recorded as available in `mcp_availability`. Do not repeat `ToolSearch` here. When running in Codex and Claude is available, run the Claude debate first; use Codex or Gemini only as additional providers or fallback providers according to the recorded preflight result. If `mcp_availability` shows no available providers, skip to Step 4 and record "skipped — no MCPs available from Step 1f preflight" in the changelog and final summary.
 
 ### 3b. Gather context and debate prompt
 
@@ -630,7 +632,7 @@ After the loop terminates and the final squash/push step completes, present a co
 
 ### Cross-Model Debate (if conducted)
 
-- **Models consulted**: [model names, or "skipped — no MCPs available from Step 1f preflight"]
+- **Models consulted**: [Claude/Codex/Gemini model names, or "skipped — no MCPs available from Step 1f preflight"]
 - **Findings surfaced**: <count>
 - **Addressed**: <count> — <brief summary>
 - **Skipped**: <count> — <brief summary>
