@@ -1,7 +1,7 @@
 {
   "name": "djenriquez-core",
-  "version": "0.8.0",
-  "description": "Agent workflow plugin collection by @djenriquez: spec review, issue-to-spec, PR feedback handling, self-review loop with squashed publish commits, PR digest, PR publication, and advisory Go code-health standards",
+  "version": "0.8.1",
+  "description": "Agent workflow plugin collection by @djenriquez: spec review, issue-to-spec, PR feedback handling, reliable Codex-aware self-review loops with Claude/Codex debate support, PR digest, PR publication, and advisory Go code-health standards",
   "author": {
     "name": "djenriquez",
     "url": "https://github.com/djenriquez"
@@ -18,8 +18,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "djenriquez Core",
-    "shortDescription": "Spec review, PR feedback, PR digest, publishing, and self-review workflows.",
-    "longDescription": "A collection of agent workflow skills for spec review, issue-to-spec drafting, PR feedback handling, self-review loops, PR digestion, and PR publication. Self-review keeps per-turn commits local, squashes them before pushing once, and applies advisory Go code-health standards during development and review.",
+    "shortDescription": "Spec review, PR feedback, PR digest, publishing, and reliable self-review workflows.",
+    "longDescription": "A collection of agent workflow skills for spec review, issue-to-spec drafting, PR feedback handling, self-review loops, PR digestion, and PR publication. Self-review keeps per-turn commits local, squashes them before pushing once, uses Codex-aware direct review fallback when nested review teams are unavailable, and applies advisory Go code-health standards during development and review.",
     "developerName": "djenriquez",
     "category": "Productivity",
     "capabilities": [
