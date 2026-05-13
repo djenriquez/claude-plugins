@@ -295,11 +295,11 @@ Before delivering, verify you are NOT:
 
 After synthesizing the agent team's review, stress-test the findings with external models before delivering.
 
-**Skip this step if no MCPs are available.**
+**Skip this step if no debate-capable external-model MCPs are available.**
 
 ### 7a. Discover and execute debates
 
-Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the discovery and execution instructions.
+Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the discovery and execution instructions. If no debate-capable external-model MCPs are available, skip to Step 8.
 
 ### 7b. Debate prompt
 
@@ -335,7 +335,7 @@ Add a "Cross-Model Debate" section to the output:
 
 ```
 ### Cross-Model Debate
-- **Models consulted**: [model names, or "skipped — no MCPs available"]
+- **Models consulted**: [model names, or "skipped — no debate-capable external-model MCPs available"]
 - **Findings modified**: [count] ([list: withdrawn, added, severity-adjusted])
 - **Verdict impact**: [unchanged / changed from X to Y]
 ```

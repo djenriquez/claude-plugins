@@ -115,7 +115,7 @@ After your specialist review, stress-test your findings through adversarial deba
 
 ### Process
 
-0. **Load tools**: Use `ToolSearch` to find available external model debate tools. Prefer `mcp__codex__codex` and `mcp__codex__codex-reply` when available; otherwise use an equivalent external-model MCP. If none is available, perform written self-critique and note that external debate was skipped.
+0. **Load tools**: Follow `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root to discover debate-capable external-model MCP tools. Do not treat provider-name `ToolSearch` matches or operational namespaces such as `mcp__claude_code__` as availability. If none is available, perform written self-critique and note that external debate was skipped.
 1. **Start thread**: Call the chosen external model MCP with your Phase 1 findings, the diff context, and your opening questions (listed below).
 2. **Debate**: Continue with the chosen provider's reply mechanism. Each turn must include substantive challenge, not acknowledgment.
 3. **Convergence**: After each external model reply, evaluate:
