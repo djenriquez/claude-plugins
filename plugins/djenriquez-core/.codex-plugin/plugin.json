@@ -1,6 +1,6 @@
 {
   "name": "djenriquez-core",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "Agent workflow plugin collection by @djenriquez: spec review, issue-to-spec, PR feedback handling, reliable Codex-aware self-review loops with Claude/Codex debate support, PR digest, PR publication, and advisory Go code-health standards",
   "author": {
     "name": "djenriquez",

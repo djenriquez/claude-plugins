@@ -28,7 +28,6 @@ allowed-tools:
 mcpServers:
   - claude
   - codex
-  - gemini-cli
 ---
 
 # Self-Review Loop
@@ -152,7 +151,7 @@ Track only the state needed to make safe decisions and report evidence:
 
 - Branch/diff context: `review_base_sha`, upstream branch, current branch, `pr_base_ref`, `pr_head_ref`, changed-file inventory, changed counts, and whether `large_pr` mode applies. `max_turns` is 10 for every PR; `large_pr` changes prompt sizing, not the turn budget.
 - Review execution: discovered `review_skill`, selected `review_execution_mode`, mode reason, per-turn mode/retry/fallback notes, a 10 minute review timeout, and one retry for transport, timeout, null/invalid output, or stream disconnect.
-- Debate execution: one-time `mcp_availability`, one attempt per available provider, 5 minute provider timeout, and per-provider success/rejected/failed status.
+- Debate execution: one-time `mcp_availability`, one debate session per available provider with up to 10 convergence rounds, 5 minute per-call timeout, and per-provider success/rejected/failed status plus the round count reached.
 - Change tracking: local review commits, final review commit, changelog, skipped findings, stop reason, files changed per turn for oscillation detection, advisory code-health notes, and structural pass findings/iterations.
 
 ### 1f. Pre-flight MCP availability once
@@ -164,7 +163,6 @@ Check already-loaded callable tools first, then use `ToolSearch` only as a fallb
 ```
 ToolSearch(query: "claude", max_results: 3)
 ToolSearch(query: "codex", max_results: 3)
-ToolSearch(query: "gemini", max_results: 3)
 ```
 
 After each `ToolSearch` result, verify the returned schema exposes a debate-capable prompt tool before marking that provider available. `mcp__claude_code__` operational tools such as `Read`, `Bash`, or `Agent` do not count unless that namespace also exposes a direct external-model prompt endpoint.
@@ -439,7 +437,7 @@ After the review loop completes, stress-test the final state of the PR with exte
 
 ### 3a. Confirm and execute debates
 
-Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the execution instructions for providers recorded as available in `mcp_availability`. Do not repeat `ToolSearch` here. When running in Codex and verified Claude debate tooling is available, run the Claude debate first; use Codex or Gemini only as additional providers or fallback providers according to the recorded preflight result. If `mcp_availability` shows no debate-capable external-model providers, skip to Step 4 and record "skipped — no debate-capable external-model MCPs available from Step 1f preflight" in the changelog and final summary.
+Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the execution instructions for providers recorded as available in `mcp_availability`. Do not repeat `ToolSearch` here. When running in Codex and verified Claude debate tooling is available, run the Claude debate first; use Codex as the additional or fallback provider according to the recorded preflight result. If `mcp_availability` shows no debate-capable external-model providers, skip to Step 4 and record "skipped — no debate-capable external-model MCPs available from Step 1f preflight" in the changelog and final summary.
 
 Before building or sending any debate prompt, make exactly one user-facing checkpoint for the whole debate phase:
 
@@ -451,52 +449,58 @@ Use `AskUserQuestion` when the harness supports it; otherwise ask directly. Offe
 
 ### 3b. Gather context and debate prompt
 
-Collect the material the MCPs need:
+The provider runs in a read-only sandbox in the repo's working directory. It can call `gh pr view`, `git diff`, and read files itself. The orchestrator's job is to **point** the provider at the PR and prior review state — not to paste artifacts the provider can fetch.
+
+The orchestrator collects only what isn't derivable from the repo (used to fill the prompt placeholders below):
 
 ```
-gh pr view <N> --json number,state,baseRefName,headRefName,title,body
+gh pr view <N> --json number,baseRefName,headRefName
 git fetch origin <pr_base_ref>
-git diff "origin/<pr_base_ref>"...HEAD
 ```
 
-Do not use `gh pr diff <N>` here; the remote PR will not include local self-review commits until Step 4 pushes the final squash commit.
+If `go.mod` exists at the repo root, resolve the on-disk absolute path to `references/code-health-standards-go.md` in the installed `djenriquez-core` plugin root. Pass the path in the prompt; do not paste the file contents.
 
-If `go.mod` exists at the repo root, also load `references/code-health-standards-go.md` from the installed `djenriquez-core` plugin root and include it in the prompt as advisory review guidance. Code-health concerns should be framed as suggestions unless they identify concrete harm.
+**Hard rule on prompt size.** The constructed prompt body must stay under ~1 KB after placeholder substitution. Do not paste the PR description, changed-file inventory, diff content, full standards files, or extensive PR-specific challenge questions — the provider fetches what it needs. The orchestrator's own context (PR description, inventory, full prior-review history) is for the orchestrator to *summarize*, not to forward verbatim. Oversized debate prompts have stalled the orchestrator's model stream and prevented the call from ever dispatching.
 
 Construct the debate prompt with:
 
-> You are performing a final code review of a PR that has already been through multiple rounds of automated review and fixes. Your job is adversarial: find what the reviewer consistently missed, identify changes that were incorrectly skipped, and surface any regressions introduced by the fixes themselves.
+> You are performing an adversarial final code review of PR #<N>. The PR has been through automated review. Find bugs, regressions, and skipped issues the prior reviewer missed.
 >
-> ## PR Diff
-> <full current diff>
+> Working directory: <repo path>
+> Review target: local HEAD against `origin/<pr_base_ref>` (includes self-review commits not yet pushed; the remote PR does not yet reflect these).
 >
-> ## Last Review Verdict
-> <verdict and findings from the final review turn>
+> Prior review verdict: <one-line verdict, or "none — first review pass">
+> Addressed feedback: <≤300-char bullet summary, or "none">
+> Skipped feedback: <≤300-char bullet summary with reasons, or "none">
 >
-> ## Changes Applied Across All Turns
-> <changelog summary>
+> <If go.mod exists: "Advisory Go code-health standard at `<absolute path>`. Apply as suggestions, not blocking findings.">
 >
-> ## Feedback Skipped Across All Turns
-> <all skipped items with reasons>
+> Use `gh`, `git`, and file reads to inspect anything you need. Apply adversarial scrutiny for correctness bugs, regressions introduced by fixes, incorrectly-skipped findings, missed test coverage, and cross-cutting issues.
 >
-> ## Go Code-Health Standard (if applicable)
-> <code-health-standards-go.md, advisory only>
->
-> ## Challenge Questions
-> 1. What bugs, logic errors, or correctness issues remain in the diff that the reviewer never caught?
-> 2. Which skipped findings were actually worth addressing — was the skip justification wrong?
-> 3. Did any of the fixes introduce new issues (regressions, inconsistencies, subtle behavior changes)?
-> 4. Are there cross-cutting concerns (error handling patterns, naming consistency, test coverage, or advisory Go code-health issues) that no single-turn reviewer would catch?
-> 5. Is the code ready to merge, or are there remaining issues that warrant another fix?
+> Return findings grouped as Critical, High, Medium, Low with `file:line` references. End with `VERDICT: APPROVE` or `VERDICT: REQUEST CHANGES`.
 
 ### 3c. Execute provider calls with bounded failure handling
 
+**Pre-dispatch validation (mandatory).** Before sending any opening provider call in this step, verify the constructed call satisfies all of the following. If any check fails, fix the call construction before dispatching — do not dispatch a non-conforming call and rely on the in-flight timeout to recover; calls dispatched without these guards have hung indefinitely.
+
+For an opening **Codex** call (`mcp__codex__codex`):
+
+- `model` is present and equal to the pinned Codex model from `protocols/mcp-debate.md` (currently `gpt-5.5`).
+- `approval-policy` is `"never"`.
+- `sandbox` is `"read-only"`.
+- `base-instructions` is present and matches the read-only review template from `protocols/mcp-debate.md` (in particular, the "Do not start internal follow-up rounds" clause).
+- The constructed `prompt` body is under 2 KB. If it is larger, summarize prior-review state instead of pasting it, reference standards files by absolute path instead of inlining them, and remove any PR description, file inventory, or diff content — the provider can fetch all of that itself.
+
+For an opening **Claude** call: the verified Claude prompt tool is used, the discovered `model` is passed if the schema supports it, and the prompt body satisfies the same 2 KB size cap.
+
+Record the validation outcome for each provider in the changelog so a failed run can be diagnosed against this list.
+
 Use `debate_attempt_policy` for every enrolled provider from `mcp_availability`:
 
-- Make at most one MCP debate attempt per provider.
-- Use a fixed 5 minute orchestrator-side budget per provider attempt. Debate prompts are smaller than full review turns, so do not inherit Step 2's 10 minute review timeout. The orchestrator enforces this by tracking elapsed time and refusing further provider attempts once exceeded; the active harness typically cannot abort an MCP call already in flight, so the hardening in `protocols/mcp-debate.md` (read-only sandbox, never-approval policy, review-only base instructions) is the primary defense against hangs and the elapsed-time budget is the backstop.
-- Treat these as provider failures: harness/user rejection, timeout, transport error, tool error, stream disconnect, or null/empty output.
-- If a provider fails, update that provider's entry in `mcp_availability` with `execution_status: "failed"` and an `execution_failure_reason`, then record the attempt status.
+- Make at most one MCP debate session per provider, with up to **10 convergence rounds** within that session. The convergence check defined in `protocols/mcp-debate.md` is the primary termination signal — run it after every round and decide whether to send a follow-up reply. Do not skip the convergence check, and do not stop solely on a model self-declaration that it is "done".
+- Use a fixed 5 minute orchestrator-side budget per individual MCP call (the opening call plus each reply), not per session. Debate prompts are smaller than full review turns, so do not inherit Step 2's 10 minute review timeout. The orchestrator enforces this by tracking elapsed time and ending the session once a single call exceeds it; the active harness typically cannot abort an MCP call already in flight, so the bounded round count, the convergence check, and the hardening in `protocols/mcp-debate.md` (read-only sandbox, never-approval policy, no-internal-iteration base instructions) are the primary defenses against hangs and the per-call timeout is the backstop.
+- Treat these as round failures that end the provider session: harness/user rejection, timeout, transport error, tool error, stream disconnect, or null/empty output.
+- If a provider session fails on any round, update that provider's entry in `mcp_availability` with `execution_status: "failed"`, an `execution_failure_reason`, and the round count reached.
 - Continue with the remaining enrolled providers after any provider failure.
 
 Detect user rejection explicitly. If a tool call returns the exact message `The user doesn't want to proceed with this tool use`, set that provider's `execution_status` to `rejected`, record `rejected: true`, and do not retry that provider with a different model, reduced payload, or alternate prompt. The user has already declined execution for this run.
