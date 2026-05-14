@@ -285,8 +285,10 @@ When the sub-agent returns, capture its full output. This contains the structure
 
 Parse the review output and check if the loop should stop:
 
+First normalize severity using the orchestrator's judgment. Review every finding, including Medium, Low, `risk`, `question`, and untiered notes. If a finding describes a concrete correctness bug, security issue, data loss risk, regression, broken error path, or test failure that could materially affect users or maintainers, treat it as blocking even if the reviewer did not label it Critical or High. Do not build a numeric rubric; record the reclassification and reason in the turn summary.
+
 **Successful stop condition — no unresolved Critical or High findings remain:**
-The loop succeeds only when the latest fresh review reports **zero** findings in the Critical and High tiers and the orchestrator has no blocking review feedback left to address after triage. Medium and Low findings do not keep the loop running by themselves unless triage determines they are blocking.
+The loop succeeds only when the latest fresh review reports **zero** findings in the Critical and High tiers and severity normalization leaves no blocking review feedback to address. Medium and Low findings do not keep the loop running by themselves unless triage determines they are blocking.
 
 **Blocked stop condition — max turns reached:**
 - `turn` equals `max_turns` (10)
@@ -304,6 +306,7 @@ For each finding in the review output, decide whether to **address** or **skip**
 
 **Address** the finding if:
 - It is in the Critical or High tier
+- It was reclassified as blocking during severity normalization
 - It identifies a real bug, logic error, or correctness issue
 - It requests reasonable error handling, validation, or edge case coverage
 - It points out a style/convention violation consistent with the codebase
