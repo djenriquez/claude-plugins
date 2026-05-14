@@ -83,7 +83,7 @@ Use harness skill discovery or search installed plugin roots for the skill file:
 
 If a match is found, set `review_skill` to `code-review`.
 
-- Claude Code: set `review_execution_mode` to `nested_skill_review` when the skill is registered and the required agent/team tools are available.
+- Claude Code: set `review_execution_mode` to `nested_skill_review` only when the skill is registered AND the skill's `allowed-tools` frontmatter does not include `Agent`, `Task`, or `TeamCreate`. Sub-agents spawned via `Agent(...)` in Claude Code do not inherit those tools, so a skill that needs to spawn its own agent team cannot run inside a nested review sub-agent — it will fail partway through and the sub-agent will typically improvise a non-fresh review, which silently violates the unbiased-review invariant. If the skill's frontmatter shows it requires nested spawning, keep `review_skill` for reporting but set `review_execution_mode` to `direct_codex_review` and record the reason in `review_mode_reason`.
 - Codex: set `review_execution_mode` to `nested_skill_review` only if the skill is registered in the active Codex skills list or otherwise has a documented Codex-compatible execution path. If compatibility is not proven, keep `review_skill` for reporting but use `direct_codex_review`.
 
 Record `review_mode_reason` with the specific evidence used for the mode decision, then proceed to Step 1c.
@@ -98,15 +98,17 @@ If Attempt 1 found no match, search for the namespaced variant:
 
 If a match is found, set `review_skill` to `abatilo-core:code-review`, then run a compatibility check before allowing nested execution.
 
-For `abatilo-core:code-review`, nested execution is compatible only when all of the following are true:
+For `abatilo-core:code-review`, nested execution is unsupported in Claude Code. The skill declares `allowed-tools: [Task, TeamCreate, TaskCreate, ...]` and its first instruction is "YOU MUST SPAWN AN AGENT TEAM. Do NOT review code yourself." A Claude Code sub-agent spawned via `Agent(...)` does not inherit `Agent`/`Task`/`TeamCreate`, so the nested invocation fails partway through — typically the sub-agent improvises its own review, silently violating the unbiased-review invariant. In Claude Code, set `review_execution_mode` to `direct_codex_review` and record `"abatilo-core:code-review requires nested team spawning; Claude Code sub-agents cannot inherit Agent/Task"` in `review_mode_reason`.
+
+In Codex, nested execution is compatible only when all of the following are true:
 
 - The expected specialist reviewer capability is available, either as registered specialist agent types or as an installed `agents/` directory containing the required reviewer definitions.
 - The active harness can spawn those specialists as read-only reviewers, or can include the `agents/<reviewer>.md` instructions in Codex `explorer` prompts.
 - The active harness can complete the team/message lifecycle without relying on unavailable Claude-only tools.
 
-Codex default: if `abatilo-core:code-review` is the only discovered review skill, or if any compatibility condition is absent or unproven, set `review_execution_mode` to `direct_codex_review`. Do not invoke `abatilo-core:code-review` from the review sub-agent in that case. Record the failed or skipped compatibility condition in `review_mode_reason`.
+Codex default: if any compatibility condition is absent or unproven, set `review_execution_mode` to `direct_codex_review`. Do not invoke `abatilo-core:code-review` from the review sub-agent in that case. Record the failed or skipped compatibility condition in `review_mode_reason`.
 
-Only set `review_execution_mode` to `nested_skill_review` for `abatilo-core:code-review` when the compatibility check is explicitly satisfied. Then proceed to Step 1c.
+Only set `review_execution_mode` to `nested_skill_review` for `abatilo-core:code-review` when running in Codex AND the compatibility check is explicitly satisfied. Then proceed to Step 1c.
 
 **Neither available — stop:**
 
@@ -210,7 +212,7 @@ Claude Code:
 ```
 Agent(
   description: "Code review turn N",
-  prompt: "Run /<review_skill> against the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Review the local diff from `git diff origin/<pr_base_ref>...HEAD`; do not use `gh pr diff <N>` as the diff source because self-review commits stay local until the final squash. Use `gh pr view <N>` only for PR metadata. Do not add any additional context or commentary — just run the skill and report back the full review output exactly as produced.",
+  prompt: "Run /<review_skill> against the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Review the local diff from `git diff origin/<pr_base_ref>...HEAD`; do not use `gh pr diff <N>` as the diff source because self-review commits stay local until the final squash. Use `gh pr view <N>` only for PR metadata. If the review skill requires tools or agent types that are not available to you (for example, `Task`/`TeamCreate` for spawning a review team), return immediately with the exact string `REVIEW_SKILL_UNAVAILABLE: <reason>` instead of improvising a review yourself — the orchestrator will fall back to direct review. Do not add any additional context or commentary — just run the skill and report back the full review output exactly as produced.",
   mode: "bypassPermissions"
 )
 ```
@@ -221,11 +223,23 @@ Codex:
 spawn_agent(
   agent_type: "default",
   fork_context: false,
-  message: "Run <review_skill> against the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Review the local diff from `git diff origin/<pr_base_ref>...HEAD`; do not use `gh pr diff <N>` as the diff source because self-review commits stay local until the final squash. Use `gh pr view <N>` only for PR metadata. Do not add any additional context or commentary — just run the skill and report back the full review output exactly as produced."
+  message: "Run <review_skill> against the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Review the local diff from `git diff origin/<pr_base_ref>...HEAD`; do not use `gh pr diff <N>` as the diff source because self-review commits stay local until the final squash. Use `gh pr view <N>` only for PR metadata. If the review skill requires tools or agent types that are not available to you, return immediately with the exact string `REVIEW_SKILL_UNAVAILABLE: <reason>` instead of improvising a review yourself — the orchestrator will fall back to direct review. Do not add any additional context or commentary — just run the skill and report back the full review output exactly as produced."
 )
 ```
 
-For `direct_codex_review`, do not invoke `abatilo-core:code-review` or any nested review-team workflow. Choose direct review depth based on PR size and risk: one strong fresh reviewer is acceptable for small, low-risk diffs; use multiple independent fresh reviewers or focused fresh passes when the diff is large, touches risky behavior, has weak tests, or the previous review output looked shallow. Every direct reviewer must use `fork_context: false`, stay read-only, and receive no prior turn history.
+For `direct_codex_review`, do not invoke `abatilo-core:code-review` or any nested review-team workflow. Choose direct review depth based on PR size and risk: one strong fresh reviewer is acceptable for small, low-risk diffs; use multiple independent fresh reviewers or focused fresh passes when the diff is large, touches risky behavior, has weak tests, or the previous review output looked shallow. Every direct reviewer must start with no prior turn context (fresh `Agent(...)` in Claude Code; `spawn_agent` with `fork_context: false` in Codex), stay read-only, and receive no prior turn history.
+
+Claude Code:
+
+```
+Agent(
+  description: "Code review turn N (direct)",
+  prompt: "Perform a direct code review of the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Inspect the local diff from `git diff origin/<pr_base_ref>...HEAD`; for large diffs, use the changed-file inventory to select targeted file diffs and state what coverage you achieved. Follow relevant call sites, inspect tests or missing tests, and look for behavioral regressions, broken error paths, and inconsistent contracts. Use `gh pr view <N>` only for PR metadata. Do not edit files, push, commit, or spawn nested review teams. Return findings grouped by Critical, High, Medium, and Low, include file/line references where possible, and end with a verdict of APPROVE or REQUEST CHANGES.",
+  mode: "bypassPermissions"
+)
+```
+
+Codex:
 
 ```
 spawn_agent(
@@ -239,7 +253,7 @@ When multiple direct reviewers or passes are used, aggregate their findings into
 
 Before waiting for the sub-agent, record the review mode, skill, and reason for this turn, for example: direct Codex review because nested specialist capability was not proven.
 
-Wait at most `review_attempt_timeout` (10 minutes) for each review attempt. Treat any of these as review execution failures:
+Track elapsed time per review attempt against a 10 minute budget (`review_attempt_timeout`). The orchestrator enforces this budget by checking elapsed time and refusing further retries once it is exceeded; it cannot abort a sub-agent or MCP call that is already in flight. Treat any of these as review execution failures:
 
 - timeout
 - transport error
@@ -480,7 +494,7 @@ Construct the debate prompt with:
 Use `debate_attempt_policy` for every enrolled provider from `mcp_availability`:
 
 - Make at most one MCP debate attempt per provider.
-- Use a fixed 5 minute timeout per provider attempt. Debate prompts are smaller than full review turns, so do not inherit Step 2's 10 minute review timeout.
+- Use a fixed 5 minute orchestrator-side budget per provider attempt. Debate prompts are smaller than full review turns, so do not inherit Step 2's 10 minute review timeout. The orchestrator enforces this by tracking elapsed time and refusing further provider attempts once exceeded; the active harness typically cannot abort an MCP call already in flight, so the hardening in `protocols/mcp-debate.md` (read-only sandbox, never-approval policy, review-only base instructions) is the primary defense against hangs and the elapsed-time budget is the backstop.
 - Treat these as provider failures: harness/user rejection, timeout, transport error, tool error, stream disconnect, or null/empty output.
 - If a provider fails, update that provider's entry in `mcp_availability` with `execution_status: "failed"` and an `execution_failure_reason`, then record the attempt status.
 - Continue with the remaining enrolled providers after any provider failure.
