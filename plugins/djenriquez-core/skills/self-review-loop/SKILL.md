@@ -540,11 +540,17 @@ Do **not** push here. Append the local commit SHA to `local_review_commits`; Ste
 
 Record all MCP-sourced changes and skips in the changelog under a "Cross-Model Debate" section. Include provider execution telemetry for every enrolled provider, including successful providers, rejected providers, and failed providers.
 
+### 3e. Final fresh review after post-loop changes
+
+If Step 3 applied any code changes, run one more fresh review before Step 4. Reuse the same review execution path from Step 2a through Step 2c against local `origin/<pr_base_ref>...HEAD`; do not run MCP debate again from this final gate. The final reviewer must be fresh-context, read-only, and unaware of prior turns except for the local diff it inspects.
+
+If the final review reports, or severity normalization reclassifies, any unresolved Critical or High finding, set `stop_reason` to `"blocked_final_review"`, leave local review commits unpushed, and proceed directly to Step 5. If Step 3 made no code changes, reuse the last clean review state and record that no post-debate final review was needed.
+
 ## Step 4: Squash Local Review Commits and Push Once
 
 This is the only step that publishes self-review changes to the remote branch. Do not push before this step.
 
-Only run this step when `stop_reason` is `"no_unresolved_critical_high_findings"` and there are no unresolved Critical or High findings. If `stop_reason` is `"blocked_max_turns"` or `"blocked_oscillation"`, leave any local review commits unpushed and report the blocked state in Step 5 instead of publishing a successful result.
+Only run this step when `stop_reason` is `"no_unresolved_critical_high_findings"`, there are no unresolved Critical or High findings, and any required post-debate final fresh review completed cleanly. If `stop_reason` is `"blocked_max_turns"`, `"blocked_oscillation"`, or `"blocked_final_review"`, leave any local review commits unpushed and report the blocked state in Step 5 instead of publishing a successful result.
 
 If `local_review_commits` is empty, skip the squash and push. There are no self-review changes to publish.
 
@@ -618,7 +624,7 @@ After the loop terminates and the final squash/push step completes or is skipped
 
 **Turns completed**: <turn count>
 **Status**: <"Succeeded" or "Blocked">
-**Stop reason**: <"No unresolved Critical or High findings remaining" or "Blocked — maximum turns reached with unresolved findings" or "Blocked — oscillation detected">
+**Stop reason**: <"No unresolved Critical or High findings remaining", "Blocked — maximum turns reached with unresolved findings", "Blocked — oscillation detected", or "Blocked — final fresh review found unresolved findings">
 **Large PR mode**: <yes/no — changed_file_count files, changed_line_count changed lines, max_turns N>
 **Review execution**: <nested_skill_review/direct_codex_review/mixed> — <retry/fallback summary>
 **Published commit**: <final_review_commit SHA, "no changes; nothing pushed", or "not pushed — blocked">
@@ -676,6 +682,7 @@ After the loop terminates and the final squash/push step completes or is skipped
 - **Findings surfaced**: <count>
 - **Addressed**: <count> — <brief summary>
 - **Skipped**: <count> — <brief summary>
+- **Post-debate final review**: <"ran — APPROVE/REQUEST CHANGES", "not needed — no code changes", or "blocked — unresolved Critical/High findings">
 - **Local commit**: <SHA, included in final squash> (or "no changes")
 
 ### Final Squash and Push
