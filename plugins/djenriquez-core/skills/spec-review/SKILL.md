@@ -22,7 +22,6 @@ allowed-tools:
   - ToolSearch
 mcpServers:
   - codex
-  - gemini-cli
 ---
 
 # Spec Review Agent Team
