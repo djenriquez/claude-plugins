@@ -449,43 +449,25 @@ Use `AskUserQuestion` when the harness supports it; otherwise ask directly. Offe
 
 ### 3b. Gather context and debate prompt
 
-Collect metadata for the debate prompt. The orchestrator does not materialize the full diff into the prompt — the provider reads the diff itself within its read-only sandbox under the convergence loop's bounds. Only the changed-file inventory is embedded so the provider can choose what to inspect.
+The provider reads the diff itself within its read-only sandbox. The orchestrator only collects what isn't derivable from the repo:
 
 ```
 gh pr view <N> --json number,state,baseRefName,headRefName,title,body
 git fetch origin <pr_base_ref>
-git diff --name-status "origin/<pr_base_ref>"...HEAD
-git diff --numstat "origin/<pr_base_ref>"...HEAD
 ```
-
-Do not use `gh pr diff <N>` here; the remote PR will not include local self-review commits until Step 4 pushes the final squash commit.
 
 If `go.mod` exists at the repo root, also load `references/code-health-standards-go.md` from the installed `djenriquez-core` plugin root and include it in the prompt as advisory review guidance. Code-health concerns should be framed as suggestions unless they identify concrete harm.
 
 Construct the debate prompt with:
 
-> You are performing a final code review of a PR that has already been through multiple rounds of automated review and fixes. Your job is adversarial: find what the reviewer consistently missed, identify changes that were incorrectly skipped, and surface any regressions introduced by the fixes themselves.
+> You are performing a final adversarial code review of a PR that has already been through multiple rounds of automated review and fixes. Find what the reviewer consistently missed, identify changes that were incorrectly skipped, and surface any regressions introduced by the fixes themselves.
 >
-> ## PR Metadata
+> ## PR Context
 > Working directory: <repo path>
 > PR number: <N>
-> Base ref: origin/<pr_base_ref>
-> Head: local HEAD (includes self-review commits not yet pushed)
+> Review target: local HEAD against `origin/<pr_base_ref>` (includes self-review commits not yet pushed; the remote PR does not yet reflect these)
 >
-> ## Changed File Inventory
-> <`git diff --name-status` output>
->
-> ## Change Size Per File
-> <`git diff --numstat` output>
->
-> ## How to Read the Diff
-> The full diff is not embedded. Inspect it directly inside your read-only sandbox:
->   - `git diff origin/<pr_base_ref>...HEAD` for the full diff
->   - `git diff origin/<pr_base_ref>...HEAD -- <path>` for targeted file inspection
->   - `git show origin/<pr_base_ref>:<path>` to read the base version of a file
-> Use the inventory and per-file change sizes above to choose what to inspect based on the challenge questions. Return findings and stop after one analysis pass; the orchestrator will follow up with targeted questions if it needs more.
->
-> ## Last Review Verdict
+> ## Prior Review Verdict
 > <verdict and findings from the final review turn>
 >
 > ## Changes Applied Across All Turns
@@ -514,9 +496,8 @@ For an opening **Codex** call (`mcp__codex__codex`):
 - `approval-policy` is `"never"`.
 - `sandbox` is `"read-only"`.
 - `base-instructions` is present and matches the read-only review template from `protocols/mcp-debate.md` (in particular, the "Do not start internal follow-up rounds" clause).
-- The prompt body contains the `## Changed File Inventory` section and the `## How to Read the Diff` section described in Step 3b. Codex reads the diff itself within the read-only sandbox; the convergence loop, per-call timeout, and `base-instructions` bound how long that reading can take.
 
-For an opening **Claude** call: the verified Claude prompt tool is used, the discovered `model` is passed if the schema supports it, and the prompt body contains the same inventory and read-the-diff sections.
+For an opening **Claude** call: the verified Claude prompt tool is used and the discovered `model` is passed if the schema supports it.
 
 Record the validation outcome for each provider in the changelog so a failed run can be diagnosed against this list.
 
