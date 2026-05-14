@@ -251,15 +251,17 @@ spawn_agent(
 )
 ```
 
-For `direct_codex_review`, do not invoke `abatilo-core:code-review` or any nested review-team workflow. Spawn exactly one fresh read-only reviewer with no prior context and give it a direct code-review prompt:
+For `direct_codex_review`, do not invoke `abatilo-core:code-review` or any nested review-team workflow. Choose direct review depth based on PR size and risk: one strong fresh reviewer is acceptable for small, low-risk diffs; use multiple independent fresh reviewers or focused fresh passes when the diff is large, touches risky behavior, has weak tests, or the previous review output looked shallow. Every direct reviewer must use `fork_context: false`, stay read-only, and receive no prior turn history.
 
 ```
 spawn_agent(
   agent_type: "explorer",
   fork_context: false,
-  message: "Perform a direct code review of the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Inspect the local diff from `git diff origin/<pr_base_ref>...HEAD`; use `gh pr view <N>` only for PR metadata. Do not edit files, push, commit, or spawn additional review teams. Return findings grouped by Critical, High, Medium, and Low, include file/line references where possible, and end with a verdict of APPROVE or REQUEST CHANGES."
+  message: "Perform a direct code review of the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Inspect the local diff from `git diff origin/<pr_base_ref>...HEAD`; for large diffs, use the changed-file inventory to select targeted file diffs and state what coverage you achieved. Follow relevant call sites, inspect tests or missing tests, and look for behavioral regressions, broken error paths, and inconsistent contracts. Use `gh pr view <N>` only for PR metadata. Do not edit files, push, commit, or spawn nested review teams. Return findings grouped by Critical, High, Medium, and Low, include file/line references where possible, and end with a verdict of APPROVE or REQUEST CHANGES."
 )
 ```
+
+When multiple direct reviewers or passes are used, aggregate their findings into one Critical/High/Medium/Low review output before Step 2c. Keep disagreements visible in the triage notes rather than hiding them.
 
 Record `review_modes_per_turn[turn]` before waiting for the sub-agent. Include `mode`, `skill`, and `reason`, for example `{mode: "direct_codex_review", skill: "abatilo-core:code-review", reason: "Codex fallback because nested specialist capability was not proven"}`.
 
@@ -271,7 +273,7 @@ Wait at most `review_attempt_timeout` (10 minutes) for each review attempt. Trea
 - invalid review output, such as missing priority tiers and missing verdict
 - stream disconnected before completion
 
-For those failures, retry once (`max_review_retries`: 1). If the retry also fails, do not start another nested review-team execution. Set `review_execution_mode` to `direct_codex_review` for the turn, record `fallback_reason`, and run the single direct reviewer prompt above. Record each attempt in `review_execution_telemetry[turn]` with mode, skill, duration, timeout status, retry count, and fallback reason.
+For those failures, retry once (`max_review_retries`: 1). If the retry also fails, do not start another nested review-team execution. Set `review_execution_mode` to `direct_codex_review` for the turn, record `fallback_reason`, and run the direct review path above with a depth appropriate to the PR's risk. Record each attempt in `review_execution_telemetry[turn]` with mode, skill, duration, timeout status, retry count, and fallback reason.
 
 When `nested_skill_review` is used, the sub-agent may invoke the compatible code review skill, which may in turn spawn its own review team or sub-agents. The code review skill handles its own cleanup where the harness supports it, so when the sub-agent returns, any nested review team should already be complete along with the sub-agent itself.
 
