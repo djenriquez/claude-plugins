@@ -449,42 +449,35 @@ Use `AskUserQuestion` when the harness supports it; otherwise ask directly. Offe
 
 ### 3b. Gather context and debate prompt
 
-The provider reads the diff itself within its read-only sandbox. The orchestrator only collects what isn't derivable from the repo:
+The provider runs in a read-only sandbox in the repo's working directory. It can call `gh pr view`, `git diff`, and read files itself. The orchestrator's job is to **point** the provider at the PR and prior review state — not to paste artifacts the provider can fetch.
+
+The orchestrator collects only what isn't derivable from the repo (used to fill the prompt placeholders below):
 
 ```
-gh pr view <N> --json number,state,baseRefName,headRefName,title,body
+gh pr view <N> --json number,baseRefName,headRefName
 git fetch origin <pr_base_ref>
 ```
 
-If `go.mod` exists at the repo root, also load `references/code-health-standards-go.md` from the installed `djenriquez-core` plugin root and include it in the prompt as advisory review guidance. Code-health concerns should be framed as suggestions unless they identify concrete harm.
+If `go.mod` exists at the repo root, resolve the on-disk absolute path to `references/code-health-standards-go.md` in the installed `djenriquez-core` plugin root. Pass the path in the prompt; do not paste the file contents.
+
+**Hard rule on prompt size.** The constructed prompt body must stay under ~1 KB after placeholder substitution. Do not paste the PR description, changed-file inventory, diff content, full standards files, or extensive PR-specific challenge questions — the provider fetches what it needs. The orchestrator's own context (PR description, inventory, full prior-review history) is for the orchestrator to *summarize*, not to forward verbatim. Oversized debate prompts have stalled the orchestrator's model stream and prevented the call from ever dispatching.
 
 Construct the debate prompt with:
 
-> You are performing a final adversarial code review of a PR that has already been through multiple rounds of automated review and fixes. Find what the reviewer consistently missed, identify changes that were incorrectly skipped, and surface any regressions introduced by the fixes themselves.
+> You are performing an adversarial final code review of PR #<N>. The PR has been through automated review. Find bugs, regressions, and skipped issues the prior reviewer missed.
 >
-> ## PR Context
 > Working directory: <repo path>
-> PR number: <N>
-> Review target: local HEAD against `origin/<pr_base_ref>` (includes self-review commits not yet pushed; the remote PR does not yet reflect these)
+> Review target: local HEAD against `origin/<pr_base_ref>` (includes self-review commits not yet pushed; the remote PR does not yet reflect these).
 >
-> ## Prior Review Verdict
-> <verdict and findings from the final review turn>
+> Prior review verdict: <one-line verdict, or "none — first review pass">
+> Addressed feedback: <≤300-char bullet summary, or "none">
+> Skipped feedback: <≤300-char bullet summary with reasons, or "none">
 >
-> ## Changes Applied Across All Turns
-> <changelog summary>
+> <If go.mod exists: "Advisory Go code-health standard at `<absolute path>`. Apply as suggestions, not blocking findings.">
 >
-> ## Feedback Skipped Across All Turns
-> <all skipped items with reasons>
+> Use `gh`, `git`, and file reads to inspect anything you need. Apply adversarial scrutiny for correctness bugs, regressions introduced by fixes, incorrectly-skipped findings, missed test coverage, and cross-cutting issues.
 >
-> ## Go Code-Health Standard (if applicable)
-> <code-health-standards-go.md, advisory only>
->
-> ## Challenge Questions
-> 1. What bugs, logic errors, or correctness issues remain in the diff that the reviewer never caught?
-> 2. Which skipped findings were actually worth addressing — was the skip justification wrong?
-> 3. Did any of the fixes introduce new issues (regressions, inconsistencies, subtle behavior changes)?
-> 4. Are there cross-cutting concerns (error handling patterns, naming consistency, test coverage, or advisory Go code-health issues) that no single-turn reviewer would catch?
-> 5. Is the code ready to merge, or are there remaining issues that warrant another fix?
+> Return findings grouped as Critical, High, Medium, Low with `file:line` references. End with `VERDICT: APPROVE` or `VERDICT: REQUEST CHANGES`.
 
 ### 3c. Execute provider calls with bounded failure handling
 
@@ -496,8 +489,9 @@ For an opening **Codex** call (`mcp__codex__codex`):
 - `approval-policy` is `"never"`.
 - `sandbox` is `"read-only"`.
 - `base-instructions` is present and matches the read-only review template from `protocols/mcp-debate.md` (in particular, the "Do not start internal follow-up rounds" clause).
+- The constructed `prompt` body is under 2 KB. If it is larger, summarize prior-review state instead of pasting it, reference standards files by absolute path instead of inlining them, and remove any PR description, file inventory, or diff content — the provider can fetch all of that itself.
 
-For an opening **Claude** call: the verified Claude prompt tool is used and the discovered `model` is passed if the schema supports it.
+For an opening **Claude** call: the verified Claude prompt tool is used, the discovered `model` is passed if the schema supports it, and the prompt body satisfies the same 2 KB size cap.
 
 Record the validation outcome for each provider in the changelog so a failed run can be diagnosed against this list.
 
