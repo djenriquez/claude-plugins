@@ -35,6 +35,23 @@ Construct a debate prompt containing:
 2. The review output being challenged (synthesized findings, verdict, changelog)
 3. Adversarial challenge questions (provided by the invoking skill — at least 5)
 
+## Execution Failure Handling
+
+Discovery only proves that a provider exposes a callable debate tool. Keep these execution-time outcomes distinct:
+
+- **Unavailable at preflight**: no verified debate-capable MCP tool was found. The invoking skill should skip the debate phase before building a debate prompt.
+- **Rejected at execution**: the provider was available, but the harness/user declined the tool call. Treat the exact harness message `The user doesn't want to proceed with this tool use` as a terminal rejection for that provider and this run.
+- **Execution failed**: the provider call was accepted but timed out, returned a transport/tool error, or produced null/empty output.
+
+Use a bounded attempt policy unless the invoking skill explicitly overrides it:
+
+- Before making provider calls, give the user one checkpoint for the entire debate phase: announce the enrolled providers and ask whether to run or skip the phase. If the user declines, skip the whole debate phase and continue the invoking workflow.
+- Make at most one MCP debate attempt per enrolled provider.
+- Use a 5 minute timeout per provider attempt.
+- On rejection, timeout, transport error, tool error, stream disconnect, or null/empty output, mark only that provider failed or rejected and continue with any remaining enrolled providers.
+- If all enrolled providers fail or are rejected, record the debate as `skipped — execution declined or unreachable` and continue the invoking workflow.
+- Do not retry a rejected provider with a different model, smaller payload, or alternate prompt. A harness permission decline is a user decision, not a recoverable model error.
+
 ### Provider Model Pinning (required)
 
 Always pass the `model` parameter explicitly on every MCP call below when the provider supports it. Without an explicit model, these servers fall back to whatever default is configured in the user's environment, which is frequently an older generation — debate quality degrades noticeably when that happens. Update the values here when new flagship models ship so every skill picks up the change in one place.
@@ -45,23 +62,19 @@ Current pinned models:
 - **Codex**: `gpt-5.5`
 - **Gemini**: `gemini-3.1-pro`
 
-If a pinned model is rejected by the MCP server (not configured, not yet available, access error), stop and surface the error in the invoking skill's final output so the user knows to update this protocol or their MCP config. Do **not** silently omit the `model` parameter to work around the error — that is the exact failure mode this section exists to prevent.
+If a pinned model is rejected by the MCP server (not configured, not yet available, access error), treat that provider as failed under the execution failure policy and surface the failure in the invoking skill's final output so the user knows to update this protocol or their MCP config. Do **not** silently omit the `model` parameter to work around the error — that is the exact failure mode this section exists to prevent.
 
 ### Provider Example: Claude (if available)
 
-Use the verified Claude MCP prompt tool recorded during discovery. Tool names vary by MCP server, so use the recorded schema instead of guessing a hard-coded function name. Do not use operational `mcp__claude_code__` tools unless that namespace also exposes a direct external-model prompt endpoint. When the tool supports a `model` parameter, pass the discovered Claude model explicitly. Ask the same adversarial challenge questions as the other providers. Continue follow-up rounds until convergence or 5 rounds maximum.
+Use the verified Claude MCP prompt tool recorded during discovery. Tool names vary by MCP server, so use the recorded schema instead of guessing a hard-coded function name. Do not use operational `mcp__claude_code__` tools unless that namespace also exposes a direct external-model prompt endpoint. When the tool supports a `model` parameter, pass the discovered Claude model explicitly. Ask the same adversarial challenge questions as the other providers. Make one call for this provider; do not start follow-up rounds unless the invoking skill explicitly opts out of the bounded attempt policy.
 
 ### Provider Example: Codex (if available)
 
 1. Start with `mcp__codex__codex(model: "gpt-5.5", prompt: <debate prompt>)`.
-2. Continue via `mcp__codex__codex-reply` until convergence or **5 rounds maximum**. The session is bound to the model set on the opening call; replies do not need the parameter re-passed.
-3. **Convergence check** after each reply — continue if ANY is "yes"; stop only when ALL are "no":
-   - Did this turn surface a new finding or angle?
-   - Did either position change?
-   - Are there unexplored areas relevant to the content?
+2. Use `mcp__codex__codex-reply` only when the invoking skill explicitly opts out of the bounded attempt policy. The session is bound to the model set on the opening call; replies do not need the parameter re-passed.
+3. Under the bounded attempt policy, the opening `mcp__codex__codex` call is the provider's only attempt.
 
 ### Provider Example: Gemini (if available)
 
 1. Call `mcp__gemini-cli__ask-gemini(model: "gemini-3.1-pro", prompt: <debate prompt>)`.
-2. If the response raises substantial points needing follow-up, call again with targeted questions — pass the `model` parameter on every follow-up as well; Gemini calls are stateless.
-3. One round is sufficient if the response comprehensively covers all challenge questions.
+2. Make one call for this provider; do not start follow-up rounds unless the invoking skill explicitly opts out of the bounded attempt policy. If a follow-up is explicitly allowed, pass the `model` parameter on every follow-up as well because Gemini calls are stateless.
