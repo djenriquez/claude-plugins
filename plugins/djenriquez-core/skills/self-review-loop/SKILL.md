@@ -1,6 +1,6 @@
 ---
 name: self-review-loop
-description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then evaluates and applies feedback. Loops until only minor/nit feedback remains or the adaptive turn limit is reached. Keeps per-turn commits local, squashes them into one final review commit, then pushes once. Auto-discovers a compatible review execution mode — prefers a supported code-review skill and falls back to direct Codex review when nested team review is unavailable or unreliable."
+description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then evaluates and applies feedback. Loops until no Critical or High findings remain or the 10-turn limit is reached. Keeps per-turn commits local, squashes them into one final commit, then pushes once. Auto-discovers a compatible review execution mode — prefers a supported code-review skill and falls back to direct Codex review when nested team review is unavailable or unreliable."
 argument-hint: "#N or N (PR number)"
 disable-model-invocation: false
 allowed-tools:
@@ -158,7 +158,7 @@ Set up tracking for the loop:
 - `changed_file_count`: count from `git diff --name-only "origin/<pr_base_ref>"...HEAD`
 - `changed_line_count`: additions plus deletions from `git diff --numstat "origin/<pr_base_ref>"...HEAD`, excluding binary `-` entries
 - `large_pr`: true when `changed_file_count` is greater than 50 or `changed_line_count` is greater than 1000
-- `max_turns`: 3 when `large_pr` is true, otherwise 5. For large PRs, increase up to 5 only if review executions are completing cleanly and quickly: no timeout, no retry, no direct fallback caused by execution failure, and review duration is comfortably below `review_attempt_timeout`
+- `max_turns`: 10 for every PR. `large_pr` still controls diff-prompt sizing, but it does not reduce the review loop turn budget.
 - `review_skill`: the review skill discovered in Step 1b, or null if direct review is the only viable mode
 - `review_execution_mode`: `nested_skill_review` or `direct_codex_review`, selected in Step 1b
 - `review_mode_reason`: the concrete discovery/compatibility evidence that selected the mode
@@ -285,16 +285,13 @@ When the sub-agent returns, capture its full output. This contains the structure
 
 Parse the review output and check if the loop should stop:
 
-**Stop condition — only non-actionable feedback remains:**
-A review qualifies as "non-actionable" if ALL of the following are true:
-- The verdict is **APPROVE**
-- There are **zero** findings in the Critical or High tiers
-- All remaining findings are classified as `suggestion`, `nitpick`, `thought`, `risk`, or `question` (none of these require code changes — `risk` is an acknowledged trade-off and `question` is a request for clarification, not a code fix)
+**Stop condition — no Critical or High findings remain:**
+The loop continues until the latest review reports **zero** findings in the Critical and High tiers. Medium and Low findings do not keep the loop running by themselves; evaluate and triage them in the current turn only when the loop is still running for Critical or High findings.
 
 **Stop condition — max turns reached:**
-- `turn` equals `max_turns`
+- `turn` equals `max_turns` (10)
 
-If either stop condition is met, set `stop_reason` to `"clean_review"` or `"max_turns"` respectively and proceed to Step 3.
+If either stop condition is met, set `stop_reason` to `"no_critical_high_findings"` or `"max_turns"` respectively and proceed to Step 3.
 
 **Stop condition — oscillation detected:**
 After turn 2, check `files_changed_per_turn` for thrashing. If the set of files changed in the current turn's triage (Step 2d) overlaps significantly (>50%) with the files changed two turns ago, the loop is oscillating — reviewers are undoing each other's changes. Set `stop_reason` to `"oscillation"` and proceed to Step 3. When reporting, note which files were thrashing and the conflicting feedback.
@@ -613,7 +610,7 @@ After the loop terminates and the final squash/push step completes, present a co
 ## Self-Review Complete: PR #<N>
 
 **Turns completed**: <turn count>
-**Stop reason**: <"Clean review — only non-actionable feedback remaining" or "Maximum turns reached" or "Oscillation detected — turns were undoing each other's changes">
+**Stop reason**: <"No Critical or High findings remaining" or "Maximum turns reached" or "Oscillation detected — turns were undoing each other's changes">
 **Large PR mode**: <yes/no — changed_file_count files, changed_line_count changed lines, max_turns N>
 **Review execution**: <nested_skill_review/direct_codex_review/mixed> — <retry/fallback summary>
 **Published commit**: <final_review_commit SHA> (or "no changes; nothing pushed")
