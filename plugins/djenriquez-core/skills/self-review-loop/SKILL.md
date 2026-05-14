@@ -167,6 +167,8 @@ Set up tracking for the loop:
 - `max_review_retries`: 1 for transport, timeout, null-output, invalid-output, or stream-disconnect failures
 - `review_execution_telemetry`: empty map of turn → {mode, skill, duration, timeout, retry_count, fallback_reason}
 - `mcp_availability`: result of Step 1f's one-time MCP preflight, recording available and unavailable providers
+- `debate_attempt_policy`: `{max_attempts_per_provider: 1, provider_timeout: "5 minutes", failure_conditions: ["user-declined permission gate", "timeout", "transport error", "tool error", "null or empty output"], user_decline_message: "The user doesn't want to proceed with this tool use"}` — controls Step 3 execution after preflight availability is known
+- `mcp_debate_execution_telemetry`: empty map of provider → {attempted, duration, timeout, rejected, error, output_received, status} — records Step 3 provider execution results
 - `local_review_commits`: empty list — accumulates local-only commits created by this skill across all turns and MCP feedback
 - `final_review_commit`: null — set after Step 4 creates the single squashed commit that is pushed
 - `changelog`: empty list — accumulates ALL changes across ALL turns
@@ -192,6 +194,12 @@ ToolSearch(query: "gemini", max_results: 3)
 After each `ToolSearch` result, verify the returned schema exposes a debate-capable prompt tool before marking that provider available. `mcp__claude_code__` operational tools such as `Read`, `Bash`, or `Agent` do not count unless that namespace also exposes a direct external-model prompt endpoint.
 
 When the active harness is Codex, prefer Claude for cross-model debate only when verified Claude debate tooling is available. Record the results in `mcp_availability`, including each provider's availability or unavailability, exact callable tool names, prompt/model arguments, and exposed model names. Later MCP debate steps must consult this recorded value instead of repeating discovery. If no debate-capable external-model provider is available, record `mcp_availability` as unavailable and skip the debate explicitly in Step 3 and the final summary.
+
+Preflight availability means only "the provider exposes a callable debate tool." It does not guarantee execution will succeed later. Keep these failure modes distinct in the state and final summary:
+
+- **Unavailable at preflight**: no verified debate-capable MCP tool was found. Step 3 is skipped before any debate prompt is built.
+- **Rejected at execution**: the provider was available, but the harness/user declined the tool call. Treat the exact harness message `The user doesn't want to proceed with this tool use` as a terminal rejection for that provider and for this run's debate step.
+- **Execution failed**: the provider call was accepted but timed out, returned a transport/tool error, or produced null/empty output. Mark only that provider failed and continue with remaining enrolled providers.
 
 ---
 
@@ -439,9 +447,17 @@ After the review loop completes, stress-test the final state of the PR with exte
 
 **Skip this step if no debate-capable external-model MCPs are available.**
 
-### 3a. Discover and execute debates
+### 3a. Confirm and execute debates
 
 Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the execution instructions for providers recorded as available in `mcp_availability`. Do not repeat `ToolSearch` here. When running in Codex and verified Claude debate tooling is available, run the Claude debate first; use Codex or Gemini only as additional providers or fallback providers according to the recorded preflight result. If `mcp_availability` shows no debate-capable external-model providers, skip to Step 4 and record "skipped — no debate-capable external-model MCPs available from Step 1f preflight" in the changelog and final summary.
+
+Before building or sending any debate prompt, make exactly one user-facing checkpoint for the whole debate phase:
+
+```text
+About to run MCP cross-model debate against <N> provider(s): <provider list>. This may trigger external-model MCP tool calls. Proceed or skip the debate phase?
+```
+
+Use `AskUserQuestion` when the harness supports it; otherwise ask directly. Offer only two choices: run the debate phase or skip the debate phase. If the user skips or declines this checkpoint, skip to Step 4 and record "skipped — user declined MCP cross-model debate checkpoint" in the changelog and final summary. If the user approves, treat that as approval to attempt the enrolled provider calls for this run; do not ask again at the orchestrator level.
 
 ### 3b. Gather context and debate prompt
 
@@ -483,7 +499,21 @@ Construct the debate prompt with:
 > 4. Are there cross-cutting concerns (error handling patterns, naming consistency, test coverage, or advisory Go code-health issues) that no single-turn reviewer would catch?
 > 5. Is the code ready to merge, or are there remaining issues that warrant another fix?
 
-### 3c. Triage and apply MCP feedback
+### 3c. Execute provider calls with bounded failure handling
+
+Use `debate_attempt_policy` for every enrolled provider from `mcp_availability`:
+
+- Make at most one MCP debate attempt per provider.
+- Use a fixed 5 minute timeout per provider attempt. Debate prompts are smaller than full review turns, so do not inherit Step 2's 10 minute review timeout.
+- Treat these as provider failures: harness/user rejection, timeout, transport error, tool error, stream disconnect, or null/empty output.
+- If a provider fails, update that provider's entry in `mcp_availability` with `execution_status: "failed"` and an `execution_failure_reason`, then record the attempt in `mcp_debate_execution_telemetry`.
+- Continue with the remaining enrolled providers after any provider failure.
+
+Detect user rejection explicitly. If a tool call returns the exact message `The user doesn't want to proceed with this tool use`, set that provider's `execution_status` to `rejected`, record `rejected: true`, and do not retry that provider with a different model, reduced payload, or alternate prompt. The user has already declined execution for this run.
+
+If all enrolled providers fail or are rejected, skip MCP-sourced triage, proceed directly to Step 4, and record "skipped — execution declined or unreachable" in the changelog and final summary. Do not prompt again and do not loop back to Step 3.
+
+### 3d. Triage and apply MCP feedback
 
 Evaluate each point using the same triage criteria from Step 2d:
 
@@ -506,7 +536,7 @@ git commit -m "Address MCP cross-model review feedback
 
 Do **not** push here. Append the local commit SHA to `local_review_commits`; Step 4 will include this commit in the final squash.
 
-Record all MCP-sourced changes and skips in the changelog under a "Cross-Model Debate" section.
+Record all MCP-sourced changes and skips in the changelog under a "Cross-Model Debate" section. Include provider execution telemetry for every enrolled provider, including successful providers, rejected providers, and failed providers.
 
 ## Step 4: Squash Local Review Commits and Push Once
 
@@ -636,7 +666,8 @@ After the loop terminates and the final squash/push step completes, present a co
 
 ### Cross-Model Debate (if conducted)
 
-- **Models consulted**: [Claude/Codex/Gemini model names, or "skipped — no debate-capable external-model MCPs available from Step 1f preflight"]
+- **Models consulted**: [Claude/Codex/Gemini model names, or "skipped — no debate-capable external-model MCPs available from Step 1f preflight", "skipped — user declined MCP cross-model debate checkpoint", or "skipped — execution declined or unreachable"]
+- **Provider execution**: <per-provider status: success/rejected/failed/skipped, duration, timeout status, failure reason if any>
 - **Findings surfaced**: <count>
 - **Addressed**: <count> — <brief summary>
 - **Skipped**: <count> — <brief summary>
