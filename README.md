@@ -88,7 +88,7 @@ Reads unresolved review comments on a GitHub PR, triages each one, makes code ch
 
 ### /self-review-loop
 
-Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then evaluates and applies the feedback. Loops until only minor/nit feedback remains or the adaptive turn limit is reached.
+Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then evaluates and applies the feedback. It succeeds only when no unresolved Critical or High findings remain; turn limits and oscillation detection are blocked states, not successful exits.
 
 ```
 /self-review-loop #42
@@ -98,7 +98,7 @@ Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agen
 1. Selects a compatible review execution mode for the active harness
 2. Spawns a fresh sub-agent with no prior context to review the PR
 3. Parses the review output and triages each finding (address or skip)
-4. Runs tests/linters to verify changes, then commits and pushes
+4. Runs tests/linters to verify changes, then commits and pushes only after a successful no-unresolved-Critical/High review state
 5. Bounds review-agent failures with a fixed wait and one retry before fallback
 6. Uses file inventories and targeted local diffs for large PRs
 7. Reports a full changelog, including review modes, retries, fallbacks, and MCP debate status

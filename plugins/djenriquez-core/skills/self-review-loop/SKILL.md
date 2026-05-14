@@ -1,6 +1,6 @@
 ---
 name: self-review-loop
-description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then evaluates and applies feedback. Loops until no Critical or High findings remain or the 10-turn limit is reached. Keeps per-turn commits local, squashes them into one final commit, then pushes once. Auto-discovers a compatible review execution mode — prefers a supported code-review skill and falls back to direct Codex review when nested team review is unavailable or unreliable."
+description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then evaluates and applies feedback. Succeeds only when no unresolved Critical or High findings remain; the 10-turn limit and oscillation detection are bounded failure states. Keeps per-turn commits local, squashes them into one final commit only on success, then pushes once. Auto-discovers a compatible review execution mode — prefers a supported code-review skill and falls back to direct Codex review when nested team review is unavailable or unreliable."
 argument-hint: "#N or N (PR number)"
 disable-model-invocation: false
 allowed-tools:
@@ -285,18 +285,18 @@ When the sub-agent returns, capture its full output. This contains the structure
 
 Parse the review output and check if the loop should stop:
 
-**Stop condition — no Critical or High findings remain:**
-The loop continues until the latest review reports **zero** findings in the Critical and High tiers. Medium and Low findings do not keep the loop running by themselves; evaluate and triage them in the current turn only when the loop is still running for Critical or High findings.
+**Successful stop condition — no unresolved Critical or High findings remain:**
+The loop succeeds only when the latest fresh review reports **zero** findings in the Critical and High tiers and the orchestrator has no blocking review feedback left to address after triage. Medium and Low findings do not keep the loop running by themselves unless triage determines they are blocking.
 
-**Stop condition — max turns reached:**
+**Blocked stop condition — max turns reached:**
 - `turn` equals `max_turns` (10)
 
-If either stop condition is met, set `stop_reason` to `"no_critical_high_findings"` or `"max_turns"` respectively and proceed to Step 3.
+If this happens while Critical or High findings remain unresolved, set `stop_reason` to `"blocked_max_turns"` and proceed directly to Step 5. Do not squash or push as a successful self-review result.
 
-**Stop condition — oscillation detected:**
-After turn 2, check `files_changed_per_turn` for thrashing. If the set of files changed in the current turn's triage (Step 2d) overlaps significantly (>50%) with the files changed two turns ago, the loop is oscillating — reviewers are undoing each other's changes. Set `stop_reason` to `"oscillation"` and proceed to Step 3. When reporting, note which files were thrashing and the conflicting feedback.
+**Blocked stop condition — oscillation detected:**
+After turn 2, check `files_changed_per_turn` for thrashing. If the set of files changed in the current turn's triage (Step 2d) overlaps significantly (>50%) with the files changed two turns ago, the loop is oscillating — reviewers are undoing each other's changes. Set `stop_reason` to `"blocked_oscillation"` and proceed directly to Step 5. Do not squash or push as a successful self-review result. When reporting, note which files were thrashing and the conflicting feedback.
 
-If no stop condition is met, continue to 2d.
+If the successful stop condition is met, set `stop_reason` to `"no_unresolved_critical_high_findings"` and proceed to Step 3. If no stop condition is met, continue to 2d.
 
 ### 2d. Triage the feedback
 
@@ -539,6 +539,8 @@ Record all MCP-sourced changes and skips in the changelog under a "Cross-Model D
 
 This is the only step that publishes self-review changes to the remote branch. Do not push before this step.
 
+Only run this step when `stop_reason` is `"no_unresolved_critical_high_findings"` and there are no unresolved Critical or High findings. If `stop_reason` is `"blocked_max_turns"` or `"blocked_oscillation"`, leave any local review commits unpushed and report the blocked state in Step 5 instead of publishing a successful result.
+
 If `local_review_commits` is empty, skip the squash and push. There are no self-review changes to publish.
 
 Before squashing, require a clean working tree:
@@ -604,16 +606,17 @@ If the push is rejected because the remote has new commits, repeat the non-force
 
 ## Step 5: Final Summary
 
-After the loop terminates and the final squash/push step completes, present a comprehensive summary to the user.
+After the loop terminates and the final squash/push step completes or is skipped because the run is blocked, present a comprehensive summary to the user.
 
 ```
-## Self-Review Complete: PR #<N>
+## Self-Review Result: PR #<N>
 
 **Turns completed**: <turn count>
-**Stop reason**: <"No Critical or High findings remaining" or "Maximum turns reached" or "Oscillation detected — turns were undoing each other's changes">
+**Status**: <"Succeeded" or "Blocked">
+**Stop reason**: <"No unresolved Critical or High findings remaining" or "Blocked — maximum turns reached with unresolved findings" or "Blocked — oscillation detected">
 **Large PR mode**: <yes/no — changed_file_count files, changed_line_count changed lines, max_turns N>
 **Review execution**: <nested_skill_review/direct_codex_review/mixed> — <retry/fallback summary>
-**Published commit**: <final_review_commit SHA> (or "no changes; nothing pushed")
+**Published commit**: <final_review_commit SHA, "no changes; nothing pushed", or "not pushed — blocked">
 
 ### Turn-by-Turn Summary
 
@@ -674,7 +677,7 @@ After the loop terminates and the final squash/push step completes, present a co
 
 - **Squashed commit**: <final_review_commit SHA> (or "not created — no changes")
 - **Pushed**: <yes/no>
-- **Remote handling**: <"normal push", "rebased onto updated upstream before push", or "not pushed — no changes">
+- **Remote handling**: <"normal push", "rebased onto updated upstream before push", "not pushed — no changes", or "not pushed — blocked">
 
 ### Final Review State
 
