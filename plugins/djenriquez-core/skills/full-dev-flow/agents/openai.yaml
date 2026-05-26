@@ -1,0 +1,4 @@
+interface:
+  display_name: "Full Dev Flow"
+  short_description: "Run the full spec-to-PR development workflow."
+  default_prompt: "Run the full dev flow from this conversation."
