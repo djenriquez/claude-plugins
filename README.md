@@ -29,6 +29,28 @@ Install `djenriquez-core` from that Codex marketplace entry after this repositor
 
 ## Skills
 
+### /full-dev-flow
+
+Runs the complete development workflow from the current session context to a reviewed pull request. This is the high-level orchestrator for the recurring "spec, plan, implement, publish, review" loop.
+
+```
+/full-dev-flow
+/full-dev-flow build the workflow we discussed
+```
+
+The skill:
+
+1. Writes a standalone spec from the conversation context
+2. Runs `/spec-review` and revises the spec, using judgment to skip nits or irrelevant findings
+3. Runs `/bits-plan` against the final spec
+4. Runs `/bits-drain` until the implementation queue is complete
+5. Commits remaining work and runs `/pr-publish`
+6. Chooses whether the PR should target the default branch or stack on an existing PR branch
+7. Runs `/self-review-loop` against the published PR
+8. Posts `/assisted-review-heavy` on the PR after self-review succeeds
+
+It also persists a workflow checklist before long-running phases so an interrupted agent can resume without losing the intended order.
+
 ### /spec-review
 
 Multi-agent spec review that catches ambiguity, missing edge cases, architectural infeasibility, API design gaps, operational blindspots, and scope risks — before a single line of code is written.

@@ -6,11 +6,12 @@
   "plugins": [
     {
       "name": "djenriquez-core",
+      "version": "0.10.0",
       "source": {
         "source": "local",
         "path": "./plugins/djenriquez-core"
       },
-      "description": "Spec review, issue-to-spec, PR feedback handling, reliable Codex-aware self-review loops with Claude/Codex debate support, PR digest, PR publication, and advisory Go code-health standards",
+      "description": "Full spec-to-PR dev flow, spec review, issue-to-spec, PR feedback handling, reliable Codex-aware self-review loops with Claude/Codex debate support, PR digest, PR publication, and advisory Go code-health standards",
       "policy": {
         "installation": "AVAILABLE",
         "authentication": "ON_INSTALL"
