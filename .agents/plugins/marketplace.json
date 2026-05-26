@@ -6,6 +6,7 @@
   "plugins": [
     {
       "name": "djenriquez-core",
+      "version": "0.10.0",
       "source": {
         "source": "local",
         "path": "./plugins/djenriquez-core"
