@@ -6,13 +6,34 @@ This repository packages agent workflow plugins for Claude Code and Codex. Keep 
 
 Shared protocols and references should be located relative to the installed `djenriquez-core` plugin root. Do not hard-code a single user cache path such as `~/.claude/plugins` or `~/.codex/plugins` as the only lookup method.
 
+## Prompt Architecture
+
+Keep `SKILL.md` files as concise default-path orchestrators. Put detailed mechanics in `protocols/` or `references/` and load them only when that branch of the workflow is reached.
+
+- Use `protocols/` for shared execution contracts such as review output, finding qualification, and MCP debate.
+- Use `references/` for reusable guidance such as PR mechanics, harness adapters, and style guidance.
+- Do not duplicate large protocol blocks inside specialist agents. Agent files should describe specialist judgment only.
+- Do not paste large diffs or specs into every sub-agent prompt when a file path, changed-file inventory, and targeted read commands will work.
+
+Default-path djenriquez-core workflows should prefer local djenriquez-core skills. External plugin skills may remain as optional fallbacks, but they should not be required for the core product experience.
+
+## Lean Review Policy
+
+Code review should be staged by risk:
+
+- L0: one concise generalist review, no specialist fan-out, no debate.
+- L1: generalist first, then only evidence-triggered specialists.
+- L2: bounded specialists with explicit selection criteria.
+
+External debate is an escalation tool for uncertain high-severity findings, specialist disagreement, or judgment-sensitive L2 verdicts. It is not a default per-agent ritual.
+
 ## Self-Review Loop Invariants
 
 `plugins/djenriquez-core/skills/self-review-loop/SKILL.md` is meant to be a safety-critical orchestration skill. Preserve these invariants when editing it:
 
 - Review turns use fresh, context-free, read-only reviewers against the local diff from `origin/<pr_base_ref>...HEAD`.
 - Successful completion requires no unresolved Critical or High findings after severity normalization. Max turns, oscillation, and final-review failures are blocked states, not successful exits.
-- Codex direct fallback may use one strong reviewer or multiple independent fresh reviewers based on PR size and risk, but must not invoke nested review teams when compatibility is unproven.
+- Prefer the local lean `djenriquez-core:code-review` path when available. Direct fallback must follow the same staged L0/L1/L2 policy.
 - Any MCP or cross-model code changes after the main loop require a final fresh review before squash/push.
 - Per-turn commits stay local. Publish only the final squashed review commit, and never force-push from this workflow.
 

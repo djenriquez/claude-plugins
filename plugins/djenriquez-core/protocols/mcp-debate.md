@@ -33,6 +33,8 @@ Construct a debate prompt containing:
 2. The review output being challenged (synthesized findings, verdict, changelog)
 3. Adversarial challenge questions (provided by the invoking skill — at least 5)
 
+Keep the constructed prompt body under roughly 1 KB unless the provider's schema requires more context. Oversized debate prompts have previously stalled the orchestrator's model stream before the MCP call dispatched. Prefer repository paths, PR numbers, changed-file inventories, and short summaries over pasted PR descriptions, full diffs, full standards files, or long review histories; the provider should fetch or read large artifacts itself when the sandbox allows it.
+
 ## Execution Failure Handling
 
 Discovery only proves that a provider exposes a callable debate tool. Keep these execution-time outcomes distinct:
@@ -114,4 +116,3 @@ Always pass these parameters on every opening Codex debate call:
 4. Stop when the convergence check says stop, when the round count reaches 10, or when any call hits a failure mode from the bounded debate policy.
 
 If any individual call exceeds the orchestrator's 5 minute per-call budget with no return, end the session, mark this provider failed for the run, and surface the pinned model name and the hang symptom in the invoking skill's final summary so the user can verify the pinned model is available on their MCP server or update it in the Provider Model Pinning section above.
-
