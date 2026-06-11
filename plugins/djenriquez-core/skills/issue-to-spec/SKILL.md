@@ -103,13 +103,13 @@ The interview should focus on:
 
 Before starting the interview, provide a context preamble so the interview is grounded in what you learned in Step 1. Frame the interview around the specific open questions, design decisions, and ambiguities you identified.
 
-**Primary path**: Invoke the interview skill (in slash-command harnesses, `/interview`; in Codex, the installed `abatilo-core:interview` skill). The interview skill takes no arguments — it reads the current conversation context. Before invoking it, ensure the conversation contains your Step 1 summary (problem statement, affected system areas, open questions, and design decisions needed). This grounds the interview in the right context.
+**Primary path**: Invoke the local interview skill (in slash-command harnesses, `/interview`; in Codex, the installed `djenriquez-core:interview` skill). Pass no arguments unless the harness requires an explicit subject — the skill reads the current conversation context. Before invoking it, ensure the conversation contains your Step 1 summary (problem statement, affected system areas, open questions, and design decisions needed). This grounds the interview in the right context.
 
 The interview skill conducts a structured, in-depth interview using the host's structured question capability and produces a summary of decisions when complete.
 
 > **Note on sub-skill permissions**: The interview and spec-review skills run as independent skill invocations with their own tool/capability declarations. They are not constrained by this skill's tool list.
 
-**Fallback**: If the interview skill is not available (skill invocation fails or the user does not have `abatilo-core` installed), conduct the interview yourself using the host's structured question capability directly. Follow this process:
+**Fallback**: If the local interview skill is not available, use `abatilo-core:interview` when installed. If no interview skill can be invoked, conduct the interview yourself using the host's structured question capability directly. Follow this process:
 
 1. Review the open questions and ambiguities from Step 1
 2. Group them into rounds of 1-3 related questions using the same structured question mechanism

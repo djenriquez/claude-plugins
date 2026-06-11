@@ -15,6 +15,8 @@ Keep `SKILL.md` files as concise default-path orchestrators. Put detailed mechan
 - Do not duplicate large protocol blocks inside specialist agents. Agent files should describe specialist judgment only.
 - Do not paste large diffs or specs into every sub-agent prompt when a file path, changed-file inventory, and targeted read commands will work.
 
+Default-path djenriquez-core workflows should prefer local djenriquez-core skills. External plugin skills may remain as optional fallbacks, but they should not be required for the core product experience.
+
 ## Lean Review Policy
 
 Code review should be staged by risk:

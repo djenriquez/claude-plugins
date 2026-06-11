@@ -85,6 +85,17 @@ Review rigor scales with risk:
 
 Large specs are referenced by path and targeted excerpts rather than pasted into every reviewer prompt. Output is a deduplicated review with a binary verdict (APPROVED / REVISIONS NEEDED).
 
+### /interview
+
+Lean planning interview for turning an issue, rough plan, or implementation idea into spec-ready decisions.
+
+```
+/interview
+/interview probe this implementation plan
+```
+
+The skill asks a small number of high-signal question rounds, probes assumptions and failure modes, then returns decisions, accepted assumptions, open risks, and acceptance-criteria seeds. `issue-to-spec` uses this local interview path by default.
+
 ### /code-review
 
 Lean, risk-scaled code review. It starts with one generalist pass, then adds specialists only when the diff shows concrete risk.
