@@ -1,6 +1,6 @@
 ---
 name: spec-review
-description: "Orchestrates a three-phase parallel spec review using an agent team. Phase 1: dynamically selected specialists each review the spec and self-critique findings. Phase 2: lead-mediated cross-review where specialists challenge each other's findings. Phase 3: deduplicated synthesis with priority-based output and binary approval verdict."
+description: "Reviews a spec with risk-scaled specialist agents, deduplicates findings, and returns a binary APPROVED / REVISIONS NEEDED verdict."
 argument-hint: "[file path, #N (GitHub issue/PR), URL, 'staged', or omit for conversation context]"
 disable-model-invocation: false
 allowed-tools:
@@ -24,331 +24,117 @@ mcpServers:
   - codex
 ---
 
-# Spec Review Agent Team
+# Spec Review
 
-## Harness Adapter
+Review the target spec in `$ARGUMENTS`. If no target is provided and the conversation does not contain the spec, ask what to review.
 
-This workflow is harness-agnostic. Use the local harness primitives that provide the same orchestration behavior:
+Use `references/harness-adapters.md` when translating team, task, or sub-agent operations across Claude Code and Codex. Use `protocols/review-protocol.md` as the single source for reviewer taxonomy, qualification, self-critique, cross-review, and output mechanics.
 
-- **Claude Code**: `TeamCreate` / `TeamDelete` create and clean up the review team. `TaskCreate`, `TaskUpdate`, `TaskList`, and `TaskGet` track work. `Task(...)` spawns custom reviewers by `subagent_type`, and `SendMessage` carries Phase 1 findings and Phase 2 challenges.
-- **Codex**: Treat the user's invocation of `spec-review` as authorization to use Codex sub-agents for this review workflow. `TeamCreate` / `TeamDelete` are bookkeeping only; track the selected reviewers in your plan or local notes. `Task(...)` maps to `spawn_agent`; use `agent_type: "explorer"` for read-only specialist review agents. `SendMessage` maps to sub-agent final answers collected with `wait_agent`; for Phase 2 challenges, use `send_input` when a reviewer must respond after its initial answer. `TaskCreate`, `TaskUpdate`, `TaskList`, and `TaskGet` map to `update_plan` or local orchestration notes.
-- **Codex reviewer prompts**: Because Codex may not register Claude custom agent definitions, include the relevant `agents/<reviewer>.md` instructions in each sub-agent prompt along with `protocols/review-protocol.md`, the risk lane, spec context, related codebase context, and the full spec text.
+## Goals
 
-**YOU MUST SPAWN AN AGENT TEAM.** Do NOT review the spec yourself. You are the team lead — your job is orchestration, not review.
+- Find spec gaps that would cause implementation rework, divergent behavior, unsafe rollout, or unclear ownership.
+- Scale review depth to risk.
+- Avoid repeated prompt bloat: pass file paths and focused context whenever agents can read the repository themselves.
+- Produce a concise final review with a binary verdict.
 
-Your workflow:
-1. Gather the spec
-2. Classify risk lane and select relevant specialists
-3. Create a team and spawn specialists
-4. **Phase 1**: Collect specialist findings (each agent reviews + self-critique)
-5. **Phase 2**: Mediate cross-agent challenges (L1/L2 only)
-6. **Phase 3**: Synthesize into final review
-7. Clean up
+## Gather The Spec
 
-The target of the review is: $ARGUMENTS
+Resolve `$ARGUMENTS`:
 
-If $ARGUMENTS is empty, ask the user what to review.
+- `#N`: resolve with `gh issue view <N> 2>/dev/null || gh pr view <N>`; include relevant comments, linked PRs, or linked issues.
+- file path: read the file and keep the path available for agents.
+- URL: fetch the content.
+- `staged`: inspect staged spec-like files.
+- no argument: use conversation context if it contains the spec.
 
-## Step 1: Gather the Spec
+Also gather nearby codebase context only when it helps reviewers evaluate feasibility, APIs, operations, package structure, or existing terminology.
 
-Obtain the spec content before spawning agents.
+## Classify Risk
 
-### Input Detection
+- `L0`: typo, small clarification, or narrow addendum.
+- `L1`: new feature, API/workflow change, multiple sections, or meaningful implementation choices.
+- `L2`: architecture, new service/module, public API, data model, security, production reliability, or cross-team impact.
 
-- **`#N`** (GitHub number): GitHub uses a single number space — `#N` is either an issue or a PR. Run `gh issue view <N> 2>/dev/null || gh pr view <N>` to resolve which. Then:
-  - **If issue**: The issue body is the primary spec. Pull comments via `gh api repos/{owner}/{repo}/issues/<N>/comments` for discussion context, clarifications, and decisions made in-thread. Check for linked PRs — if one exists, also pull its diff as implementation context.
-  - **If PR**: Check if the PR description is the spec, or if the diff contains spec files (`.md`, `.txt`, design docs). Read both. Check for a linked issue — if one exists, pull it as additional spec context.
-- **File path**: Read the file directly. Supports markdown, txt, or any text format.
-- **URL**: Use `WebFetch` to retrieve the content. Works with Google Docs, Notion, Confluence, and other web-accessible docs.
-- **"staged"**: `git diff --cached --name-only` to find staged files, then read spec-like files (`.md`, `.txt`, etc.).
-- **No argument**: The spec should be in the conversation context. If not, ask the user.
+## Select Reviewers
 
-Multiple arguments can be combined (e.g., `#42 path/to/spec.md`). When combining, the file or issue body is the primary spec; other sources provide supporting context.
+Use the fewest specialists that cover the risk:
 
-### Gathering Context
+- Always consider `clarity-reviewer` and `completeness-reviewer`.
+- Add `product-reviewer` for goal/value/success-criteria risk.
+- Add `feasibility-reviewer` for architecture or hidden implementation risk.
+- Add `api-reviewer` for public or cross-team API changes.
+- Add `operations-reviewer` for production rollout, observability, rollback, or SLO risk.
+- Add `scope-reviewer` for multi-phase, multi-team, or delivery-risk specs.
+- Add `complexity-reviewer` for abstraction, configurability, or over-engineering risk.
+- Add `structure-reviewer` for new packages/modules or package boundary changes.
 
-Also gather:
-- Related existing specs or design docs in the repo (use Glob/Grep to find them)
-- The codebase area this spec targets (understand the current architecture)
-- Linked issues or PRs referenced in the spec (follow `#N` references via `gh issue view` or `gh pr view`)
+For `L0`, use only clarity and completeness unless the spec obviously touches another domain. For `L2`, include all relevant specialists, not every specialist by default.
 
-## Step 2: Assess, Classify, and Select Agents
+## Run Reviewers
 
-### Spec Size
+Load `protocols/review-protocol.md` once before spawning reviewers.
 
-Note the spec length (sections, paragraphs, word count). Larger specs warrant more reviewers.
+Each reviewer prompt should contain:
 
-### Risk Lane
+- the selected reviewer's `agents/<reviewer>.md` instructions if the harness does not register that agent directly
+- the shared review protocol
+- risk lane and self-critique requirement
+- concise spec context and related codebase context
+- either the full spec text when small, or the spec path plus targeted excerpts when large
 
-| Lane | Criteria | Self-Critique? | Cross-Review? |
-|------|----------|----------------|---------------|
-| **L0 — Minor** | Typo fixes, small clarifications, addenda to existing specs | No | No |
-| **L1 — Significant** | New features, API additions, workflow changes, 3+ sections | Yes | Yes |
-| **L2 — Strategic** | Architecture changes, new services, public API, security-sensitive, data model changes | Yes | Yes |
+Do not paste a large spec or large related diff into every specialist prompt. For large targets, give the repository path, spec path, important sections, and instructions to read targeted files directly.
 
-### Dynamic Agent Selection
+Spawn selected reviewers in parallel when the harness supports it. If a reviewer fails, re-run that reviewer once with the same scoped context. If it fails again, record the failure and continue only if the missing specialist is not required for the risk lane.
 
-Analyze the spec and select which specialists are relevant. Not every spec needs all 8 agents. Err toward including rather than excluding for L1/L2.
+## Cross-Review
 
-| # | Agent | Spawn guidance |
-|---|-------|----------------|
-| 1 | clarity-reviewer | Always. The "two engineers" test — would two engineers build the same thing from this spec? |
-| 2 | completeness-reviewer | Always. Missing edge cases, error behavior, NFRs, state transitions. |
-| 3 | product-reviewer | L1/L2 always. Goal alignment, user value, success criteria. Answers "are we building the right thing?" |
-| 4 | feasibility-reviewer | New services, architecture changes, significant new features. Hidden complexity, alternative approaches. |
-| 5 | api-reviewer | Spec defines or modifies an API. Backward compat, protobuf conventions, naming, idempotency. |
-| 6 | operations-reviewer | Production-impacting changes. Failure modes, observability, rollback, SLO impact. |
-| 7 | scope-reviewer | L1/L2 only. Multi-team, multi-phase, or large specs. Incremental delivery, dependency risks. |
-| 8 | complexity-reviewer | L1/L2. Specs introducing new abstractions, multi-layer designs, configurable systems, or framework-like patterns. Catches premature abstraction, over-engineering, and accidental complexity. |
-| 9 | structure-reviewer | L1/L2. Specs introducing new packages/modules or restructuring existing ones. Catches misshapen package boundaries, low cohesion, leaky encapsulation, and grab-bag namespaces. Loads `references/structure-standards.md` (and the Go addendum if applicable). |
+Skip cross-review for `L0`.
 
-For **L0**: spawn only agents 1 and 2.
+For `L1` and `L2`, route only meaningful disputes:
 
-State which agents you're spawning and why before proceeding.
+- contradictory findings
+- high-severity findings that need a second domain view
+- findings whose ownership clearly belongs to another specialist
 
-## Step 3: Create Team and Spawn Agents
+Limit each disputed finding to one challenge round. The lead arbitrates unresolved disagreement.
 
-### 3a. Load the shared review protocol
+## Optional External Debate
 
-Before spawning agents, read the shared review protocol that governs all specialists:
+Do not run debate by default. Load `protocols/mcp-debate.md` only when one of these is true:
 
-```
-Find the installed `djenriquez-core` plugin root, then read:
-protocols/review-protocol.md
-```
+- the spec is `L2` and the final verdict depends on high-impact judgment
+- reviewers disagree on a Critical finding
+- the lead suspects a high-severity false positive or missed blocker
 
-Read the file found. This protocol text will be included in every agent's task prompt.
+If no debate-capable MCP exists or the user declines the debate checkpoint, skip debate and state that in the summary.
 
-### 3b. Create the team
+## Synthesize
 
-In harnesses with explicit team tools, create the team:
+Deduplicate reviewer output and map findings:
 
-```
-TeamCreate(team_name: "spec-review-<short-identifier>")
-```
+- Critical: blockers that must be resolved before implementation
+- High: important risks or P0/P1 non-blockers
+- Medium: P2 concerns
+- Low: P3, nitpicks, or thoughts
 
-In Codex, treat the team name as bookkeeping in your plan or local orchestration notes.
+Omit empty tiers. Do not include unresolved contradictory feedback.
 
-### 3c. Create tasks for each selected agent
+End with the last section exactly as one of:
 
-For each selected agent, call `TaskCreate` with subject, description, and activeForm when the harness supports it. In Codex, track the same task state in `update_plan` or local orchestration notes.
-
-### 3d. Spawn all agents in a SINGLE message
-
-Each specialist has a custom agent definition (in `agents/`) with its specialist instructions and persistent memory. The shared review protocol (taxonomy, qualification, self-critique, cross-review, output format) is injected via the task prompt.
-
-In Claude Code, spawn using `subagent_type` matching the agent name:
-
-```
-Task(
-  subagent_type: "clarity-reviewer",
-  name: "clarity-reviewer",
-  team_name: "spec-review-<identifier>",
-  run_in_background: true,
-  prompt: "REVIEW PROTOCOL:\n<contents of review-protocol.md>\n\nRISK LANE: L1\n\nSELF-CRITIQUE REQUIREMENT:\nThis is an L1/L2 review. After your specialist review, stress-test your findings through self-critique before sending them. Follow the Self-Critique protocol and prune or downgrade findings that don't survive scrutiny.\n(For L0 reviews, replace the above with: SELF-CRITIQUE: Not required for L0. Send findings directly.)\n\nSPEC CONTEXT:\n<Title, purpose, and any relevant background about what this spec covers>\n\nRELATED CODEBASE CONTEXT:\n<Brief description of the existing system this spec targets, if applicable>\n\nSPEC CONTENT:\n<the full spec text>\n\nYour task has been created as Task #N. Update it to in_progress when you start, and mark it completed when done sending findings."
-)
-```
-
-Repeat for every selected agent — all `Task` calls in ONE message.
-
-In Codex, spawn one `explorer` sub-agent per selected reviewer with `spawn_agent`. Include that reviewer's `agents/<reviewer>.md` content in the prompt, followed by the same dynamic prompt content shown above.
-
-After spawning, use `TaskUpdate` to set `owner` on each task to the corresponding agent name when the harness supports it. In Codex, record the owner in `update_plan` or local orchestration notes.
-
-**CRITICAL**: Each agent's prompt MUST contain the full review protocol AND the full spec text. Agents cannot see either unless you include them in their prompt.
-
-## Step 4: Phase 1 — Collect Specialist Findings
-
-Agents work in parallel:
-1. Each agent conducts its specialist review of the spec
-2. Each agent self-critiques findings to harden them (L1/L2 only)
-3. Each agent sends hardened findings to you via `SendMessage` or returns them as its final sub-agent answer
-4. Each agent then goes idle, waiting for Phase 2
-
-Wait for **all** agents to report. In Claude Code, messages are delivered automatically. In Codex, collect sub-agent outputs with `wait_agent`.
-
-**Error recovery**: If an agent fails or crashes, re-spawn it with the same prompt and reassign its task.
-
-## Step 5: Phase 2 — Lead-Mediated Cross-Review (L1/L2 only)
-
-**Skip for L0.**
-
-**Short-circuit rule**: If ALL Phase 1 findings are `suggestion`, `nitpick`, `thought`, or informational (zero `blocker`, `risk`, or `question` findings across all agents), skip cross-review. State in the synthesis: "Phase 2 skipped: no blocker/risk/question findings to challenge."
-
-After collecting all Phase 1 findings:
-
-1. **Identify cross-review targets** using your judgment AND the routing table:
-
-   | Finding Source | Route To |
-   |----------------|----------|
-   | clarity-reviewer | completeness-reviewer |
-   | completeness-reviewer | product-reviewer |
-   | product-reviewer | scope-reviewer |
-   | feasibility-reviewer | complexity-reviewer |
-   | api-reviewer | operations-reviewer |
-   | operations-reviewer | feasibility-reviewer |
-   | scope-reviewer | product-reviewer |
-   | complexity-reviewer | feasibility-reviewer |
-   | structure-reviewer | complexity-reviewer |
-
-   Prioritize routing:
-   - **Contradictions**: two agents disagree
-   - **Domain overlap**: a finding where another specialist has relevant expertise
-   - **High-severity findings** (blockers and P0/P1 risks) that deserve a second opinion
-
-2. **Route challenges** via `SendMessage` or Codex `send_input` to the best-positioned agent. Include the original finding, its source agent, and what you want challenged.
-
-3. **Collect responses**: the challenged agent evaluates and responds. Max 1 challenge round per finding.
-
-4. **Arbitrate**: if agents cannot align, you decide. You are the final arbiter.
-
-5. **Tag findings**: Confirmed / Modified / Withdrawn / Disputed
-
-## Step 6: Phase 3 — Synthesize the Final Review
-
-Use the comment taxonomy, priority levels, and framing rules from the review protocol (loaded in Step 3a) when classifying and writing findings in the synthesis.
-
-### Deduplication
-
-Consolidate findings flagged by multiple agents into the single most impactful framing. Note which agents agreed. When deduplicating, use the highest priority (lowest P-number) assigned by any agent.
-
-### Calibrate to Risk Lane (internal — not surfaced in output)
-
-- L0: SHORT review. Few key points only.
-- L1: Thorough but proportional.
-- L2: Comprehensive.
-
-### Priority Mapping (internal classification → output tier)
-
-| Output Tier | Maps From |
-|---|---|
-| Critical | Any `blocker` finding (regardless of P-level) |
-| High | P0/P1 non-blocker findings |
-| Medium | P2 findings |
-| Low | P3 findings, nitpicks, thoughts |
-
-Empty tiers are omitted. Questions get folded into the appropriate tier based on their priority.
-
-### Output Structure
-
-```
-## Summary
-- **Spec**: [Title or filename]
-- **Risk Lane**: L0/L1/L2
-- **Reviewers**: [List of specialists who reviewed]
-- **One-line assessment**: [Overall take]
-
-## Critical
-[Items that must be resolved before implementation]
-
-**Section — Title**
-Blurb describing the gap, ambiguity, or issue. Include concrete harm scenario and suggested fix or rewrite.
-- **Specialist**: [clarity/completeness/etc.] — [must fix / can defer] — [1-sentence rationale]
-- **Cross-review**: [Confirmed / Modified / Disputed] — [1-sentence note] (L1/L2 only)
-
-## High Priority
-[Items that should be addressed before implementation starts]
-(same per-item format)
-
-## Medium Priority
-(same per-item format)
-
-## Low Priority
-(same per-item format)
-
-## Verdict: APPROVED / REVISIONS NEEDED
-[1-2 sentence rationale. If REVISIONS NEEDED, list the Critical items that must be resolved.]
-```
-
-### Verdict (REQUIRED — must be the LAST section)
-
-Binary. No "approved with suggestions" — either the spec is ready for implementation or it isn't.
-
-**No Critical items — APPROVED:**
-
-```
+```markdown
 ## Verdict: APPROVED
-This spec is ready for implementation. [1-2 sentence rationale.]
+This spec is ready for implementation. <brief rationale>
 ```
 
-**Critical items exist — REVISIONS NEEDED:**
-
-```
+```markdown
 ## Verdict: REVISIONS NEEDED
-This spec has [N] critical item(s) that must be resolved before implementation:
-1. **[Title]** — [Section] — [What must change and why]
-...
-Once these are addressed, the spec should be ready for implementation.
+This spec has <N> critical item(s) that must be resolved before implementation:
+1. **<title>** - <section> - <what must change and why>
 ```
 
-### Final Anti-Pattern Checks
+## Calibration
 
-Before delivering, verify you are NOT:
-- Producing a wall of text (concision = respect)
-- Demanding perfection (approve if the spec is clear enough to build from)
-- Including unresolved conflicting feedback
-- Framing opinions as mandates
-- Bikeshedding on wording when meaning is clear
-
-## Step 7: MCP Cross-Model Debate (conditional)
-
-After synthesizing the agent team's review, stress-test the findings with external models before delivering.
-
-**Skip this step if no debate-capable external-model MCPs are available.**
-
-### 7a. Discover and execute debates
-
-Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the discovery and execution instructions. If no debate-capable external-model MCPs are available, skip to Step 8.
-
-### 7b. Debate prompt
-
-Construct the debate prompt with:
-
-> You are reviewing a spec review produced by a team of specialist reviewers. Your job is adversarial: find what they got wrong, what they missed, and where severity is miscalibrated.
->
-> ## Original Spec
-> <full spec text>
->
-> ## Synthesized Review
-> <full Phase 3 output — all findings, priorities, and verdict>
->
-> ## Challenge Questions
-> 1. Which findings are false positives — flagging something that isn't actually a problem?
-> 2. What did the reviewers collectively miss? What gaps, risks, or ambiguities did no agent catch?
-> 3. Which findings have miscalibrated severity — blockers that should be suggestions, or suggestions that should be blockers?
-> 4. Does the verdict (APPROVED / REVISIONS NEEDED) follow from the findings, or is it too lenient/strict?
-> 5. Are any findings redundant despite deduplication — same concern wearing different hats?
-
-### 7c. Incorporate debate findings
-
-Evaluate each MCP point against the same finding qualification bar:
-
-- **False positive challenges**: Withdraw if convincing. Tag: `[withdrawn after <model name> challenge]`.
-- **New findings**: Add if they pass the qualification bar. Tag: `[surfaced by <model name>]`.
-- **Severity adjustments**: Adjust if compelling. Tag: `[severity adjusted per <model name>]`.
-- **Redundancy**: Merge if an MCP identifies same-concern duplicates.
-
-Re-check the verdict if Critical findings were added or withdrawn.
-
-Add a "Cross-Model Debate" section to the output:
-
-```
-### Cross-Model Debate
-- **Models consulted**: [model names, or "skipped — no debate-capable external-model MCPs available"]
-- **Findings modified**: [count] ([list: withdrawn, added, severity-adjusted])
-- **Verdict impact**: [unchanged / changed from X to Y]
-```
-
-## Step 8: Clean Up
-
-After delivering the review, close or delete agents and teams when the harness supports it. If the harness only supports local bookkeeping, stop tracking the team after all final outputs are collected. Agents persist learnings through the harness's normal memory behavior; they do not need to stay alive for context retention.
-
-## Calibration Principles
-
-1. **The spec is not the implementation.** Don't demand implementation-level detail in a design document. The spec should constrain, not dictate.
-2. **The author is competent.** Assume good intent and context you may lack. Ask before assuming wrong.
-3. **Proportional rigor.** A 2-page addendum doesn't need the same scrutiny as a new service design.
-4. **Every comment has a cost.** 3 high-signal findings > 30 mixed-signal findings.
-5. **Be explicit about severity.** The taxonomy distinguishes "this will cause data loss" from "this could be worded better."
-6. **Speed matters.** A timely review > a perfect review delivered after implementation started.
-7. **Shared understanding is the product.** Success = the implementing team knows exactly what to build.
+- The spec is not the implementation; require constraints, not every implementation detail.
+- Prefer a few high-signal findings over a long mixed list.
+- Approve when the spec is clear enough to build from without significant rework.
+- Frame opinions as tradeoffs unless there is concrete harm.
