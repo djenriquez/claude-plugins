@@ -83,6 +83,8 @@ For each turn:
 11. Run detected verification. If verification fails because of this turn, fix before continuing. If failure is pre-existing, record evidence and continue.
 12. Commit this turn's self-review changes locally with a message that names the turn and summarizes addressed feedback.
 
+If a review attempt times out, hits a transport error, returns null or invalid output, or disconnects mid-stream, retry that same review path once. If the retry also fails, fall back to a direct fresh read-only review when the failed path was a skill invocation; if direct review fails twice, stop as blocked and report the failure mode.
+
 Detect oscillation after turn 2. If current changed files significantly overlap with files changed two turns earlier and reviewers are undoing prior fixes, stop as blocked.
 
 ## Optional Cross-Model Debate

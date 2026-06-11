@@ -64,4 +64,4 @@ Final review output:
 
 Omit empty severity sections. The verdict must be last and must be either `APPROVE` or `REQUEST CHANGES`.
 
-Use `REQUEST CHANGES` when any unresolved Critical finding remains.
+Use `REQUEST CHANGES` when any unresolved Critical or High finding remains.
