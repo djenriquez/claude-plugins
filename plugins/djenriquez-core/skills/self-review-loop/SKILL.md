@@ -1,6 +1,6 @@
 ---
 name: self-review-loop
-description: "Iterative self-review loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then evaluates and applies feedback. Succeeds only when no unresolved Critical or High findings remain; the 10-turn limit and oscillation detection are bounded failure states. Keeps per-turn commits local, squashes them into one final commit only on success, then pushes once. Auto-discovers a compatible review execution mode — prefers a supported code-review skill and falls back to direct Codex review when nested team review is unavailable or unreliable."
+description: "Iteratively reviews a PR with fresh read-only reviewers, applies blocking feedback locally, verifies changes, and pushes one final squashed self-review commit only after a clean final review."
 argument-hint: "#N or N (PR number)"
 disable-model-invocation: false
 allowed-tools:
@@ -32,621 +32,92 @@ mcpServers:
 
 # Self-Review Loop
 
-## Harness Adapter
+Target PR: `$ARGUMENTS`. If absent, ask for a PR number.
 
-This workflow is harness-agnostic. Use the local harness primitives that provide the same orchestration behavior:
+Load `references/github-pr-workflow.md` for PR parsing, checkout, branch safety, and local diff rules. Load `references/harness-adapters.md` only when translating agent or skill invocation across harnesses.
 
-- **Claude Code**: `Agent(...)` launches fresh sub-agents. `mode: "bypassPermissions"` is a Claude-specific convenience for read-only review sub-agents and nested review teams.
-- **Codex**: Treat the user's invocation of `self-review-loop` as authorization to use Codex sub-agents for this loop. `Agent(...)` maps to `spawn_agent`. Use `fork_context: false` for the main review sub-agent so each review starts with no prior turn context. Select a `review_execution_mode` during setup: use `nested_skill_review` only when the discovered `review_skill` is capability-compatible with Codex execution, and use `direct_codex_review` when nested-team compatibility is absent or unproven. Use `agent_type: "default"` when a compatible skill must be invoked from the sub-agent; use `agent_type: "explorer"` or `default` for direct read-only review and for structural passes that only inspect a provided diff. Collect each sub-agent's final output with `wait_agent`. Codex tool execution follows the current Codex sandbox and approval behavior; do not require `bypassPermissions`.
+## Invariants
 
-You are an orchestrator that iteratively improves a PR by running fresh, unbiased code reviews and applying feedback. Each review is performed by a sub-agent with NO prior context — it sees only the PR diff, ensuring unbiased feedback with no anchoring to previous decisions.
+- Reviewers are fresh, read-only, and do not inherit prior review turns.
+- The review target is local `HEAD` against `origin/<baseRefName>`, not the remote PR diff after local review commits exist.
+- The loop succeeds only when the latest fresh review has no unresolved Critical/High findings after severity normalization.
+- Max turns, oscillation, and final-review failures are blocked states.
+- Per-turn commits stay local. Push only one final squashed self-review commit.
+- Never force-push.
 
-The target PR is: $ARGUMENTS
+## Setup
 
-If $ARGUMENTS is empty, ask the user which PR to work on.
+1. Resolve and checkout the PR using `references/github-pr-workflow.md`.
+2. Confirm the PR is open.
+3. Record:
+   - `review_base_sha=$(git rev-parse HEAD)` immediately after checkout/pull
+   - upstream branch
+   - current branch
+   - PR base and head refs
+   - changed-file inventory from `git diff --name-status origin/<baseRefName>...HEAD`
+4. Detect the verification command from project files or CI. If none exists, record `no test suite detected`.
+5. Choose the review path:
+   - prefer the local lean `djenriquez-core:code-review` skill when available
+   - otherwise use direct fresh-review prompts that follow the same L0/L1/L2 staged policy from `skills/code-review/SKILL.md`
+   - do not invoke nested review-team skills, including imported heavy team reviews, unless compatibility is proven and the user asked for that heavier path
 
----
+## Review Loop
 
-## Step 1: Parse the PR Reference and Set Up
+Run at most 10 turns.
 
-### 1a. Parse the PR number
+For each turn:
 
-`$ARGUMENTS` should be a PR number. Accepted formats:
+1. Spawn a fresh read-only reviewer or invoke the local lean code-review skill with no prior turn context.
+2. Give the reviewer the repo path, PR number, base ref, and changed-file inventory.
+3. For small diffs, the reviewer may inspect the full local diff. For large diffs, instruct it to inspect targeted paths with:
+   `git diff origin/<baseRefName>...HEAD -- <path>`
+4. Require findings grouped by Critical, High, Medium, and Low with file/line references and a verdict.
+5. Normalize severity. Treat concrete correctness, security, data loss, broken error path, regression, or failing-test issues as blocking even if the reviewer labeled them lower.
+6. If no blocking findings remain, leave the loop.
+7. Triage every finding:
+   - address real bugs, blocking risks, reasonable edge-case coverage, and codebase-backed convention issues
+   - skip subjective, out-of-scope, false-positive, conflicting, or regression-risk findings with a recorded reason
+8. Apply addressed changes.
+9. If Go code is touched, load `references/code-health-standards-go.md` and apply it only to touched code as advisory guidance.
+10. If this turn creates or moves package/module boundaries, run a structural pass using `references/structure-standards.md` and the Go addendum when relevant.
+11. Run detected verification. If verification fails because of this turn, fix before continuing. If failure is pre-existing, record evidence and continue.
+12. Commit this turn's self-review changes locally with a message that names the turn and summarizes addressed feedback.
 
-- **`#N`** or **`N`**: e.g., `#42` or `42`
-- **GitHub PR URL**: e.g., `https://github.com/owner/repo/pull/42` — extract the PR number from the URL path
+Detect oscillation after turn 2. If current changed files significantly overlap with files changed two turns earlier and reviewers are undoing prior fixes, stop as blocked.
 
-Any other format is not supported. If the argument doesn't match these patterns, ask the user to provide a PR number.
+## Optional Cross-Model Debate
 
-### 1b. Pre-flight: discover the code review skill and execution mode
+Do not load `protocols/mcp-debate.md` during setup. After a clean main-loop review, consider debate only when:
 
-Before doing anything else, determine both:
+- the PR is high-risk or security-sensitive
+- multiple review turns skipped disputed blocking feedback
+- the final merge decision depends on a judgment call
 
-- `review_skill`: the best available review skill, if any
-- `review_execution_mode`: how review turns will run
+Before any external-model call, ask one run/skip checkpoint. If approved, load `protocols/mcp-debate.md` and follow its discovery, model pinning, prompt-size, and failure handling rules.
 
-Discovery by `SKILL.md` file existence is not enough to choose nested execution. It only proves a skill is installed; it does not prove the current harness can run that skill's required reviewer agents, team bookkeeping, or nested message flow. Use the current harness's skill discovery first (for example, registered slash skills or listed Codex skills). If discovery is unavailable, check installed plugin roots on disk rather than spawning agents — this is lightweight and avoids the cost of executing the skill just to test availability.
+If debate causes code changes, commit them locally and run one more fresh read-only review. If that final review has unresolved blocking findings, stop as blocked and do not push.
 
-Supported `review_execution_mode` values:
+## Squash And Push
 
-- `nested_skill_review`: a fresh review sub-agent invokes `review_skill`, and that skill is allowed to run its own nested reviewer agents or team workflow.
-- `direct_codex_review`: a fresh Codex sub-agent performs a direct code review from an explicit prompt and does not invoke `abatilo-core:code-review` or any nested team workflow.
+Only publish when:
 
-**Attempt 1 — `code-review` skill**:
+- the stop reason is a clean review
+- required post-debate final review is clean
+- the working tree is clean
 
-Use harness skill discovery or search installed plugin roots for the skill file:
+Verify the range from `review_base_sha..HEAD` contains only commits created by this self-review run. If unrelated commits are present, stop and ask before rewriting local history.
 
-```
-**/skills/code-review/SKILL.md
-```
+Squash local self-review commits with a non-interactive soft reset, create one final commit, pull with rebase, rerun relevant verification if the commit changes or conflicts were resolved, then push normally.
 
-If a match is found, set `review_skill` to `code-review`.
+Never use `--force` or `--force-with-lease`.
 
-- Claude Code: set `review_execution_mode` to `nested_skill_review` only when the skill is registered AND the skill's `allowed-tools` frontmatter does not include `Agent`, `Task`, or `TeamCreate`. Sub-agents spawned via `Agent(...)` in Claude Code do not inherit those tools, so a skill that needs to spawn its own agent team cannot run inside a nested review sub-agent — it will fail partway through and the sub-agent will typically improvise a non-fresh review, which silently violates the unbiased-review invariant. If the skill's frontmatter shows it requires nested spawning, keep `review_skill` for reporting but set `review_execution_mode` to `direct_codex_review` and record the reason in `review_mode_reason`.
-- Codex: set `review_execution_mode` to `nested_skill_review` only if the skill is registered in the active Codex skills list or otherwise has a documented Codex-compatible execution path. If compatibility is not proven, keep `review_skill` for reporting but use `direct_codex_review`.
+## Final Summary
 
-Record `review_mode_reason` with the specific evidence used for the mode decision, then proceed to Step 1c.
+Report:
 
-**Attempt 2 — `abatilo-core:code-review` plugin** (fallback):
-
-If Attempt 1 found no match, search for the namespaced variant:
-
-```
-**/abatilo-core/**/skills/code-review/SKILL.md
-```
-
-If a match is found, set `review_skill` to `abatilo-core:code-review`, then run a compatibility check before allowing nested execution.
-
-For `abatilo-core:code-review`, nested execution is unsupported in Claude Code. The skill declares `allowed-tools: [Task, TeamCreate, TaskCreate, ...]` and its first instruction is "YOU MUST SPAWN AN AGENT TEAM. Do NOT review code yourself." A Claude Code sub-agent spawned via `Agent(...)` does not inherit `Agent`/`Task`/`TeamCreate`, so the nested invocation fails partway through — typically the sub-agent improvises its own review, silently violating the unbiased-review invariant. In Claude Code, set `review_execution_mode` to `direct_codex_review` and record `"abatilo-core:code-review requires nested team spawning; Claude Code sub-agents cannot inherit Agent/Task"` in `review_mode_reason`.
-
-In Codex, nested execution is compatible only when all of the following are true:
-
-- The expected specialist reviewer capability is available, either as registered specialist agent types or as an installed `agents/` directory containing the required reviewer definitions.
-- The active harness can spawn those specialists as read-only reviewers, or can include the `agents/<reviewer>.md` instructions in Codex `explorer` prompts.
-- The active harness can complete the team/message lifecycle without relying on unavailable Claude-only tools.
-
-Codex default: if any compatibility condition is absent or unproven, set `review_execution_mode` to `direct_codex_review`. Do not invoke `abatilo-core:code-review` from the review sub-agent in that case. Record the failed or skipped compatibility condition in `review_mode_reason`.
-
-Only set `review_execution_mode` to `nested_skill_review` for `abatilo-core:code-review` when running in Codex AND the compatibility check is explicitly satisfied. Then proceed to Step 1c.
-
-**Neither available — stop:**
-
-If both attempts found no match, stop immediately and inform the user:
-
-```
-/self-review-loop requires a code review skill, but none was found.
-
-Install one of the following:
-  Claude Code: a `code-review` plugin or `/plugin install abatilo-core`
-  Codex: a Codex plugin/skill that provides code review, such as `abatilo-core:code-review`
-```
-
-### 1c. Fetch PR details
-
-```
-gh pr view <N> --json number,state,baseRefName,headRefName,title,body
-```
-
-Confirm the PR is open. If merged or closed, inform the user and stop. Capture the PR base branch and head branch from the PR details; later review turns need the local diff against the base branch because per-turn commits will not be pushed immediately.
-
-### 1d. Check out the PR branch
-
-```
-gh pr checkout <N>
-git pull
-git fetch origin <pr_base_ref>
-```
-
-After the pull, record the commit at the start of the self-review work and the upstream branch:
-
-```
-git rev-parse HEAD
-git rev-parse --abbrev-ref --symbolic-full-name @{u}
-git branch --show-current
-```
-
-### 1e. Initialize the loop state
-
-Track only the state needed to make safe decisions and report evidence:
-
-- Branch/diff context: `review_base_sha`, upstream branch, current branch, `pr_base_ref`, `pr_head_ref`, changed-file inventory, changed counts, and whether `large_pr` mode applies. `max_turns` is 10 for every PR; `large_pr` changes prompt sizing, not the turn budget.
-- Review execution: discovered `review_skill`, selected `review_execution_mode`, mode reason, per-turn mode/retry/fallback notes, a 10 minute review timeout, and one retry for transport, timeout, null/invalid output, or stream disconnect.
-- Debate execution: one-time `mcp_availability`, one debate session per available provider with up to 10 convergence rounds, 5 minute per-call timeout, and per-provider success/rejected/failed status plus the round count reached.
-- Change tracking: local review commits, final review commit, changelog, skipped findings, stop reason, files changed per turn for oscillation detection, advisory code-health notes, and structural pass findings/iterations.
-
-### 1f. Pre-flight MCP availability once
-
-Before entering the review loop, read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root and follow its discovery rules once. Record only debate-capable external-model MCPs as available: a provider must expose a direct prompt endpoint for review feedback, not just a provider-named operational namespace.
-
-Check already-loaded callable tools first, then use `ToolSearch` only as a fallback for deferred tools:
-
-```
-ToolSearch(query: "claude", max_results: 3)
-ToolSearch(query: "codex", max_results: 3)
-```
-
-After each `ToolSearch` result, verify the returned schema exposes a debate-capable prompt tool before marking that provider available. `mcp__claude_code__` operational tools such as `Read`, `Bash`, or `Agent` do not count unless that namespace also exposes a direct external-model prompt endpoint.
-
-When the active harness is Codex, prefer Claude for cross-model debate only when verified Claude debate tooling is available. Record the results in `mcp_availability`, including each provider's availability or unavailability, exact callable tool names, prompt/model arguments, and exposed model names. Later MCP debate steps must consult this recorded value instead of repeating discovery. If no debate-capable external-model provider is available, record `mcp_availability` as unavailable and skip the debate explicitly in Step 3 and the final summary.
-
-Preflight availability means only "the provider exposes a callable debate tool." It does not guarantee execution will succeed later. Keep these failure modes distinct in the state and final summary:
-
-- **Unavailable at preflight**: no verified debate-capable MCP tool was found. Step 3 is skipped before any debate prompt is built.
-- **Rejected at execution**: the provider was available, but the harness/user declined the tool call. Treat the exact harness message `The user doesn't want to proceed with this tool use` as a terminal rejection for that provider and for this run's debate step.
-- **Execution failed**: the provider call was accepted but timed out, returned a transport/tool error, or produced null/empty output. Mark only that provider failed and continue with remaining enrolled providers.
-
----
-
-## Step 2: The Review Loop
-
-Repeat the following for each turn until a stop condition is met.
-
-### 2a. Launch a fresh review sub-agent
-
-**CRITICAL**: The sub-agent must have NO context from previous turns. This prevents bias — the reviewer should evaluate the code as-is, not relative to what it used to be. Each turn gets a completely fresh agent that knows nothing about prior feedback or changes.
-
-Spawn the sub-agent using the `review_execution_mode` selected in Step 1b.
-
-Because per-turn commits are local until Step 4, the reviewer must review the checked-out local branch state, not the remote GitHub PR diff. Tell the sub-agent to use GitHub only for PR metadata and to use this local diff as the code under review:
-
-```
-git diff "origin/<pr_base_ref>"...HEAD
-```
-
-The PR number is metadata only for review turns. The review target is local `HEAD` against `origin/<pr_base_ref>`.
-
-If `large_pr` is true, avoid duplicating a huge full diff into nested prompts. Give reviewers the `changed_file_inventory` and tell them to inspect targeted local diffs as needed:
-
-```
-git diff origin/<pr_base_ref>...HEAD -- <path>
-```
-
-For large PRs, nested prompts must not paste the full diff into every reviewer prompt. Direct review prompts may still ask the single fresh reviewer to inspect the local diff, but should prefer targeted file diffs when the inventory is large.
-
-For `nested_skill_review`, the sub-agent invokes the compatible `review_skill`.
-
-Claude Code:
-
-```
-Agent(
-  description: "Code review turn N",
-  prompt: "Run /<review_skill> against the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Review the local diff from `git diff origin/<pr_base_ref>...HEAD`; do not use `gh pr diff <N>` as the diff source because self-review commits stay local until the final squash. Use `gh pr view <N>` only for PR metadata. If the review skill requires tools or agent types that are not available to you (for example, `Task`/`TeamCreate` for spawning a review team), return immediately with the exact string `REVIEW_SKILL_UNAVAILABLE: <reason>` instead of improvising a review yourself — the orchestrator will fall back to direct review. Do not add any additional context or commentary — just run the skill and report back the full review output exactly as produced.",
-  mode: "bypassPermissions"
-)
-```
-
-Codex:
-
-```
-spawn_agent(
-  agent_type: "default",
-  fork_context: false,
-  message: "Run <review_skill> against the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Review the local diff from `git diff origin/<pr_base_ref>...HEAD`; do not use `gh pr diff <N>` as the diff source because self-review commits stay local until the final squash. Use `gh pr view <N>` only for PR metadata. If the review skill requires tools or agent types that are not available to you, return immediately with the exact string `REVIEW_SKILL_UNAVAILABLE: <reason>` instead of improvising a review yourself — the orchestrator will fall back to direct review. Do not add any additional context or commentary — just run the skill and report back the full review output exactly as produced."
-)
-```
-
-For `direct_codex_review`, do not invoke `abatilo-core:code-review` or any nested review-team workflow. Choose direct review depth based on PR size and risk: one strong fresh reviewer is acceptable for small, low-risk diffs; use multiple independent fresh reviewers or focused fresh passes when the diff is large, touches risky behavior, has weak tests, or the previous review output looked shallow. Every direct reviewer must start with no prior turn context (fresh `Agent(...)` in Claude Code; `spawn_agent` with `fork_context: false` in Codex), stay read-only, and receive no prior turn history.
-
-Claude Code:
-
-```
-Agent(
-  description: "Code review turn N (direct)",
-  prompt: "Perform a direct code review of the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Inspect the local diff from `git diff origin/<pr_base_ref>...HEAD`; for large diffs, use the changed-file inventory to select targeted file diffs and state what coverage you achieved. Follow relevant call sites, inspect tests or missing tests, and look for behavioral regressions, broken error paths, and inconsistent contracts. Use `gh pr view <N>` only for PR metadata. Do not edit files, push, commit, or spawn nested review teams. Return findings grouped by Critical, High, Medium, and Low, include file/line references where possible, and end with a verdict of APPROVE or REQUEST CHANGES.",
-  mode: "bypassPermissions"
-)
-```
-
-Codex:
-
-```
-spawn_agent(
-  agent_type: "explorer",
-  fork_context: false,
-  message: "Perform a direct code review of the checked-out local branch for PR #<N>. Use local HEAD against `origin/<pr_base_ref>` as the review target, not PR #<N>. Inspect the local diff from `git diff origin/<pr_base_ref>...HEAD`; for large diffs, use the changed-file inventory to select targeted file diffs and state what coverage you achieved. Follow relevant call sites, inspect tests or missing tests, and look for behavioral regressions, broken error paths, and inconsistent contracts. Use `gh pr view <N>` only for PR metadata. Do not edit files, push, commit, or spawn nested review teams. Return findings grouped by Critical, High, Medium, and Low, include file/line references where possible, and end with a verdict of APPROVE or REQUEST CHANGES."
-)
-```
-
-When multiple direct reviewers or passes are used, aggregate their findings into one Critical/High/Medium/Low review output before Step 2c. Keep disagreements visible in the triage notes rather than hiding them.
-
-Before waiting for the sub-agent, record the review mode, skill, and reason for this turn, for example: direct Codex review because nested specialist capability was not proven.
-
-Track elapsed time per review attempt against a 10 minute budget (`review_attempt_timeout`). The orchestrator enforces this budget by checking elapsed time and refusing further retries once it is exceeded; it cannot abort a sub-agent or MCP call that is already in flight. Treat any of these as review execution failures:
-
-- timeout
-- transport error
-- null or empty completion
-- invalid review output, such as missing priority tiers and missing verdict
-- stream disconnected before completion
-
-For those failures, retry once (`max_review_retries`: 1). If the retry also fails, do not start another nested review-team execution. Set `review_execution_mode` to `direct_codex_review` for the turn, record the fallback reason, and run the direct review path above with a depth appropriate to the PR's risk. Record each attempt's mode, skill, duration, timeout status, retry count, and fallback reason.
-
-When `nested_skill_review` is used, the sub-agent may invoke the compatible code review skill, which may in turn spawn its own review team or sub-agents. The code review skill handles its own cleanup where the harness supports it, so when the sub-agent returns, any nested review team should already be complete along with the sub-agent itself.
-
-> **Trust boundary**: Review sub-agents and any nested reviewer agents are expected to be read-only: they read code, inspect diffs, and exchange findings. They must not edit files, push code, or make destructive changes. In Claude Code, `bypassPermissions` is used only for those read-only review sub-agents to avoid repeated prompts. In Codex, sub-agents follow the current Codex sandbox and approval behavior. The orchestrator itself is the component that edits files, runs verification, creates local commits, squashes them, and pushes once at the end.
-
-### 2b. Capture the review output
-
-When the sub-agent returns, capture its full output. This contains the structured review with findings organized by priority tier (Critical, High, Medium, Low) and a verdict (APPROVE or REQUEST CHANGES).
-
-### 2c. Evaluate the stop condition
-
-Parse the review output and check if the loop should stop:
-
-First normalize severity using the orchestrator's judgment. Review every finding, including Medium, Low, `risk`, `question`, and untiered notes. If a finding describes a concrete correctness bug, security issue, data loss risk, regression, broken error path, or test failure that could materially affect users or maintainers, treat it as blocking even if the reviewer did not label it Critical or High. Do not build a numeric rubric; record the reclassification and reason in the turn summary.
-
-**Successful stop condition — no unresolved Critical or High findings remain:**
-The loop succeeds only when the latest fresh review reports **zero** findings in the Critical and High tiers and severity normalization leaves no blocking review feedback to address. Medium and Low findings do not keep the loop running by themselves unless triage determines they are blocking.
-
-**Blocked stop condition — max turns reached:**
-- `turn` equals `max_turns` (10)
-
-If this happens while Critical or High findings remain unresolved, set `stop_reason` to `"blocked_max_turns"` and proceed directly to Step 5. Do not squash or push as a successful self-review result.
-
-**Blocked stop condition — oscillation detected:**
-After turn 2, check `files_changed_per_turn` for thrashing. If the set of files changed in the current turn's triage (Step 2d) overlaps significantly (>50%) with the files changed two turns ago, the loop is oscillating — reviewers are undoing each other's changes. Set `stop_reason` to `"blocked_oscillation"` and proceed directly to Step 5. Do not squash or push as a successful self-review result. When reporting, note which files were thrashing and the conflicting feedback.
-
-If the successful stop condition is met, set `stop_reason` to `"no_unresolved_critical_high_findings"` and proceed to Step 3. If no stop condition is met, continue to 2d.
-
-### 2d. Triage the feedback
-
-For each finding in the review output, decide whether to **address** or **skip** it.
-
-**Address** the finding if:
-- It is in the Critical or High tier
-- It was reclassified as blocking during severity normalization
-- It identifies a real bug, logic error, or correctness issue
-- It requests reasonable error handling, validation, or edge case coverage
-- It points out a style/convention violation consistent with the codebase
-- It is a `blocker` or `risk` finding with a concrete harm scenario
-
-**Skip** the finding if:
-- It is a `nitpick` or `thought` with no impact on correctness
-- It is a subjective style preference with no codebase convention backing it
-- Addressing it would require architectural changes beyond the PR's scope
-- The finding is based on a misunderstanding of the code
-- The suggested change would introduce a regression or break existing behavior
-- It conflicts with feedback from a previous turn that was already applied
-
-For each finding, record:
-- **Action**: `addressed` or `skipped`
-- **Summary**: 1-2 sentence description of what you did or why you skipped
-- **Files changed**: list of files modified (if addressed)
-- **Turn**: current turn number
-
-### 2e. Apply changes
-
-Before writing any Go code this turn, detect whether `go.mod` exists at the repo root. If it does, load `references/code-health-standards-go.md` from the installed `djenriquez-core` plugin root.
-
-Use the code-health standard to shape the code you are already changing: prefer clear control flow, behavior-preserving slices, explicit error handling, clear goroutine lifetimes, consumer-side interfaces, and package extraction based on ownership rather than aesthetics.
-
-The code-health standard is advisory, not a blocking gate. Do not rewrite unrelated working code solely to satisfy it. If you notice a worthwhile cleanup that is outside the current finding's scope, record it under `code_health_notes` as a follow-up suggestion instead of forcing it into this turn.
-
-For each finding you are addressing:
-
-1. Read the referenced file
-2. Make the code change using `Edit`
-3. Verify the change makes sense in context
-4. For Go code, self-check touched code against `code-health-standards-go.md`; fix local issues when the fix is low-churn and directly improves the addressed finding, otherwise record an advisory note
-
-### 2f. Structural pass (conditional)
-
-This pass handles **inter-package shape**: responsibility, cohesion, public surface, layering, encapsulation. Run it when this turn's edits moved package boundaries — created or deleted directories, moved files between packages, introduced new top-level namespaces. For pure within-file edits, set `structural_iterations_per_turn[turn]` to 0 and proceed to Step 2g.
-
-Spawn a fresh agent with the diff.
-
-Claude Code:
-
-```
-Agent(
-  description: "Structural pass turn N",
-  prompt: "Review the diff below against references/structure-standards.md from the installed djenriquez-core plugin root. If go.mod exists at the repo root, also apply references/structure-standards-go.md and use references/code-health-standards-go.md as supporting advisory guidance for package extraction. Focus on inter-package shape only. Flag only what the diff introduced or materially changed, not pre-existing structure visible in context.\n\nLabel each finding's severity: blocking when it concerns a package the diff INTRODUCES (newly created), advisory when it concerns existing structure the diff modifies.\n\nDIFF:\n<paste git diff>\n\nNEW PACKAGES THIS TURN:\n<list or 'none'>\n\nUse the Structure Agent Output Format from structure-standards.md. Return 'No findings' if the structure is sound.",
-  mode: "bypassPermissions"
-)
-```
-
-Codex:
-
-```
-spawn_agent(
-  agent_type: "explorer",
-  fork_context: false,
-  message: "Review the diff below against references/structure-standards.md from the installed djenriquez-core plugin root. If go.mod exists at the repo root, also apply references/structure-standards-go.md and use references/code-health-standards-go.md as supporting advisory guidance for package extraction. Focus on inter-package shape only. Flag only what the diff introduced or materially changed, not pre-existing structure visible in context.\n\nLabel each finding's severity: blocking when it concerns a package the diff INTRODUCES (newly created), advisory when it concerns existing structure the diff modifies.\n\nDIFF:\n<paste git diff>\n\nNEW PACKAGES THIS TURN:\n<list or 'none'>\n\nUse the Structure Agent Output Format from structure-standards.md. Return 'No findings' if the structure is sound."
-)
-```
-
-**Blocking findings** must be addressed before proceeding, or skipped with a documented reason (regression risk, out of PR scope, conflicts with a prior review fix). **Advisory findings** are recorded for the turn summary as follow-up candidates and don't gate the loop.
-
-If structural fixes change the diff, re-run the agent. Stop when findings stabilize, or after a few rounds — repeated thrash is a signal to inspect manually rather than keep iterating.
-
-Record each finding under `structural_findings_per_turn[turn]` (pattern, path, severity, action). Increment `structural_iterations_per_turn[turn]` with each round.
-
-### 2g. Verify changes
-
-After applying all changes for this turn, run the project's test suite and/or linter if one exists. Detect the test runner by checking for common patterns:
-
-- `package.json` with a `test` script → `npm test` or equivalent
-- `Makefile` with a `test` target → `make test`
-- `pytest.ini`, `pyproject.toml`, or `setup.cfg` with pytest config → `pytest`
-- `go.mod` → `go test ./...`
-- `Cargo.toml` → `cargo test`
-- `Gemfile` with rspec → `bundle exec rspec`
-- `*.csproj` or `*.sln` → `dotnet test`
-- `pom.xml` → `mvn test`
-- `build.gradle` or `build.gradle.kts` → `gradle test`
-- `.github/workflows/` CI config → inspect for the test command used in CI
-
-If a test runner is found, run it. If tests fail:
-1. Examine the failure and determine if it was caused by changes made in this turn
-2. If yes, fix the issue before proceeding — this counts as part of the same turn's changes
-3. If the failure is pre-existing (also fails on the PR's base branch), note it in the changelog but proceed
-
-If no test runner is detected, skip this step and note "no test suite detected" in the turn summary.
-
-### 2h. Commit locally
-
-If any files were changed (across Step 2e and/or Step 2f):
-
-```
-git add <file1> <file2> ...
-```
-
-```
-git commit -m "Address code review feedback (turn N)
-
-Review feedback:
-- <summary of change 1>
-- <summary of change 2>
-
-Structural pass:
-- <summary of structural fix 1>
-- <summary of structural fix 2>
-..."
-```
-
-Omit the "Structural pass" section when it produced no changes (or did not run). A single local commit per turn is the convention — do not split review-driven and structural edits into separate commits.
-
-Do **not** push here. These per-turn commits are local checkpoints only. Append the local commit SHA to `local_review_commits`; Step 4 will squash all local review commits into one final commit before pushing.
-
-If no files were changed (all findings skipped or minor-only, and the structural pass also had no changes), skip the commit.
-
-### 2i. Update the changelog
-
-Append this turn's results to the changelog and skipped lists. Record:
-- Turn number
-- Number of findings in each tier (from the main review)
-- Review execution notes: mode, skill, duration, timeout status, retry count, and fallback reason if any
-- What was addressed from the main review (with file references)
-- What was skipped from the main review (with reasons)
-- Structural pass activity: whether the pass ran, iterations taken, blocking findings (each addressed or skipped-with-reason), advisory findings (noted for follow-up)
-- Code-health notes: advisory Go code-health observations recorded during this turn, if any
-- Local commit SHA (if a commit was made)
-- Update `files_changed_per_turn[turn]` with the set of files modified this turn (union of review and structural edits)
-
-### 2j. Increment and continue
-
-Increment `turn` by 1 and go back to Step 2a.
-
----
-
-## Step 3: MCP Cross-Model Debate (conditional)
-
-After the review loop completes, stress-test the final state of the PR with external models. This catches issues that the primary reviewer may have consistently missed across all turns, or changes that were incorrectly skipped.
-
-**Skip this step if no debate-capable external-model MCPs are available.**
-
-### 3a. Confirm and execute debates
-
-Read `protocols/mcp-debate.md` from the installed `djenriquez-core` plugin root. Follow the execution instructions for providers recorded as available in `mcp_availability`. Do not repeat `ToolSearch` here. When running in Codex and verified Claude debate tooling is available, run the Claude debate first; use Codex as the additional or fallback provider according to the recorded preflight result. If `mcp_availability` shows no debate-capable external-model providers, skip to Step 4 and record "skipped — no debate-capable external-model MCPs available from Step 1f preflight" in the changelog and final summary.
-
-Before building or sending any debate prompt, make exactly one user-facing checkpoint for the whole debate phase:
-
-```text
-About to run MCP cross-model debate against <N> provider(s): <provider list>. This may trigger external-model MCP tool calls. Proceed or skip the debate phase?
-```
-
-Use `AskUserQuestion` when the harness supports it; otherwise ask directly. Offer only two choices: run the debate phase or skip the debate phase. If the user skips or declines this checkpoint, skip to Step 4 and record "skipped — user declined MCP cross-model debate checkpoint" in the changelog and final summary. If the user approves, treat that as approval to attempt the enrolled provider calls for this run; do not ask again at the orchestrator level.
-
-### 3b. Gather context and debate prompt
-
-The provider runs in a read-only sandbox in the repo's working directory. It can call `gh pr view`, `git diff`, and read files itself. The orchestrator's job is to **point** the provider at the PR and prior review state — not to paste artifacts the provider can fetch.
-
-The orchestrator collects only what isn't derivable from the repo (used to fill the prompt placeholders below):
-
-```
-gh pr view <N> --json number,baseRefName,headRefName
-git fetch origin <pr_base_ref>
-```
-
-If `go.mod` exists at the repo root, resolve the on-disk absolute path to `references/code-health-standards-go.md` in the installed `djenriquez-core` plugin root. Pass the path in the prompt; do not paste the file contents.
-
-**Hard rule on prompt size.** The constructed prompt body must stay under ~1 KB after placeholder substitution. Do not paste the PR description, changed-file inventory, diff content, full standards files, or extensive PR-specific challenge questions — the provider fetches what it needs. The orchestrator's own context (PR description, inventory, full prior-review history) is for the orchestrator to *summarize*, not to forward verbatim. Oversized debate prompts have stalled the orchestrator's model stream and prevented the call from ever dispatching.
-
-Construct the debate prompt with:
-
-> You are performing an adversarial final code review of PR #<N>. The PR has been through automated review. Find bugs, regressions, and skipped issues the prior reviewer missed.
->
-> Working directory: <repo path>
-> Review target: local HEAD against `origin/<pr_base_ref>` (includes self-review commits not yet pushed; the remote PR does not yet reflect these).
->
-> Prior review verdict: <one-line verdict, or "none — first review pass">
-> Addressed feedback: <≤300-char bullet summary, or "none">
-> Skipped feedback: <≤300-char bullet summary with reasons, or "none">
->
-> <If go.mod exists: "Advisory Go code-health standard at `<absolute path>`. Apply as suggestions, not blocking findings.">
->
-> Use `gh`, `git`, and file reads to inspect anything you need. Apply adversarial scrutiny for correctness bugs, regressions introduced by fixes, incorrectly-skipped findings, missed test coverage, and cross-cutting issues.
->
-> Return findings grouped as Critical, High, Medium, Low with `file:line` references. End with `VERDICT: APPROVE` or `VERDICT: REQUEST CHANGES`.
-
-### 3c. Execute provider calls with bounded failure handling
-
-**Pre-dispatch validation (mandatory).** Before sending any opening provider call in this step, verify the constructed call satisfies all of the following. If any check fails, fix the call construction before dispatching — do not dispatch a non-conforming call and rely on the in-flight timeout to recover; calls dispatched without these guards have hung indefinitely.
-
-For an opening **Codex** call (`mcp__codex__codex`):
-
-- `model` is present and equal to the pinned Codex model from `protocols/mcp-debate.md` (currently `gpt-5.5`).
-- `approval-policy` is `"never"`.
-- `sandbox` is `"read-only"`.
-- `base-instructions` is present and matches the read-only review template from `protocols/mcp-debate.md` (in particular, the "Do not start internal follow-up rounds" clause).
-- The constructed `prompt` body is under 2 KB. If it is larger, summarize prior-review state instead of pasting it, reference standards files by absolute path instead of inlining them, and remove any PR description, file inventory, or diff content — the provider can fetch all of that itself.
-
-For an opening **Claude** call: the verified Claude prompt tool is used, the discovered `model` is passed if the schema supports it, and the prompt body satisfies the same 2 KB size cap.
-
-Record the validation outcome for each provider in the changelog so a failed run can be diagnosed against this list.
-
-Use `debate_attempt_policy` for every enrolled provider from `mcp_availability`:
-
-- Make at most one MCP debate session per provider, with up to **10 convergence rounds** within that session. The convergence check defined in `protocols/mcp-debate.md` is the primary termination signal — run it after every round and decide whether to send a follow-up reply. Do not skip the convergence check, and do not stop solely on a model self-declaration that it is "done".
-- Use a fixed 5 minute orchestrator-side budget per individual MCP call (the opening call plus each reply), not per session. Debate prompts are smaller than full review turns, so do not inherit Step 2's 10 minute review timeout. The orchestrator enforces this by tracking elapsed time and ending the session once a single call exceeds it; the active harness typically cannot abort an MCP call already in flight, so the bounded round count, the convergence check, and the hardening in `protocols/mcp-debate.md` (read-only sandbox, never-approval policy, no-internal-iteration base instructions) are the primary defenses against hangs and the per-call timeout is the backstop.
-- Treat these as round failures that end the provider session: harness/user rejection, timeout, transport error, tool error, stream disconnect, or null/empty output.
-- If a provider session fails on any round, update that provider's entry in `mcp_availability` with `execution_status: "failed"`, an `execution_failure_reason`, and the round count reached.
-- Continue with the remaining enrolled providers after any provider failure.
-
-Detect user rejection explicitly. If a tool call returns the exact message `The user doesn't want to proceed with this tool use`, set that provider's `execution_status` to `rejected`, record `rejected: true`, and do not retry that provider with a different model, reduced payload, or alternate prompt. The user has already declined execution for this run.
-
-If all enrolled providers fail or are rejected, skip MCP-sourced triage, proceed directly to Step 4, and record "skipped — execution declined or unreachable" in the changelog and final summary. Do not prompt again and do not loop back to Step 3.
-
-### 3d. Triage and apply MCP feedback
-
-Evaluate each point using the same triage criteria from Step 2d:
-
-- **Address** if it identifies a real bug, logic error, correctness issue, or a skipped finding that was genuinely worth fixing
-- **Skip** if it's subjective, out-of-scope, or based on a misunderstanding of the code
-
-For findings you address:
-1. Read the file, make the change via `Edit`
-2. Run tests if a test runner was detected earlier (Step 2g)
-3. If any files were changed, commit locally:
-
-```
-git add <files>
-git commit -m "Address MCP cross-model review feedback
-
-- <summary of change 1>
-- <summary of change 2>
-..."
-```
-
-Do **not** push here. Append the local commit SHA to `local_review_commits`; Step 4 will include this commit in the final squash.
-
-Record all MCP-sourced changes and skips in the changelog under a "Cross-Model Debate" section. Include provider execution status for every enrolled provider, including successful providers, rejected providers, and failed providers.
-
-### 3e. Final fresh review after post-loop changes
-
-If Step 3 applied any code changes, run one more fresh review before Step 4. Reuse the same review execution path from Step 2a through Step 2c against local `origin/<pr_base_ref>...HEAD`; do not run MCP debate again from this final gate. The final reviewer must be fresh-context, read-only, and unaware of prior turns except for the local diff it inspects.
-
-If the final review reports, or severity normalization reclassifies, any unresolved Critical or High finding, set `stop_reason` to `"blocked_final_review"`, leave local review commits unpushed, and proceed directly to Step 5. If Step 3 made no code changes, reuse the last clean review state and record that no post-debate final review was needed.
-
-## Step 4: Squash Local Review Commits and Push Once
-
-This is the only step that publishes self-review changes to the remote branch. Do not push before this step.
-
-Only run this step when `stop_reason` is `"no_unresolved_critical_high_findings"`, there are no unresolved Critical or High findings, and any required post-debate final fresh review completed cleanly. If `stop_reason` is `"blocked_max_turns"`, `"blocked_oscillation"`, or `"blocked_final_review"`, leave any local review commits unpushed and report the blocked state in Step 5 instead of publishing a successful result.
-
-If `local_review_commits` is empty, skip the squash and push. There are no self-review changes to publish.
-
-Before squashing, require a clean working tree:
-
-```
-git status --short
-```
-
-If the working tree is not clean, either commit the remaining self-review changes locally or fix the unexpected state before continuing.
-
-Confirm the commit range to squash:
-
-```
-git log --oneline "$review_base_sha"..HEAD
-```
-
-This range must contain only commits created by this self-review-loop run. If it includes unrelated local or user commits, stop and ask before rewriting local history.
-
-Use this non-interactive soft-reset squash instead of an interactive rebase. It rewrites only local commits that have not been pushed.
-
-Squash all local review commits into one final review commit:
-
-```
-git reset --soft "$review_base_sha"
-git commit -m "Address self-review feedback
-
-Review loop:
-- <summary of addressed review feedback across turns>
-
-Structural pass:
-- <summary of structural fixes, or omit this section>
-
-Cross-model debate:
-- <summary of MCP-sourced fixes, or omit this section>
-
-Verification:
-- <test/lint command and result, or no test suite detected>"
-```
-
-Record the preliminary squashed commit SHA:
-
-```
-git rev-parse HEAD
-```
-
-Set `final_review_commit` to this SHA.
-
-Before pushing, rebase the final squashed commit onto the latest upstream branch if the remote changed while the loop was running:
-
-```
-git pull --rebase
-```
-
-If the rebase reports conflicts, resolve them, run the relevant tests again, and continue the rebase. If the rebase changes the commit SHA, rerun the relevant tests and refresh `final_review_commit` with `git rev-parse HEAD` before reporting. Never use `git push --force` or `git push --force-with-lease` for this workflow.
-
-After the final commit is squashed and rebased if needed, push once:
-
-```
-git push
-```
-
-If the push is rejected because the remote has new commits, repeat the non-force path: pull with rebase, resolve conflicts if any, rerun relevant tests, then push again.
-
-## Step 5: Final Summary
-
-After the loop terminates and the final squash/push step completes or is skipped because the run is blocked, present a comprehensive summary to the user.
-
-Report enough for the user to audit what happened without replaying the whole run:
-
-- PR number, status (`Succeeded` or `Blocked`), stop reason, turn count, large-PR sizing, and review execution mode summary.
-- Per-turn counts for Critical/High/Medium/Low findings, review mode, addressed/skipped feedback, structural pass status, code-health notes, and local checkpoint commit.
-- All changes applied, all skipped feedback with reasons, structural fixes/advisories, and any code-health follow-ups.
-- Cross-model debate status: providers consulted or skipped, provider success/rejected/failed status, findings addressed/skipped, and whether a post-debate final fresh review ran.
-- Final publish status: final squashed commit, pushed/not pushed, remote handling, and the final review verdict.
-
----
-
-## Guidelines
-
-### Why fresh agents each turn
-
-The core design principle: each review must be unbiased. If the reviewer knows what feedback was given last turn, it anchors on those findings and may miss new issues introduced by the fixes, or fail to notice that a previous concern was only partially addressed. A fresh agent sees the code with no history and evaluates it purely on its current state.
-
-### Conflict resolution across turns
-
-If a later turn's review gives feedback that contradicts a change made in an earlier turn:
-- Do NOT revert the earlier change automatically
-- Evaluate both positions and pick the one that is objectively better for the codebase
-- Record the conflict and your reasoning in the skipped list
-- If this happens repeatedly on the same files, the oscillation detector (Step 2c) will catch it and break the loop
-
-### Safety
-
-- Never force-push
-- Never push unsquashed per-turn commits
-- Never modify files outside the scope of the PR's changes unless a reviewer explicitly requests it and the change is safe
-- If a requested change seems risky (could break tests, change public API behavior), skip it and record why
-- If applying a fix introduces a new issue you notice, fix that too in the same turn
-- If the remote branch changes during the loop, rebase the final squashed commit onto the latest upstream and push normally
-
-### Commit hygiene
-
-- Create one local commit per turn (not per finding) for checkpointing and traceability
-- Commit messages for local turn commits reference the turn number
-- Before publishing, squash every local self-review commit into one final review commit
-- The remote branch should receive only the final squashed review commit from this workflow
+- PR number, branch, base, status, stop reason, and turn count
+- review path used and why
+- findings addressed and skipped, with reasons
+- verification commands and results
+- optional debate status
+- final commit and push status, or blocked-state reason

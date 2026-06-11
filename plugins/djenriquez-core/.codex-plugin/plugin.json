@@ -1,7 +1,7 @@
 {
   "name": "djenriquez-core",
   "version": "0.10.0",
-  "description": "Agent workflow plugin collection by @djenriquez: full spec-to-PR dev flow, spec review, issue-to-spec, PR feedback handling, reliable Codex-aware self-review loops with Claude/Codex debate support, PR digest, PR publication, and advisory Go code-health standards",
+  "description": "Agent workflow plugin collection by @djenriquez: full spec-to-PR dev flow, lean code review, spec review, issue-to-spec, PR feedback handling, reliable self-review loops, PR digest, PR publication, and advisory Go code-health standards",
   "author": {
     "name": "djenriquez",
     "url": "https://github.com/djenriquez"
@@ -12,6 +12,7 @@
   "keywords": [
     "full-dev-flow",
     "spec-to-pr",
+    "code-review",
     "spec-review",
     "pull-requests",
     "github",
@@ -20,8 +21,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "djenriquez Core",
-    "shortDescription": "Full dev flow, spec review, PR feedback, PR digest, publishing, and reliable self-review workflows.",
-    "longDescription": "A collection of agent workflow skills for the full spec-to-PR development flow, spec review, issue-to-spec drafting, PR feedback handling, self-review loops, PR digestion, and PR publication. Self-review keeps per-turn commits local, squashes them before pushing once, uses Codex-aware direct review fallback when nested review teams are unavailable, and applies advisory Go code-health standards during development and review.",
+    "shortDescription": "Full dev flow, lean code review, spec review, PR feedback, PR digest, publishing, and self-review workflows.",
+    "longDescription": "A collection of agent workflow skills for the full spec-to-PR development flow, lean staged code review, spec review, issue-to-spec drafting, PR feedback handling, self-review loops, PR digestion, and PR publication. Self-review keeps per-turn commits local, squashes before pushing once, prefers the local lean code-review path, and uses external debate only for high-risk escalation.",
     "developerName": "djenriquez",
     "category": "Productivity",
     "capabilities": [
@@ -31,6 +32,7 @@
     "websiteURL": "https://github.com/djenriquez/claude-plugins/tree/main/plugins/djenriquez-core",
     "defaultPrompt": [
       "Run the full dev flow from this conversation",
+      "Review this code change",
       "Review this spec",
       "Digest this pull request",
       "Publish this branch as a PR"

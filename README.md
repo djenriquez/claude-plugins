@@ -53,7 +53,7 @@ It also persists a workflow checklist before long-running phases so an interrupt
 
 ### /spec-review
 
-Multi-agent spec review that catches ambiguity, missing edge cases, architectural infeasibility, API design gaps, operational blindspots, and scope risks — before a single line of code is written.
+Risk-scaled spec review that catches ambiguity, missing edge cases, architectural infeasibility, API design gaps, operational blindspots, and scope risks before implementation starts.
 
 ```
 /spec-review path/to/spec.md
@@ -63,7 +63,7 @@ Multi-agent spec review that catches ambiguity, missing edge cases, architectura
 /spec-review                       # uses conversation context
 ```
 
-The skill spawns a team of specialist reviewers, dynamically selected based on what the spec covers:
+The skill selects only the specialist reviewers needed for the spec:
 
 | Specialist | Focus |
 |------------|-------|
@@ -75,14 +75,34 @@ The skill spawns a team of specialist reviewers, dynamically selected based on w
 | operations-reviewer | Failure modes, observability, rollback, SLO impact, on-call burden |
 | scope-reviewer | Incremental delivery, dependency risks, timeline, scope creep |
 | complexity-reviewer | Premature abstractions, over-engineering, speculative generality, accidental complexity |
+| structure-reviewer | Package/module boundaries, cohesion, public surface, layering |
 
 Review rigor scales with risk:
 
-- **L0 (Minor)**: Typo fixes, small clarifications — clarity + completeness only
-- **L1 (Significant)**: New features, API additions — dynamic agent selection, self-critique, cross-review
-- **L2 (Strategic)**: Architecture changes, new services — full review with all relevant specialists
+- **L0 (Minor)**: typo fixes, small clarifications — clarity + completeness only
+- **L1 (Significant)**: new features, API additions — selected specialists, self-critique, targeted cross-review
+- **L2 (Strategic)**: architecture changes, new services — all relevant specialists, optional external debate only when high-impact judgment needs stress-testing
 
-Three phases: parallel specialist review → lead-mediated cross-review → deduplicated synthesis with binary verdict (APPROVED / REVISIONS NEEDED).
+Large specs are referenced by path and targeted excerpts rather than pasted into every reviewer prompt. Output is a deduplicated review with a binary verdict (APPROVED / REVISIONS NEEDED).
+
+### /code-review
+
+Lean, risk-scaled code review. It starts with one generalist pass, then adds specialists only when the diff shows concrete risk.
+
+```
+/code-review #42
+/code-review staged
+/code-review unstaged
+/code-review feature/my-branch
+```
+
+Review shape:
+
+- **L0 (Routine)**: one concise generalist review, no specialist fan-out, no debate
+- **L1 (Significant)**: generalist first, then at most two evidence-triggered specialists such as security, performance, testing, architecture, or maintainability
+- **L2 (High-risk)**: bounded specialist set, capped at four unless the user asks for a heavy review
+
+External debate is optional and used only to falsify uncertain high-severity findings, resolve specialist disagreement, or stress-test an L2 verdict. Large diffs use changed-file inventories and targeted local diffs instead of duplicating the full diff into every sub-agent prompt.
 
 ### /issue-to-spec
 
@@ -117,19 +137,19 @@ Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agen
 /self-review-loop 42
 ```
 
-1. Selects a compatible review execution mode for the active harness
-2. Spawns a fresh sub-agent with no prior context to review the PR
+1. Prefers the local lean `/code-review` skill when available
+2. Uses fresh, context-free, read-only review against the local PR diff
 3. Parses the review output and triages each finding (address or skip)
 4. Runs tests/linters to verify changes, then commits and pushes only after a successful no-unresolved-Critical/High review state
-5. Bounds review-agent failures with a fixed wait and one retry before fallback
-6. Uses file inventories and targeted local diffs for large PRs
-7. Reports a full changelog, including review modes, retries, fallbacks, and MCP debate status
+5. Uses file inventories and targeted local diffs for large PRs
+6. Runs optional external debate only for high-risk escalation, disputed blockers, or judgment-sensitive final states
+7. Reports the review path, changes, skipped findings, verification evidence, and push status
 
-In Claude Code, the loop can use a compatible `code-review` plugin or `abatilo-core`. In Codex, it can use a direct fallback reviewer when nested review-team capabilities are unavailable or unreliable, so Codex users do not have to rely on nested `abatilo-core:code-review` execution as the default path. When a Claude MCP is available, Codex cross-model debate prefers Claude.
+The loop does not rely on imported nested review-team workflows by default. If the local lean `/code-review` skill cannot be invoked, the direct fallback follows the same staged L0/L1/L2 policy.
 
 ## Acknowledgments
 
-The spec-review skill's multi-agent architecture (three-phase orchestration, specialist agents, risk lanes, cross-review) is adapted from [@abatilo](https://github.com/abatilo)'s [`abatilo-core` code-review skill](https://github.com/abatilo/vimrc).
+The original spec-review architecture was adapted from [@abatilo](https://github.com/abatilo)'s [`abatilo-core` code-review skill](https://github.com/abatilo/vimrc). This plugin now uses a leaner staged review model for code review and lazy-loaded references for detailed workflow mechanics.
 
 ## License
 
