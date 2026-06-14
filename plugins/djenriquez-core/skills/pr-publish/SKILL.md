@@ -25,6 +25,7 @@ Load `references/github-pr-workflow.md` before making branch or PR decisions. Lo
 - If the local and remote branch diverged, stop and ask.
 - Do not auto-commit tracked changes.
 - If the current branch is the default branch and the only changes are untracked files, you may create a feature branch, stage those explicit new paths, and commit them with an inferred conventional commit message.
+- Describe the merged end state **relative to the base branch**, never the path taken to build it. Re-read each sentence as a reviewer who has only seen the base branch and the diff, and cut anything that presupposes the branch's commit history (see `references/pr-description-style.md`).
 - Print the final title and body before publishing so the transcript records what was sent.
 
 ## Workflow
@@ -40,7 +41,7 @@ Load `references/github-pr-workflow.md` before making branch or PR decisions. Lo
    - reproduction, logs, dashboards, or validation evidence for bug fixes
    - affected users, services, or operators when not obvious from the diff
 4. Draft a conventional-commit title under 70 characters.
-5. Draft the body using `references/pr-description-style.md`.
+5. Draft the body using `references/pr-description-style.md`, then re-read each sentence against the base-branch frame and rewrite any journey-relative phrasing before printing.
 6. Push the branch normally if it is not already on origin.
 7. Create or update the PR:
    - no existing PR: `gh pr create --title "<title>" --body "<body>"`
