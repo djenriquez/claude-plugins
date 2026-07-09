@@ -37,4 +37,4 @@ Interview from a solution-design perspective. Use `$ARGUMENTS` and conversation 
    - open questions or deferred risks
    - acceptance-criteria seeds
 
-The summary should be directly usable by `issue-to-spec` or a human author writing the next spec draft.
+The summary should be directly usable by `write-spec`, `issue-to-spec`, or a human author writing the next spec draft.

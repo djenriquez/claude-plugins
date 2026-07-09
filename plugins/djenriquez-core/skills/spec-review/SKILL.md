@@ -138,3 +138,4 @@ This spec has <N> critical item(s) that must be resolved before implementation:
 - Prefer a few high-signal findings over a long mixed list.
 - Approve when the spec is clear enough to build from without significant rework.
 - Frame opinions as tradeoffs unless there is concrete harm.
+- Treat a decision the spec explicitly delegates to implementation time with stated bounds as resolved design, not a completeness gap; review whether the bounds are adequate, not whether the mechanism is chosen.
