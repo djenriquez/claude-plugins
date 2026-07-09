@@ -125,91 +125,20 @@ Review the summary for completeness. If critical areas were not covered, ask tar
 
 ## Step 3: Author the Spec
 
-### 3a. Determine the spec filename
+**Primary path**: invoke the write-spec skill. It owns the spec's structure, filename, human-readability standards, structural sanity pass, and presenting the draft to the user.
 
-Derive a descriptive, kebab-case filename from the issue title:
-- Strip issue number prefixes, special characters
-- Lowercase, replace spaces with hyphens
-- Keep it concise but descriptive (3-6 words)
-- Example: issue "Add retry logic to webhook delivery" -> `webhook-delivery-retries.md`
-
-### 3b. Write the spec
-
-Author a comprehensive spec at `docs/specs/<filename>.md` that synthesizes everything from the issue exploration and interview. Use the host's file-writing capability; create `docs/specs/` first if the harness does not create parent directories automatically. The spec must be a standalone document — a reader who hasn't seen the issue or interview should understand the full picture.
-
-#### Spec structure
-
-```markdown
-# <Title>
-
-**Issue**: #<N>
-**Status**: Draft
-**Author**: <user> (with AI assistance)
-
-## Problem Statement
-
-What is the problem? Why does it matter? Who is affected?
-
-## Context
-
-Relevant background about the current system, architecture, and constraints.
-Reference specific files, modules, or APIs where appropriate.
-
-## Goals
-
-What this spec aims to achieve. Bulleted list of concrete outcomes.
-
-## Non-Goals
-
-What is explicitly out of scope and why.
-
-## Design
-
-### Overview
-
-High-level description of the approach.
-
-### Detailed Design
-
-The technical design. This is the core of the spec.
-Include subsections as needed for different components or phases.
-
-### Alternatives Considered
-
-Other approaches that were evaluated and why they were rejected.
-
-## Acceptance Criteria
-
-Testable conditions that define "done". Each criterion should be verifiable.
-
-## Dependencies
-
-External dependencies, ordering constraints, or prerequisite work.
-
-## Rollout Plan
-
-How this will be deployed. Feature flags, phased rollout, migration steps.
-
-## Open Questions
-
-Any remaining questions or decisions that need resolution.
+Slash-command form:
+```
+/write-spec
 ```
 
-Adapt this structure to the specific problem — not every section is needed for every spec. Small bug fixes may only need Problem Statement, Context, Design, and Acceptance Criteria. Large features may need all sections plus additional ones.
+Codex form: read the installed `djenriquez-core:write-spec` `SKILL.md` and follow it exactly.
 
-### 3b.5 Structural sanity pass
+The exploration and interview already in this conversation are write-spec's primary source. Supply what it cannot rediscover: the issue number and title, so the filename derives from the issue title and the spec header records `**Issue**: #<N>` alongside its standard header lines.
 
-Before presenting the spec, validate the proposed package/module layout against the structural standards. Bad structure baked into a spec is the most expensive kind to remove later — once code is written, every consumer's import paths cement the shape.
+**Fallback**: if the write-spec skill is unavailable, load `references/spec-style.md` from the installed `djenriquez-core` plugin root and author `docs/specs/<filename>.md` directly following it. When the spec introduces new packages or modules, also validate the proposed shape against `references/structure-standards.md` (plus `references/structure-standards-go.md` when the target repo has a root `go.mod`) before presenting.
 
-Load `references/structure-standards.md` from the installed `djenriquez-core` plugin root and read it. If the target codebase is Go (`go.mod` at the repo root), also load `references/structure-standards-go.md` from the same directory.
-
-For each new package or module the spec introduces, the Design section should make the shape legible — what the package is responsible for, what it exposes, and why it lives apart from neighboring packages — concrete enough that a reviewer can challenge each. If a package fails any standard, redesign before presenting. If multiple new packages are proposed, sketch the dependency graph so cycles are visible.
-
-Skip this sub-step entirely if the spec introduces no new packages or modules.
-
-### 3c. Present the spec
-
-After writing the spec file, present the full spec to the user. Ask them to review it and flag anything that needs adjustment. Make any requested changes before proceeding.
+Do not proceed until the user has reviewed the presented spec and requested adjustments are applied.
 
 ---
 

@@ -40,7 +40,7 @@ Runs the complete development workflow from the current session context to a rev
 
 The skill:
 
-1. Writes a standalone spec from the conversation context
+1. Writes a standalone spec from the conversation context via `/write-spec`
 2. Runs `/spec-review` and revises the spec, using judgment to skip nits or irrelevant findings
 3. Runs `/bits-plan` against the final spec
 4. Runs `/bits-drain` until the implementation queue is complete
@@ -50,6 +50,18 @@ The skill:
 8. Posts `/assisted-review-heavy` on the PR after self-review succeeds
 
 It also persists a workflow checklist before long-running phases so an interrupted agent can resume without losing the intended order.
+
+### /write-spec
+
+Authors a human-first design spec: a plain-language narrative a reviewer can absorb in minutes, backed by a collapsed implementation appendix holding the exhaustive `file:line` detail implementing agents need. Can also rewrite an existing spec that is too dense for human review — nothing is deleted, only demoted.
+
+```
+/write-spec
+/write-spec add retry logic to webhook delivery
+/write-spec docs/specs/existing-verbose-spec.md   # rewrite for readability
+```
+
+The spec structure and writing rules live in `references/spec-style.md`: conclusion-first sections, word budgets for the narrative layer, Mermaid diagrams for multi-actor flows, key-decisions tables, and a final skim-test checklist. `full-dev-flow` and `issue-to-spec` delegate their spec-writing steps to this skill.
 
 ### /spec-review
 
@@ -117,7 +129,7 @@ External debate is optional and used only to falsify uncertain high-severity fin
 
 ### /issue-to-spec
 
-Orchestrates the full investigation-to-spec workflow starting from a GitHub issue — explores the issue and codebase, interviews the user, authors a spec, assesses complexity, and conditionally launches `/spec-review` to harden it.
+Orchestrates the full investigation-to-spec workflow starting from a GitHub issue — explores the issue and codebase, interviews the user, authors a spec via `/write-spec`, assesses complexity, and conditionally launches `/spec-review` to harden it.
 
 ```
 /issue-to-spec #42
