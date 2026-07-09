@@ -212,6 +212,7 @@ After the review completes, analyze each finding and decide how to handle it:
 For findings you agree with:
 - Update the spec to address the issue
 - Make the change directly — rewrite the section, add the missing detail, resolve the ambiguity
+- Keep revisions within `references/spec-style.md`: route new implementer detail to the appendix, and keep the narrative layer's budgets and layering intact
 - No annotation needed; the spec simply improves
 
 #### Disagreement — add consideration notes

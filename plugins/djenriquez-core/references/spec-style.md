@@ -51,6 +51,17 @@ Everything above the appendix is the narrative layer. Adapt sections to the size
 
 **Alternatives Considered** is one short paragraph per alternative: what it was and the single reason it lost.
 
+## Precision and discovery
+
+The spec is written before the implementation, by a session that lacks the context the implementer will gain. Bindingness must therefore be explicit, and precision must track evidence:
+
+- Outcomes, invariants, and acceptance criteria are binding — that is the contract. Mechanisms are guidance unless a stated reason makes them binding. Mark implementation sketches (schema drafts, "mirror the pattern in X", suggested decomposition) as starting points the implementer may improve on.
+- Every binding prescription carries its why. The rationale is what lets an implementer recognize when a prescription's premise no longer holds; a bare "must" invites blind obedience or silent drift.
+- Delegate known-unknowns explicitly instead of glossing over them or guessing: "Decided at implementation time: <decision>. Bounds: <constraints the choice must satisfy>." A delegated decision with bounds is a resolved decision, not a gap, and it belongs in Design — Open Questions is only for decisions that must be resolved before implementation starts.
+- State the deviation rule once, where Design opens: an implementer who discovers that a binding constraint or key decision rests on a false premise surfaces it and the spec gets amended — never silent deviation, never silent compliance.
+
+Discovery room applies to mechanisms, not facts. The appendix inventory of the current system stays exhaustive no matter how soft the design above it is.
+
 ## Budgets
 
 - Summary: ≤ 120 words.
@@ -95,7 +106,7 @@ If any answer requires the appendix, move that answer up.
 **The implementer test.** Verify against the whole document:
 
 6. Every fact, constraint, and decision gathered while preparing the spec appears in the narrative or the appendix. The narrative budget is never met by dropping facts — compare the draft against the gathered context and place anything missing.
-7. An agent holding only this document could implement without guessing or having to rediscover context.
+7. An agent holding only this document could implement without undeclared gaps: every decision is either made in the spec or explicitly delegated with bounds, and none requires rediscovering context the author already had.
 8. Every named constraint is cited from each design subsection it shapes.
 
 Then confirm the budgets hold and the prose rules pass. A humanizer-style editing skill, when installed, may run as a final surgical pass on the narrative layer only — it must not grow the word count or alter appendix precision.

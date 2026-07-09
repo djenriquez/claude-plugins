@@ -145,7 +145,7 @@ When the review completes, triage every finding:
 - **Low, nitpick, thought**: address only when it is cheap and improves clarity. Ignore wording nits and preference-only feedback freely.
 - **Questions**: answer them in the spec when they affect implementation. If a question reveals a real ambiguity, resolve it before continuing.
 
-Revise the spec directly. The goal is a better spec, not a transcript of the review.
+Revise the spec directly. The goal is a better spec, not a transcript of the review. Keep revisions within `references/spec-style.md`: route new implementer detail to the appendix, and keep the narrative layer's budgets and layering intact.
 
 Run another spec-review pass only when there were Critical findings or the first pass returned `REVISIONS NEEDED`. Limit this loop to three review passes. Stop and ask the user if a valid Critical finding remains after three passes or cannot be resolved without a product decision.
 
