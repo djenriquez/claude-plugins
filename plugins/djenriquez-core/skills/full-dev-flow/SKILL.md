@@ -47,8 +47,8 @@ Your workflow:
 
 Invoke the underlying skills using the host's native mechanism:
 
-- **Claude Code**: use slash commands such as `/spec-review`, `/bits-plan`, `/bits-drain`, `/pr-publish`, and `/self-review-loop` when available.
-- **Codex**: invoke installed skills such as `djenriquez-core:spec-review`, `bits:bits-plan`, `bits:bits-drain`, `djenriquez-core:pr-publish`, and `djenriquez-core:self-review-loop`. If direct skill invocation is not available, read the installed `SKILL.md` and follow it exactly.
+- **Claude Code**: use slash commands such as `/write-spec`, `/spec-review`, `/bits-plan`, `/bits-drain`, `/pr-publish`, and `/self-review-loop` when available.
+- **Codex**: invoke installed skills such as `djenriquez-core:write-spec`, `djenriquez-core:spec-review`, `bits:bits-plan`, `bits:bits-drain`, `djenriquez-core:pr-publish`, and `djenriquez-core:self-review-loop`. If direct skill invocation is not available, read the installed `SKILL.md` and follow it exactly.
 
 Do not reimplement a sub-skill when the sub-skill is available. This skill coordinates ordering, branch strategy, state tracking, and handoffs between skills.
 
@@ -118,43 +118,11 @@ On resume after an interruption, inspect the checklist and repo state, then cont
 
 ## Step 3: Write the Spec
 
-Create a standalone spec under `docs/specs/` using a concise kebab-case filename derived from the goal:
+**Primary path**: invoke the write-spec skill (`/write-spec` on Claude Code; on Codex, read the installed `djenriquez-core:write-spec` `SKILL.md` and follow it exactly). It owns the spec's location, structure, human-readability standards, and presenting the draft. The current session context is its primary source.
 
-```
-mkdir -p docs/specs
-```
+**Fallback**: if the write-spec skill is unavailable, load `references/spec-style.md` from the installed `djenriquez-core` plugin root and author `docs/specs/<filename>.md` directly following it.
 
-Use this structure, adapting it to the size of the work:
-
-```markdown
-# <Title>
-
-**Status**: Draft
-**Source**: Current session context
-**Author**: <user> (with AI assistance)
-
-## Problem Statement
-
-## Context
-
-## Goals
-
-## Non-Goals
-
-## Design
-
-## Acceptance Criteria
-
-## Dependencies
-
-## Rollout Plan
-
-## Open Questions
-```
-
-The spec must be understandable without the original conversation. Include concrete files, APIs, constraints, and decisions discovered during the discussion. Acceptance criteria must be observable by command output, file inspection, or behavior.
-
-If the spec would require guessing an important product decision, ask before proceeding. If the uncertainty is minor, write an explicit assumption and continue.
+Either way, the spec must be understandable without the original conversation, and acceptance criteria must be observable by command output, file inspection, or behavior.
 
 Before moving on, ensure the spec has no unresolved open question that blocks implementation. Non-blocking open questions are acceptable only when clearly marked as deferred or out of scope.
 
@@ -177,7 +145,7 @@ When the review completes, triage every finding:
 - **Low, nitpick, thought**: address only when it is cheap and improves clarity. Ignore wording nits and preference-only feedback freely.
 - **Questions**: answer them in the spec when they affect implementation. If a question reveals a real ambiguity, resolve it before continuing.
 
-Revise the spec directly. The goal is a better spec, not a transcript of the review.
+Revise the spec directly. The goal is a better spec, not a transcript of the review. Keep revisions within `references/spec-style.md`: route new implementer detail to the appendix, and keep the narrative layer's budgets and layering intact.
 
 Run another spec-review pass only when there were Critical findings or the first pass returned `REVISIONS NEEDED`. Limit this loop to three review passes. Stop and ask the user if a valid Critical finding remains after three passes or cannot be resolved without a product decision.
 
