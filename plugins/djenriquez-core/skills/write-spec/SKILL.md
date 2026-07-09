@@ -31,7 +31,7 @@ Load `references/spec-style.md` from the installed `djenriquez-core` plugin root
 2. **Name the file.** Kebab-case, 3–6 words derived from the goal, under `docs/specs/` (create the directory if needed). When the spec originates from an issue or ticket, derive the name from its title and record the reference in the spec header.
 3. **Draft per the style reference.** Narrative layer on top, implementation appendix at the bottom. Everything an implementer needs survives — demoted, not deleted.
 4. **Structural sanity pass.** Only if the spec introduces new packages or modules: load `references/structure-standards.md` from the plugin root (plus `references/structure-standards-go.md` when the target repo has a root `go.mod`) and validate the proposed shape. Make each new package's responsibility, exports, and separation legible in the Design section; redesign before presenting if a package fails a standard.
-5. **Readability pass.** Run the final checklist in the style reference against the narrative layer alone. Fix what fails. If a humanizer-style editing skill is installed (for example `abatilo-core:humanizer`), optionally run it as a surgical final pass on the narrative layer; it is not required, and it must not grow the word count or touch the appendix.
+5. **Completeness and readability pass.** First run the style reference's implementer test: diff the gathered context against the draft, and place every fact, constraint, and decision that shaped the design into the narrative or the appendix — the narrative budget is never met by dropping facts. Then run the reviewer test against the narrative layer alone. Fix what fails. If a humanizer-style editing skill is installed (for example `abatilo-core:humanizer`), optionally run it as a surgical final pass on the narrative layer; it is not required, and it must not grow the word count or touch the appendix.
 6. **Present.** Show the user the full spec and ask what to adjust. Apply requested changes before declaring the spec done.
 
 ## Rewrite mode
@@ -39,7 +39,7 @@ Load `references/spec-style.md` from the installed `djenriquez-core` plugin root
 1. Read the existing spec fully. Inventory every technical fact it contains — constraints, code references, mappings, decisions. Nothing may be lost, only moved.
 2. Restructure it into the style reference's layered form: distill the narrative, move implementer detail into the appendix, add diagrams and decision tables where the reference calls for them.
 3. Verify code references still hold before carrying them into the appendix; drop or fix stale ones and note the verification point.
-4. Run the readability pass, then present the rewrite alongside a short note listing anything you corrected or flagged as stale.
+4. Run the completeness and readability pass — the fact inventory from step 1 is the gathered context to diff against — then present the rewrite alongside a short note listing anything you corrected or flagged as stale.
 
 ## Harness notes
 
