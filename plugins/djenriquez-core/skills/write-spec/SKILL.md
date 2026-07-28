@@ -31,17 +31,18 @@ Load `references/spec-style.md` from the installed `djenriquez-core` plugin root
 2. **Name the file.** Kebab-case, 3–6 words derived from the goal, under `docs/specs/` (create the directory if needed). When the spec originates from an issue or ticket, derive the name from its title and record the reference in the spec header.
 3. **Draft per the style reference.** Narrative layer on top, implementation appendix at the bottom. Everything an implementer needs survives — demoted, not deleted.
 4. **Structural sanity pass.** Only if the spec introduces new packages or modules: load `references/structure-standards.md` from the plugin root (plus `references/structure-standards-go.md` when the target repo has a root `go.mod`) and validate the proposed shape. Make each new package's responsibility, exports, and separation legible in the Design section; redesign before presenting if a package fails a standard.
-5. **Completeness and readability pass.** First run the style reference's implementer test: diff the gathered context against the draft, and place every fact, constraint, and decision that shaped the design into the narrative or the appendix — the narrative budget is never met by dropping facts. Then run the reviewer test against the narrative layer alone. Fix what fails. If a humanizer-style editing skill is installed (for example `abatilo-core:humanizer`), optionally run it as a surgical final pass on the narrative layer; it is not required, and it must not grow the word count or touch the appendix.
-6. **Present.** Show the user the full spec and ask what to adjust. Apply requested changes before declaring the spec done.
+5. **Completeness and readability pass.** First run the style reference's implementer test: diff the gathered context against the draft, and place every fact, constraint, and decision that shaped the design into the narrative or the appendix — the narrative budget is never met by dropping facts. Then run the reviewer test against the narrative layer alone. Fix what fails.
+6. **Humanizer pass (required on narrative only).** Apply `djenriquez-core:humanizer` in `spec-narrative` mode to the narrative layer (loads reporting-style + patterns). Claude Code: `/humanizer` with mode `spec-narrative`, or load the skill inline. Codex: read the installed skill and apply. Prefer fewer ideas over growing length; meaning outranks plainness — do not drop constraints to sound simpler. Do not touch the implementation appendix. Prefer the local skill over any external humanizer. For long procedure-heavy design docs, optionally load `djenriquez-core:technical-writing` while drafting steps; it is not required for ordinary specs.
+7. **Present.** Show the user the full spec and ask what to adjust. Apply requested changes before declaring the spec done.
 
 ## Rewrite mode
 
 1. Read the existing spec fully. Inventory every technical fact it contains — constraints, code references, mappings, decisions. Nothing may be lost, only moved.
 2. Restructure it into the style reference's layered form: distill the narrative, move implementer detail into the appendix, add diagrams and decision tables where the reference calls for them.
 3. Verify code references still hold before carrying them into the appendix; drop or fix stale ones and note the verification point.
-4. Run the completeness and readability pass — the fact inventory from step 1 is the gathered context to diff against — then present the rewrite alongside a short note listing anything you corrected or flagged as stale.
+4. Run the completeness and readability pass — the fact inventory from step 1 is the gathered context to diff against — then the required `spec-narrative` humanizer pass on the narrative layer only. Present the rewrite alongside a short note listing anything you corrected or flagged as stale.
 
 ## Harness notes
 
 - **Claude Code**: this skill may be invoked directly (`/write-spec`) or by orchestrators such as `issue-to-spec` and `full-dev-flow`.
-- **Codex**: if direct skill invocation is unavailable, read this installed `SKILL.md` and `references/spec-style.md` and follow them exactly. The humanizer pass is Claude-only and always optional.
+- **Codex**: if direct skill invocation is unavailable, read this installed `SKILL.md` and `references/spec-style.md` and follow them exactly. Apply the humanizer pass by reading `djenriquez-core:humanizer` and `references/humanizer-patterns.md`.

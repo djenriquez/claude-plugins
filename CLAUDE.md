@@ -17,6 +17,16 @@ Keep `SKILL.md` files as concise default-path orchestrators. Put detailed mechan
 
 Default-path djenriquez-core workflows should prefer local djenriquez-core skills. External plugin skills may remain as optional fallbacks, but they should not be required for the core product experience.
 
+## Human-Facing Output
+
+Three writing layers, loaded by need (do not dump all into every session):
+
+1. **Reporting tone** (`references/reporting-style.md`) — thin rules for reported work: meaning first, outcome first, fewer ideas (not compressed fragments), claim only verified results.
+2. **Humanizer** (`skills/humanizer` + `references/humanizer-patterns.md`) — required cleanup pass before publish/present for `pr-publish`, `publish-review`, `pr-digest`, `write-spec` narrative, and `handle-pr-feedback` replies. Prefer local over `abatilo-core:humanizer`.
+3. **Technical writing** (`skills/technical-writing`) — opt-in craft for runbooks, how-tos, READMEs, and reference pages a reader follows. Not required for ordinary PR summaries.
+
+Do not add numeric sentence word caps or long always-on style checklists; models clip meaning to satisfy them. Collision rules live in the humanizer skill.
+
 ## Lean Review Policy
 
 Code review should be staged by risk:

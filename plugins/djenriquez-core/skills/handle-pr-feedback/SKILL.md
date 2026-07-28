@@ -11,6 +11,7 @@ allowed-tools:
   - Edit
   - Glob
   - Grep
+  - Skill
   - WebSearch
   - WebFetch
 ---
@@ -315,6 +316,7 @@ If all comments were skipped (no commit), omit the Commit section and note that 
 - When skipping, be respectful and specific: "Skipped — this would require restructuring the auth middleware, which is out of scope for this PR. Happy to address in a follow-up."
 - Do not be defensive or dismissive
 - Do not use filler phrases like "Great catch!" or "Thanks for the feedback!"
+- **Required humanizer pass:** before posting each reply, apply `djenriquez-core:humanizer` in `pr-reply` mode (Claude: `/humanizer` or load the skill; Codex: read the installed skill). Keep replies to one or two factual sentences. Claim a fix only when the change is in the branch; otherwise say what remains.
 
 ### Safety
 

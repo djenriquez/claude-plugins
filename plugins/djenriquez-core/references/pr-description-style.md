@@ -1,6 +1,6 @@
 # PR Description Style Reference
 
-Load this when drafting or revising a non-trivial pull request body. The `pr-publish` skill owns when to publish; this file only governs the writing.
+Load this when drafting or revising a non-trivial pull request body. The `pr-publish` skill owns when to publish; this file only governs structure. Load `references/reporting-style.md` for tone (outcome first, meaning before plainness, fewer ideas, verified claims only). Run `djenriquez-core:humanizer` in `pr-body` mode before publish.
 
 ## Shape
 
@@ -20,7 +20,7 @@ Write two short paragraphs:
 1. Explain the user-visible problem and root cause in plain language. Avoid internal function names and type names here.
 2. State the outcome this PR creates.
 
-Good summaries are understandable to someone who has not opened the repository.
+Good summaries are understandable to someone who has not opened the repository. The first sentence should state the problem or outcome in plain language — not agent shorthand like `Fixed: X → Y → green`. After drafting the full body, run the required `djenriquez-core:humanizer` pass in `pr-body` mode. The Summary is the main skim target: if it still sounds like AI marketing or implementation soup, rewrite it again.
 
 ## What Changed
 
@@ -58,3 +58,5 @@ Every unchecked item must be runnable by a reviewer or operator. Avoid vague ent
 - Write in post-merge present tense: `The runner now...`.
 - Do not add emoji unless recent project PRs use them.
 - If a before/after table would repeat the same failure mode, omit it.
+- Avoid engineering AI-speak (`leverages`, `streamlines`, `ensures`, `robust`, `seamless`, `comprehensive`, `aligns with best practices`). Prefer concrete mechanisms and outcomes. See `references/humanizer-patterns.md`.
+- Brevity means fewer ideas, not compressed fragments. Claim tests/builds only when evidence exists.

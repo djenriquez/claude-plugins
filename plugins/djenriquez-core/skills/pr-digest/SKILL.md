@@ -9,6 +9,7 @@ allowed-tools:
   - Read
   - Glob
   - Grep
+  - Skill
   - AskUserQuestion
   - WebFetch
 ---
@@ -219,6 +220,16 @@ If the PR is a single commit, omit this section.
 - **Concise but complete**: Every section should earn its space. If a section would just say "N/A" or repeat what's obvious from the title, omit it.
 - **Neutral tone**: You are explaining, not evaluating. "The author chose X" not "The author should have chosen Y."
 - **Link to specifics**: Reference file paths and line numbers so the reader can jump to the code if they want to dig deeper.
+- **Human-readable lead**: Intent must make sense to someone who has not opened the diff yet. Plain language first; symbols in the detail groups.
+
+### Humanizer pass (required)
+
+Draft with `references/reporting-style.md` in mind (outcome-first Intent, whole sentences, no arrow-chain shorthand). Before presenting the digest, apply `djenriquez-core:humanizer` in `digest` mode to the full summary.
+
+- Claude Code: invoke `/humanizer` with mode `digest`, or load the skill and apply inline.
+- Codex: read the installed skill and apply.
+
+Surgical only: keep structure, facts, and file references; remove AI jargon, filler transitions, and inflated significance. Prefer fewer ideas over fragments. One name for one component.
 
 ---
 

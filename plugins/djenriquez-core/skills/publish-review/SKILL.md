@@ -8,12 +8,12 @@ dependencies:
   - "gh: GitHub CLI, authenticated with permission to write pull request reviews"
   - "POSIX shell"
   - "read/write filesystem access for a temporary JSON payload file"
-allowed-tools: Bash(gh:*) Bash(git:*) Bash(command:*) Bash(rm:*) Bash(cat:*) Bash(test:*) Read Write AskUserQuestion
+allowed-tools: Bash(gh:*) Bash(git:*) Bash(command:*) Bash(rm:*) Bash(cat:*) Bash(test:*) Read Write Skill AskUserQuestion
 ---
 
 # Publish Review
 
-Publish already-written review findings as inline comments on a GitHub pull request. This skill does not perform code review. It only resolves the target PR, validates anchors, rewrites the wording into review-ready voice, previews the review, and submits one grouped GitHub review.
+Publish already-written review findings as inline comments on a GitHub pull request. This skill does not perform code review. It only resolves the target PR, validates anchors, rewrites the wording into review-ready human voice, previews the review, and submits one grouped GitHub review.
 
 The default outcome is one `COMMENT` review so the author gets one notification. Use `REQUEST_CHANGES` only when at least one finding is `critical` or `high` and the caller explicitly opted into a blocking review.
 
@@ -127,13 +127,19 @@ Choose one: drop this finding, attach to 79, or convert it to the top-level revi
 
 Only move a comment to the nearest line after explicit user confirmation. If converted to the top-level body, append a short unanchored note such as `path/to/file.go:84: <rewritten body>`.
 
-## Voice Pass
+## Voice Pass (required humanizer)
 
 Rewrite each finding body before previewing or posting. Preserve the technical claim, severity, path, and line. Do not add new findings.
 
+**Required:** apply `djenriquez-core:humanizer` in `review-comment` mode to every finding body and the optional preamble.
+
+- Claude Code: invoke `/humanizer` with mode `review-comment`, or load the skill and apply the pass inline.
+- Codex: read the installed `djenriquez-core:humanizer` skill and apply.
+- Preserve the technical claim's force (do not soften a correctness bug into a vague suggestion). Do not invent evidence.
+
 The target voice is a senior engineer typing directly into GitHub: specific, brief, and calm. The comment should read like it was written for a teammate who already has the diff open.
 
-Rules:
+Rules (also encoded in the humanizer `review-comment` mode — apply all of them):
 
 - Use short sentences. Most comments should be 2-4 sentences.
 - Point at the mechanism, not the author. Say `This shifts the retained window on every eviction`, not `your code shifts...`.
@@ -151,6 +157,7 @@ Rules:
 - Do not restate obvious file facts. Assume the reader has the code open.
 - Do not pad criticism with generic praise.
 - Avoid using `PR`, `this PR`, or `your change` as the subject when a file, function, behavior, or line can be the subject.
+- Strip AI jargon and significance inflation (`leverages`, `ensures`, `robust`, `comprehensive`, `it is important to note`).
 
 Rewrite these anti-patterns:
 
