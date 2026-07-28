@@ -224,12 +224,12 @@ If the PR is a single commit, omit this section.
 
 ### Humanizer pass (required)
 
-Before presenting the digest, apply `djenriquez-core:humanizer` in `digest` mode to the full summary.
+Draft with `references/reporting-style.md` in mind (outcome-first Intent, whole sentences, no arrow-chain shorthand). Before presenting the digest, apply `djenriquez-core:humanizer` in `digest` mode to the full summary.
 
-- Claude Code: invoke `/humanizer` with mode `digest`, or load `skills/humanizer/SKILL.md` and `references/humanizer-patterns.md` and apply inline.
-- Codex: read the installed skill and patterns reference; apply the pass.
+- Claude Code: invoke `/humanizer` with mode `digest`, or load the skill and apply inline.
+- Codex: read the installed skill and apply.
 
-Surgical only: keep structure, facts, and file references; remove AI jargon, filler transitions, and inflated significance. Prefer shorter.
+Surgical only: keep structure, facts, and file references; remove AI jargon, filler transitions, and inflated significance. Prefer fewer ideas over fragments. One name for one component.
 
 ---
 

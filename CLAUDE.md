@@ -19,7 +19,13 @@ Default-path djenriquez-core workflows should prefer local djenriquez-core skill
 
 ## Human-Facing Output
 
-Skills that produce text humans must read (`pr-publish`, `publish-review`, `pr-digest`, `write-spec` narrative, `handle-pr-feedback` replies) require a pass through the local `djenriquez-core:humanizer` skill before publish or presentation. Prefer the local skill over `abatilo-core:humanizer`. Keep pattern details in `references/humanizer-patterns.md`; keep mode contracts in `skills/humanizer/SKILL.md`.
+Three writing layers, loaded by need (do not dump all into every session):
+
+1. **Reporting tone** (`references/reporting-style.md`) — thin rules for reported work: meaning first, outcome first, fewer ideas (not compressed fragments), claim only verified results.
+2. **Humanizer** (`skills/humanizer` + `references/humanizer-patterns.md`) — required cleanup pass before publish/present for `pr-publish`, `publish-review`, `pr-digest`, `write-spec` narrative, and `handle-pr-feedback` replies. Prefer local over `abatilo-core:humanizer`.
+3. **Technical writing** (`skills/technical-writing`) — opt-in craft for runbooks, how-tos, READMEs, and reference pages a reader follows. Not required for ordinary PR summaries.
+
+Do not add numeric sentence word caps or long always-on style checklists; models clip meaning to satisfy them. Collision rules live in the humanizer skill.
 
 ## Lean Review Policy
 

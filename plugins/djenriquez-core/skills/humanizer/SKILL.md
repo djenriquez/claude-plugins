@@ -4,7 +4,8 @@ description: |
   Rewrite agent-drafted text so a human can skim it without AI jargon or bloated
   terminology. Use when editing PR descriptions, review comments, digests, specs,
   or any other text people must read. Surgical: fix contaminated sections only;
-  preserve technical claims, structure, and real specificity.
+  preserve technical claims, structure, and real specificity. Pairs with
+  reporting-style for reported work and technical-writing for procedures.
 argument-hint: "[mode] — pr-body | review-comment | digest | spec-narrative | pr-reply | general"
 disable-model-invocation: false
 allowed-tools:
@@ -25,9 +26,27 @@ This skill is a **fork** of `abatilo-core:humanizer` (Wikipedia "Signs of AI
 writing"), adapted for engineering artifacts. Prefer this local skill over the
 external one.
 
-Load `references/humanizer-patterns.md` from the installed `djenriquez-core`
-plugin root before rewriting. That file holds the pattern catalog; this skill
-owns process, modes, and the contract other skills call.
+## Layered writing system
+
+Three layers, loaded by need — do not dump all of them into every session:
+
+| Layer | Where | When |
+|-------|--------|------|
+| **Reporting tone** | `references/reporting-style.md` | PR bodies, digests, replies, turn summaries, other reported work |
+| **AI cleanup (this skill)** | `skills/humanizer` + `references/humanizer-patterns.md` | Before publish/present of human-facing text |
+| **Procedure/reference craft** | `djenriquez-core:technical-writing` | Only when authoring a runbook, how-to, README, API reference, or similar |
+
+Reporting tone is thin and always relevant for reported work. Technical writing
+craft is opt-in. This skill removes AI contamination without forcing essay
+personality onto engineering docs.
+
+Load from the installed `djenriquez-core` plugin root:
+
+1. For reporting modes (`pr-body`, `digest`, `pr-reply`, `spec-narrative`):
+   `references/reporting-style.md` then `references/humanizer-patterns.md`
+2. For `review-comment`: patterns file; apply reporting's meaning/evidence
+   rules lightly; teammate voice wins on contractions and register
+3. For `general`: patterns file; preserve real human voice when present
 
 ## When other skills call this
 
@@ -43,14 +62,26 @@ or presenting final text:
 | `handle-pr-feedback` | `pr-reply` | yes, for each reply body |
 
 **Claude Code**: invoke `/humanizer` with the mode, or apply this skill inline
-after loading the patterns reference.
+after loading the references above.
 
-**Codex**: read this installed `SKILL.md` and `references/humanizer-patterns.md`,
-then apply the pass. Do not skip the pass because a nested skill call is awkward.
+**Codex**: read this installed `SKILL.md` and the listed references, then apply
+the pass. Do not skip the pass because a nested skill call is awkward.
 
-Fallback: if this skill cannot be invoked, load the patterns reference and run
-the Process section below against the draft. Never ship the unhumanized draft
-when the caller marks the pass required.
+Fallback: if this skill cannot be invoked, load the same references and run
+the Process section below. Never ship the unhumanized draft when the caller
+marks the pass required.
+
+## Collision rules
+
+| Text kind | Who wins |
+|-----------|----------|
+| PR body, digest, reported summary | reporting-style + this skill in reporting modes. Neutral, outcome-first. No blog voice. |
+| Review comment, short PR reply | this skill's mode. Teammate voice; natural contractions OK. |
+| Procedure / reference / long how-to | technical-writing for structure; this skill only for AI-slop cleanup. |
+| Narrative essay / person-sounding prose | this skill `general`; voice guidance applies. |
+
+Do not enforce numeric sentence word caps. Models clip meaning to satisfy
+counts. Prefer fewer ideas and one topic per sentence.
 
 ## Modes
 
@@ -60,14 +91,18 @@ Pick one mode. Mode rules override general tone when they conflict.
 
 Target: a reviewer who has the base branch and the diff, not the author's journey.
 
+- Apply `references/reporting-style.md` fully.
 - Lead with plain-language problem and outcome in the Summary. No internal type
   or function names there.
 - Prefer concrete verbs: "Adds", "Fixes", "Rejects", "Caches" — not "enhances",
   "streamlines", "leverages", "ensures".
 - Neutral and factual. No marketing, no self-congratulation, no journey language
-  (see `references/pr-description-style.md` when drafting structure).
+  (see `references/pr-description-style.md` for structure).
+- Expand arrow-chain shorthand into whole sentences.
+- Brevity = fewer ideas, not telegraphic fragments.
 - Keep section structure; shorten bloated sentences inside sections.
 - Do not invent test results, risks, or behavior the draft did not claim.
+- Preserve normative force and exact identifiers while cleaning.
 
 ### `review-comment`
 
@@ -81,15 +116,17 @@ Target: a teammate with the diff open.
   comments, no em-dash stacks.
 - Good shape: what happens, why it matters in runtime/API/correctness terms,
   optional real question for tradeoffs.
+- Do not rewrite evidence or soften a hard correctness claim into a vague nit.
 
 ### `digest`
 
 Target: someone who has not read the PR and needs a mental model fast.
 
+- Apply reporting-style: outcome-first Intent, whole sentences, no shorthand.
 - Narrative over inventory. Group by concern, not file list dump.
 - Match the codebase's technical level; do not over-explain domain standards.
 - Neutral: explain, do not evaluate or praise.
-- Cut filler transitions between sections.
+- Cut filler transitions between sections. One name for one thing.
 
 ### `spec-narrative`
 
@@ -97,8 +134,9 @@ Target: a human reviewing design intent in minutes.
 
 - Operate on the narrative layer only. Do not touch implementation appendix
   precision, tables of `file:line` mappings, or budgeted structure.
-- Never grow the word count. Prefer cuts over rewrites.
+- Never grow the word count. Prefer cuts over rewrites (fewer ideas).
 - Keep named constraints and decisions; only clean the prose around them.
+- Meaning outranks plainness: do not drop a constraint to sound simpler.
 
 ### `pr-reply`
 
@@ -106,12 +144,13 @@ Target: a reviewer reading a thread reply.
 
 - One or two factual sentences. "Fixed — …" / "Skipped — …".
 - No "Great catch!", "Thanks for the feedback!", or defensive padding.
+- Claim a fix only when the change is in the branch; otherwise say what remains.
 
 ### `general`
 
 Default for freeform text. Apply the full pattern catalog surgically. Keep the
 author's real voice when it is already human; do not impose blog personality on
-engineering text.
+engineering text. For engineering reported work, prefer a reporting mode instead.
 
 ## Surgical editing (invariant)
 
@@ -122,21 +161,22 @@ The common failure mode is over-editing. Do not rewrite clean prose.
    natural rhythm, accurate technical names where they belong.
 3. Rewrite only contaminated or jargon-heavy sections.
 4. Match surrounding voice; do not replace it with generic "clean" mush.
-5. Never increase word count. Output should be shorter than input unless the
-   input was so cryptic that one clarifying phrase is required (rare; prefer
-   restructuring over adding).
+5. Prefer shorter by dropping surplus ideas, not by compressing into fragments.
+   Expanding cryptic shorthand into one clear sentence is allowed when the
+   original was unreadable.
+6. Never invent verification, risks, or requirements while cleaning.
 
 ## Process
 
 1. **Identify the mode** from `$ARGUMENTS` or the calling skill. Default `general`.
-2. **Load** `references/humanizer-patterns.md`.
+2. **Load** the references for that mode (reporting-style when applicable, then
+   humanizer-patterns).
 3. **Read** the full draft. Map protected (already clear) vs contaminated sections.
-4. **Rewrite** contaminated sections per mode + pattern catalog.
-5. **Skim test**: read only the first screen / Summary / first two sentences.
-   Would a busy engineer understand the point without knowing the generation
-   history? If not, rewrite the lead again.
-6. **Verify**: no new claims, no dropped technical facts that belonged, shorter
-   or equal length, mode constraints held.
+4. **Rewrite** contaminated sections per mode + reporting + pattern catalog.
+5. **Skim test** (three checks): first sentence gives the outcome; a cold reader
+   would understand; no invented verification, softened requirements, or renamed
+   same-thing-twice.
+6. **Verify**: technical facts preserved, mode constraints held, AI patterns gone.
 7. **Return** only the rewritten text to the caller (no meta commentary) unless
    the user invoked this skill directly and a brief change note would help.
 

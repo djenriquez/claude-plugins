@@ -65,7 +65,7 @@ The spec structure and writing rules live in `references/spec-style.md`: conclus
 
 ### /humanizer
 
-Rewrites agent-drafted text so a busy human can skim it without AI jargon or bloated terminology. Forked from [`abatilo-core:humanizer`](https://github.com/abatilo) (Wikipedia "Signs of AI writing") and adapted for engineering artifacts.
+Rewrites agent-drafted text so a busy human can skim it without AI jargon or bloated terminology. Forked from [`abatilo-core:humanizer`](https://github.com/abatilo) (Wikipedia "Signs of AI writing"), adapted for engineering artifacts, and paired with a thin reporting register learned from abatilo's later STE split.
 
 ```
 /humanizer pr-body
@@ -73,9 +73,17 @@ Rewrites agent-drafted text so a busy human can skim it without AI jargon or blo
 /humanizer
 ```
 
-Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`, and `general`. The pass is surgical — it fixes contaminated sections only, prefers shorter output, and preserves technical claims.
+Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`, and `general`. The pass is surgical — it fixes contaminated sections only, prefers fewer ideas over telegraphic fragments, and preserves technical claims and normative force.
 
-Required by human-facing skills before they publish or present:
+Writing layers (load by need):
+
+| Layer | Resource | When |
+|-------|----------|------|
+| Reporting tone | `references/reporting-style.md` | PR bodies, digests, replies, other reported work |
+| AI cleanup | `/humanizer` | Required before publish/present of human-facing text |
+| Procedure craft | `/technical-writing` | Opt-in for runbooks, how-tos, READMEs, reference pages |
+
+Required humanizer modes:
 
 | Skill | Mode |
 |-------|------|
@@ -85,7 +93,9 @@ Required by human-facing skills before they publish or present:
 | `/write-spec` | `spec-narrative` (narrative layer only) |
 | `/handle-pr-feedback` | `pr-reply` |
 
-Pattern catalog: `references/humanizer-patterns.md`.
+### /technical-writing
+
+Sentence-level craft for documents a reader follows or looks facts up in (runbooks, procedures, API references, migration guides, long how-tos). Loads only when authoring those docs — not for ordinary PR summaries. Uses condition-before-command, one name per thing, and plain-language warnings on destructive steps. Pair with reporting-style and a humanizer cleanup pass when needed.
 
 ### /spec-review
 
@@ -208,7 +218,7 @@ Loads full PR context (diff, description, linked issues, commits, review threads
 
 ## Acknowledgments
 
-The original spec-review architecture was adapted from [@abatilo](https://github.com/abatilo)'s [`abatilo-core` code-review skill](https://github.com/abatilo/vimrc). This plugin now uses a leaner staged review model for code review and lazy-loaded references for detailed workflow mechanics. The `/humanizer` skill is a fork of [`abatilo-core:humanizer`](https://github.com/abatilo), extended with engineering modes and wired into human-facing skills.
+The original spec-review architecture was adapted from [@abatilo](https://github.com/abatilo)'s [`abatilo-core` code-review skill](https://github.com/abatilo/vimrc). This plugin now uses a leaner staged review model for code review and lazy-loaded references for detailed workflow mechanics. The `/humanizer` skill is a fork of [`abatilo-core:humanizer`](https://github.com/abatilo), extended with engineering modes and wired into human-facing skills. The reporting / technical-writing split follows abatilo's later lesson that always-on Simplified Technical English was too heavy: thin reporting tone for everyday reported work, craft on demand for procedures, and humanizer for AI cleanup.
 
 ## License
 

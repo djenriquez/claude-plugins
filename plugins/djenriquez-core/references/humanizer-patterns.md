@@ -1,15 +1,28 @@
 # Humanizer Patterns
 
 Load from the `djenriquez-core:humanizer` skill. Pattern catalog only — process
-and modes live in `skills/humanizer/SKILL.md`.
+and modes live in `skills/humanizer/SKILL.md`. Reported-work tone lives in
+`references/reporting-style.md`. Procedure craft lives in
+`skills/technical-writing/SKILL.md` and loads only when authoring docs a reader
+follows.
 
 Forked from abatilo-core humanizer / [Wikipedia: Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing),
 plus engineering-specific tells common in agent-written PRs and reviews.
+Refined by abatilo's later split: drop always-on STE word caps and checklists
+that make models clip meaning to satisfy a number.
 
 ## Core rule
 
-Fix contamination. Do not repaint clean text. Prefer shorter. Prefer concrete
-subjects and verbs. Prefer what a reviewer can verify from the diff.
+Fix contamination. Do not repaint clean text. Prefer concrete subjects and
+verbs. Prefer what a reviewer can verify from the diff.
+
+**Meaning outranks plainness.** Plainer wording is only worth having when it
+still says the same thing. Preserve identifiers, sequence, and normative force
+(must / should / may).
+
+**Brevity means fewer ideas**, not compressed notation. Expand
+`Fixed: timeout → retry path → green` into whole sentences; do not enforce
+numeric word caps while generating.
 
 ---
 
@@ -174,17 +187,54 @@ question!, Let me know if…, Here is a…, knowledge-cutoff hedges.
 "It could potentially possibly be argued…" / "Exciting times lie ahead."
 Cut. End on a specific fact or nothing.
 
+### 19. Agent shorthand and compressed notation
+
+Watch: arrow chains (`A → B → green`), stacked labels without verbs, telegram
+fragments that require the session to decode.
+
+Rewrite as complete sentences with an explicit subject and outcome. This is
+reporting-style, not "make it longer."
+
+### 20. Invented verification
+
+Watch: "tests pass", "fully verified", "production-ready" without tool or repo
+evidence in the draft or session.
+
+Demote to what was actually observed, or remove. Do not invent a green build
+while humanizing.
+
+### 21. Normative force drift
+
+Watch: "must" softened to "should" / "might want to", or a suggestion hardened
+into a requirement, solely for tone.
+
+Keep the original force of the claim. Cleanup is not policy change.
+
+### 22. Synonym-as-second-component
+
+Engineering form of synonym cycling: the same service called "the worker",
+then "the runner", then "the executor" in one PR body. Pick the repository
+term and repeat it.
+
 ---
 
 ## Mode-specific checks
 
+Three skim checks for every reporting mode (not a long ritual checklist):
+
+1. First sentence gives the outcome.
+2. A cold reader would understand without the session.
+3. No invented verification, softened requirements, or same-thing-renamed-twice.
+
 ### pr-body
 
+- [ ] Three skim checks above
 - [ ] Summary readable without opening the repo
 - [ ] No journey language relative to intermediate commits
 - [ ] No quality-advertising adverbs
 - [ ] Implementation symbols pushed out of Summary
 - [ ] Test plan items are runnable, not "monitor prod"
+- [ ] No arrow-chain shorthand
 
 ### review-comment
 
@@ -192,18 +242,21 @@ Cut. End on a specific fact or nothing.
 - [ ] Mechanism + impact + optional question
 - [ ] No severity labels left in the body (except final `Nit: ` prefix)
 - [ ] No "I noticed" / "Consider" / "It might be worth considering"
+- [ ] Technical claim force preserved
 
 ### digest / spec-narrative
 
+- [ ] Three skim checks above
 - [ ] First section answers why/what in plain language
 - [ ] Neutral tone; no evaluation-as-praise
-- [ ] Spec: appendix untouched; word count not increased
+- [ ] Spec: appendix untouched; prefer fewer ideas over growing length
 
 ### pr-reply
 
 - [ ] One to two sentences
 - [ ] Starts with Fixed/Addressed/Skipped or equivalent fact
 - [ ] No gratitude padding
+- [ ] Fix claimed only when the change exists
 
 ---
 
@@ -211,8 +264,11 @@ Cut. End on a specific fact or nothing.
 
 Stripping slop must not produce sterile mush *or* forced personality.
 
-- **PR bodies, digests, specs:** clear, neutral, specific. Not a blog post.
+- **PR bodies, digests, specs:** clear, neutral, specific. Reporting register.
+  Not a blog post. Not an aircraft manual.
 - **Review comments and replies:** calm teammate voice. Direct, not theatrical.
+- **Procedures/references:** technical-writing craft; humanizer only cleans AI
+  tells.
 - **General prose:** keep genuine voice that was already present; do not invent
   first-person confessional style for engineering docs.
 
