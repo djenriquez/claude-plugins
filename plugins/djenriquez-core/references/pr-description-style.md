@@ -20,7 +20,7 @@ Write two short paragraphs:
 1. Explain the user-visible problem and root cause in plain language. Avoid internal function names and type names here.
 2. State the outcome this PR creates.
 
-Good summaries are understandable to someone who has not opened the repository.
+Good summaries are understandable to someone who has not opened the repository. After drafting the full body, run the required `djenriquez-core:humanizer` pass in `pr-body` mode (see `skills/humanizer/SKILL.md`). The Summary is the main skim target: if it still sounds like AI marketing or implementation soup, rewrite it again.
 
 ## What Changed
 
@@ -58,3 +58,4 @@ Every unchecked item must be runnable by a reviewer or operator. Avoid vague ent
 - Write in post-merge present tense: `The runner now...`.
 - Do not add emoji unless recent project PRs use them.
 - If a before/after table would repeat the same failure mode, omit it.
+- Avoid engineering AI-speak (`leverages`, `streamlines`, `ensures`, `robust`, `seamless`, `comprehensive`, `aligns with best practices`). Prefer concrete mechanisms and outcomes. See `references/humanizer-patterns.md`.

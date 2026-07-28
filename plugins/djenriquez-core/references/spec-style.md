@@ -109,4 +109,4 @@ If any answer requires the appendix, move that answer up.
 7. An agent holding only this document could implement without undeclared gaps: every decision is either made in the spec or explicitly delegated with bounds, and none requires rediscovering context the author already had.
 8. Every named constraint is cited from each design subsection it shapes.
 
-Then confirm the budgets hold and the prose rules pass. A humanizer-style editing skill, when installed, may run as a final surgical pass on the narrative layer only — it must not grow the word count or alter appendix precision.
+Then confirm the budgets hold and the prose rules pass. Run the required `djenriquez-core:humanizer` pass in `spec-narrative` mode on the narrative layer only — it must not grow the word count or alter appendix precision.

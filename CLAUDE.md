@@ -17,6 +17,10 @@ Keep `SKILL.md` files as concise default-path orchestrators. Put detailed mechan
 
 Default-path djenriquez-core workflows should prefer local djenriquez-core skills. External plugin skills may remain as optional fallbacks, but they should not be required for the core product experience.
 
+## Human-Facing Output
+
+Skills that produce text humans must read (`pr-publish`, `publish-review`, `pr-digest`, `write-spec` narrative, `handle-pr-feedback` replies) require a pass through the local `djenriquez-core:humanizer` skill before publish or presentation. Prefer the local skill over `abatilo-core:humanizer`. Keep pattern details in `references/humanizer-patterns.md`; keep mode contracts in `skills/humanizer/SKILL.md`.
+
 ## Lean Review Policy
 
 Code review should be staged by risk:
