@@ -40,7 +40,12 @@ Use these sections. Omit any that would only restate the title or say "N/A".
 ### Summary
 
 One short paragraph: what this PR adds or changes, and why it exists, stated as
-the end state. Reference a linked issue when one exists ("Closes #N").
+the end state. Reference a linked issue when one exists ("Closes #N"). Plain
+language only — no internal type or function names here. After the full body is
+drafted, the required `pr-body` humanizer pass (see `djenriquez-core:humanizer`
+and `references/reporting-style.md`) must leave this section skimmable by a
+busy reviewer. First sentence: problem or outcome in whole sentences, not
+arrow-chain shorthand.
 
 ### What changed
 
@@ -75,3 +80,8 @@ actually run. Note coverage gaps factually, not as apology.
   straight to the code.
 - Match the codebase's technical level; do not over-explain domain standards.
 - No marketing, no self-congratulation, no restating the title.
+- Kill engineering AI-speak: "leverages", "streamlines", "ensures",
+  "comprehensive", "seamless", "aligns with best practices". Prefer concrete
+  mechanisms and outcomes. See `references/humanizer-patterns.md`.
+- Brevity means fewer ideas, not telegraphic fragments. Claim tests only with
+  evidence. One name for one component.
