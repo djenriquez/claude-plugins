@@ -9,14 +9,41 @@ Load this only when a workflow needs to translate between Claude Code style tool
 
 Do not reimplement a sub-skill when it is available and compatible.
 
+## Plugin Resource Paths
+
+Unqualified `references/...` and `protocols/...` resolve from the installed
+`djenriquez-core` **plugin root** (the directory that contains `.claude-plugin/`,
+`skills/`, `references/`, and `protocols/` as siblings). They do **not** resolve
+relative to the calling `skills/<name>/` directory.
+
+Example: `references/spec-style.md` → `<plugin-root>/references/spec-style.md`,
+never `skills/write-spec/references/spec-style.md`.
+
+Skill-local files under `skills/<name>/references/` exist only when a skill
+names that path explicitly.
+
+## Nested Skill Fallback
+
+When a parent skill requires a child pass (especially humanizer) and nested
+slash-command / Skill-tool invocation is unavailable, awkward, or unproven:
+
+1. Read the child skill's `SKILL.md` and its listed references from the plugin root.
+2. Apply the child's Process section inline in the current turn.
+3. Do not skip a required pass because nesting failed.
+
 ## Agents And Teams
 
-- Claude Code `Task(...)` maps to a Codex `spawn_agent` call.
-- Use fresh, read-only agents for review work.
-- In Codex, prefer `agent_type: "explorer"` for read-only review agents unless the agent must invoke another skill.
-- Use `fork_context: false` when the review must be unbiased by the current conversation.
-- Claude `TeamCreate`, `TeamDelete`, and task bookkeeping map to local plan notes in Codex unless explicit team tools exist.
-- Claude `SendMessage` maps to collected sub-agent output in Codex. If an agent must respond to a challenge after its first output, use the harness's follow-up input mechanism when available.
+Use fresh, read-only agents for review work. Map spawn tools by harness:
+
+| Harness | Spawn specialists | Cross-review / follow-up |
+|---------|-------------------|--------------------------|
+| **Claude Code** | `Task` / team primitives (`TeamCreate`, `TaskCreate`, …) with agent definitions under `<plugin-root>/agents/` | Lead `SendMessage`; specialists may wait for challenges when team tools exist |
+| **Cursor** | `Task` with registered `subagent_type` matching `*-reviewer` names (`clarity-reviewer`, `completeness-reviewer`, `api-reviewer`, `feasibility-reviewer`, `operations-reviewer`, `product-reviewer`, `scope-reviewer`, `complexity-reviewer`, `structure-reviewer`, …) | One-shot return to the parent. Lead collects Phase 1 output, then spawns a **second** Task (prefer `resume` when available) with only disputed findings. Do not expect idle wait / `SendMessage` |
+| **Codex** | `spawn_agent`; prefer `agent_type: "explorer"` for read-only review unless another skill must run; `fork_context: false` when the review must be unbiased | Follow-up input or second spawn; Claude `TeamCreate` / `TaskUpdate` map to local plan notes unless explicit team tools exist |
+
+Claude Code `SendMessage` / “wait for cross-review / do not exit” are **not** portable. In Cursor and other one-shot Task harnesses, the specialist’s Phase 1 **final response body** is the deliverable; the lead owns orchestration.
+
+When a harness registers `*-reviewer` types, pass a tight prompt (paths, risk lane, section anchors) and let the registered agent definition supply specialist focus. Still instruct the agent to load `<plugin-root>/protocols/review-protocol.md` so protocol drift does not depend on the lead pasting it.
 
 ## Prompt Construction
 

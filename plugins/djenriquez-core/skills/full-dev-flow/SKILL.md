@@ -120,7 +120,10 @@ On resume after an interruption, inspect the checklist and repo state, then cont
 
 **Primary path**: invoke the write-spec skill (`/write-spec` on Claude Code; on Codex, read the installed `djenriquez-core:write-spec` `SKILL.md` and follow it exactly). It owns the spec's location, structure, human-readability standards, and presenting the draft. The current session context is its primary source.
 
-**Fallback**: if the write-spec skill is unavailable, load `references/spec-style.md` from the installed `djenriquez-core` plugin root and author `docs/specs/<filename>.md` directly following it.
+**Fallback**: if the write-spec skill is unavailable, load
+`<plugin-root>/references/spec-style.md` (plugin root = directory containing
+`skills/` and `references/` as siblings; never under `skills/full-dev-flow/`)
+and author `docs/specs/<filename>.md` directly following it.
 
 Either way, the spec must be understandable without the original conversation, and acceptance criteria must be observable by command output, file inspection, or behavior.
 

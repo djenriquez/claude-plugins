@@ -61,7 +61,14 @@ Authors a human-first design spec: a plain-language narrative a reviewer can abs
 /write-spec docs/specs/existing-verbose-spec.md   # rewrite for readability
 ```
 
-The spec structure and writing rules live in `references/spec-style.md`: conclusion-first sections, word budgets for the narrative layer, Mermaid diagrams for multi-actor flows, key-decisions tables, and a final skim-test checklist. `full-dev-flow` and `issue-to-spec` delegate their spec-writing steps to this skill. Narrative prose runs through the local `/humanizer` skill before presentation.
+The spec structure and writing rules live in the plugin-root
+`references/spec-style.md` (sibling of `skills/`, not under `skills/write-spec/`):
+conclusion-first sections, word budgets for the narrative layer, Mermaid diagrams
+for multi-actor flows, key-decisions tables, and a final skim-test checklist.
+`full-dev-flow` and `issue-to-spec` delegate their spec-writing steps to this
+skill. Narrative prose runs through a local humanizer pass (`spec-narrative`)
+before presentation — inline by default; `/humanizer` is optional when nested
+skill invocation works.
 
 ### /humanizer
 
@@ -79,8 +86,8 @@ Writing layers (load by need):
 
 | Layer | Resource | When |
 |-------|----------|------|
-| Reporting tone | `references/reporting-style.md` | PR bodies, digests, replies, other reported work |
-| AI cleanup | `/humanizer` | Required before publish/present of human-facing text |
+| Reporting tone | plugin-root `references/reporting-style.md` | PR bodies, digests, replies, other reported work |
+| AI cleanup | humanizer skill (inline by default; `/humanizer` optional) | Required before publish/present of human-facing text |
 | Procedure craft | `/technical-writing` | Opt-in for runbooks, how-tos, READMEs, reference pages |
 
 Required humanizer modes:
@@ -129,7 +136,7 @@ Review rigor scales with risk:
 - **L1 (Significant)**: new features, API additions — selected specialists, self-critique, targeted cross-review
 - **L2 (Strategic)**: architecture changes, new services — all relevant specialists, optional external debate only when high-impact judgment needs stress-testing
 
-Large specs are referenced by path and targeted excerpts rather than pasted into every reviewer prompt. Output is a deduplicated review with a binary verdict (APPROVED / REVISIONS NEEDED).
+Large specs are referenced by path and targeted excerpts rather than pasted into every reviewer prompt. Specialists load `protocols/review-protocol.md` from the plugin root themselves (not from under `skills/spec-review/`). Cross-review adapts by harness: Claude Code teams may use `SendMessage`; Cursor one-shot `Task` + registered `*-reviewer` types use a lead-mediated follow-up Task. Debate is optional for L2; when skipped, the summary must say why. Output is a deduplicated review with a binary verdict (APPROVED / REVISIONS NEEDED).
 
 ### /interview
 
