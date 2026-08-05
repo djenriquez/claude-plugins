@@ -172,7 +172,7 @@ Orchestrates the full investigation-to-spec workflow starting from a GitHub issu
 
 ### /handle-pr-feedback
 
-Reads unresolved review comments on a GitHub PR, triages each one, makes code changes, pushes a commit, replies to every comment with the action taken, and resolves each thread.
+Reads unresolved review comments on a GitHub PR, groups them by root cause, and applies only evidence-backed ranked fixes. Design-expanding remedies pause for an explicit decision, while independent fixes on other seams and conclusive no-change replies can still proceed.
 
 ```
 /handle-pr-feedback #42
@@ -180,14 +180,15 @@ Reads unresolved review comments on a GitHub PR, triages each one, makes code ch
 ```
 
 1. Checks out the PR branch and fetches unresolved review threads via the GitHub GraphQL API
-2. For each thread, analyzes the comment and decides whether to **address** (make a code change) or **skip** (with explanation)
-3. Commits and pushes all changes in a single commit
-4. Replies to each comment thread with the action taken or reason for skipping
-5. Resolves every thread
+2. Groups threads by root cause and owning seam while preserving a mapping to every original comment
+3. Classifies each cluster as **fix now**, **no change**, or **needs decision** based on evidence, severity, and ranked remedy cost
+4. Prefers remove/simplify and owning-seam fixes over local patches; pauses gated seams while continuing independent work elsewhere
+5. Verifies fixes and reports both the feedback-round delta and the total PR delta before committing
+6. Replies to every decided thread and resolves only verified fixes or conclusive no-change outcomes
 
 ### /self-review-loop
 
-Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then evaluates and applies the feedback. It succeeds only when no unresolved Critical or High findings remain; turn limits and oscillation detection are blocked states, not successful exits.
+Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then applies only ranked design-quality fixes for demonstrated blockers. It succeeds only when no unresolved Critical or High findings remain and the self-review run did not add unexplained mechanisms; turn limits, same-seam escalation, oscillation, and mechanism growth are blocked states, not successful exits.
 
 ```
 /self-review-loop #42
@@ -196,11 +197,14 @@ Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agen
 
 1. Prefers the local lean `/code-review` skill when available
 2. Uses fresh, context-free, read-only review against the local PR diff
-3. Parses the review output and triages each finding (address or skip)
-4. Runs tests/linters to verify changes, then commits and pushes only after a successful no-unresolved-Critical/High review state
-5. Uses file inventories and targeted local diffs for large PRs
-6. Runs optional external debate only for high-risk escalation, disputed blockers, or judgment-sensitive final states
-7. Reports the review path, changes, skipped findings, verification evidence, and push status
+3. Lets only demonstrated blocking findings drive another fix turn; after evidence validation, concrete correctness/security/data-loss/broken-contract issues are blocking even if labeled Medium/Low
+4. Ranks remedies (remove/simplify → owning seam → local patch) and escalates a second hit on the same seam to a decision
+5. Runs an approach checkpoint before a second fix-mutation turn; caps fix-mutation turns at 3 without an explicit continue
+6. Runs tests/linters to verify changes, then commits and pushes only after a clean review with no unexplained mechanism growth
+7. Tracks per-turn, self-review-run, and total PR growth along with mechanisms added, widened, or removed
+8. Uses file inventories and targeted local diffs for large PRs, plus the full self-review delta after the first fix turn
+9. Runs optional external debate only for high-risk escalation, disputed blockers, or judgment-sensitive final states
+10. Reports the review path, dispositions, remedy ranks, verification evidence, change growth, and push status
 
 The loop does not rely on imported nested review-team workflows by default. If the local lean `/code-review` skill cannot be invoked, the direct fallback follows the same staged L0/L1/L2 policy.
 
