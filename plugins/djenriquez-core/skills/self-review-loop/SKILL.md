@@ -34,15 +34,15 @@ mcpServers:
 
 Target PR: `$ARGUMENTS`. If absent, ask for a PR number.
 
-Load `references/github-pr-workflow.md` for PR parsing, checkout, branch safety, and local diff rules. Load `protocols/feedback-disposition.md` before triage or mutation. Load `references/harness-adapters.md` only when translating agent or skill invocation across harnesses.
+Load `references/github-pr-workflow.md` for PR parsing, checkout, branch safety, and local diff rules. Load `protocols/feedback-disposition.md` before triage or mutation. Load `references/feedback-disposition-fixtures.md` when a disposition is ambiguous. Load `references/harness-adapters.md` only when translating agent or skill invocation across harnesses.
 
 ## Invariants
 
 - Reviewers are fresh, read-only, and do not inherit prior review turns.
 - The review target is local `HEAD` against `origin/<baseRefName>`, not the remote PR diff after local review commits exist.
 - The loop succeeds only when the latest fresh review has no unresolved Critical/High findings after severity normalization.
-- Only demonstrated blocking findings can cause loop edits. Record Medium/Low findings and non-actionable observations once; do not use them as inputs to another fix turn.
-- Any finding that crosses the feedback complexity gate pauses the entire mutation phase for an explicit user decision.
+- Only demonstrated blocking findings can cause loop edits. After evidence validation, concrete correctness, security, data-loss, broken-contract, or failing-verification issues are blocking regardless of the reviewer's Medium/Low label. Remaining Medium/Low findings and non-actionable observations do not create fix turns.
+- `NEEDS DECISION` pauses mutation only for the gated cluster and clusters that share its remedy or files. Independent `FIX NOW` work may continue. Leave gated findings unresolved and do not treat the turn as clean.
 - Max turns, oscillation, and final-review failures are blocked states.
 - Per-turn commits stay local. Push only one final squashed self-review commit.
 - Never force-push.
@@ -76,11 +76,11 @@ For each turn:
 4. For small diffs, the reviewer may inspect the full local diff. For large diffs, instruct it to inspect targeted paths with:
    `git diff origin/<baseRefName>...HEAD -- <path>`
 5. Require findings grouped by Critical, High, Medium, and Low with file/line references and a verdict. Keep any non-actionable Observations separate.
-6. Revalidate every potential blocker against `protocols/code-review-protocol.md` and `protocols/feedback-disposition.md`. Normalize severity only after the evidence bar is met.
-7. Record Medium/Low findings and Observations without changing code. If no demonstrated blocking findings remain, leave the loop.
+6. Revalidate every potential blocker against `protocols/code-review-protocol.md` and `protocols/feedback-disposition.md`. Normalize severity only after the evidence bar is met. After evidence validation, treat concrete correctness, security, data-loss, broken-contract, or failing-verification issues as blocking Critical/High findings even when the reviewer labeled them Medium or Low. Do not elevate speculative or weakly evidenced Medium/Low findings.
+7. Record remaining Medium/Low findings and Observations without changing code. If no demonstrated blocking findings remain, leave the loop.
 8. Group blocking findings by root cause, keep a mapping to every original finding, and classify each cluster as `FIX NOW`, `NO CHANGE`, or `NEEDS DECISION`.
-9. If any cluster is `NEEDS DECISION`, present the compact triage and full decision packet for that cluster, then stop before mutation. Do not treat the turn as clean.
-10. Apply only `FIX NOW` changes. If a finding targets a mechanism introduced by an earlier loop fix, simplify or remove that fix before stacking another mechanism.
+9. If any cluster is `NEEDS DECISION`, present the compact triage and full decision packet for that cluster. Pause mutation only for the gated cluster and clusters that share its remedy or files. Independent `FIX NOW` clusters may proceed. Do not treat the turn as clean while a gated cluster remains open.
+10. Apply only independent `FIX NOW` changes. If a finding targets a mechanism introduced by an earlier loop fix, simplify or remove that fix before stacking another mechanism.
 11. If Go code is touched, load `references/code-health-standards-go.md` and apply it only to touched code as advisory guidance.
 12. If this turn creates or moves package/module boundaries, run a structural pass using `references/structure-standards.md` and the Go addendum when relevant.
 13. Run detected verification. If verification fails because of this turn, fix before continuing. If failure is pre-existing, record evidence and continue.
@@ -88,7 +88,7 @@ For each turn:
     - this turn from `turn_start_sha`
     - the self-review run from `review_base_sha`
     - the total PR from `pr_base_sha`
-15. If the implemented diff crosses the complexity gate, stop before commit and reclassify the cluster as `NEEDS DECISION`.
+15. If the implemented diff adds or widens a gated mechanism, stop before commit for that cluster and reclassify it as `NEEDS DECISION`. If it is only large by the soft size signal, report the growth and ask before commit.
 16. Commit this turn's self-review changes locally with a message that names the turn and summarizes the fixed root causes.
 
 If a review attempt times out, hits a transport error, returns null or invalid output, or disconnects mid-stream, retry that same review path once. If the retry also fails, fall back to a direct fresh read-only review when the failed path was a skill invocation; if direct review fails twice, stop as blocked and report the failure mode.

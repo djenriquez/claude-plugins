@@ -172,7 +172,7 @@ Orchestrates the full investigation-to-spec workflow starting from a GitHub issu
 
 ### /handle-pr-feedback
 
-Reads unresolved review comments on a GitHub PR, groups them by root cause, and applies only evidence-backed local fixes. Changes that expand the design or add production mechanisms pause for an explicit decision before any files are edited.
+Reads unresolved review comments on a GitHub PR, groups them by root cause, and applies only evidence-backed local fixes. Design-expanding remedies pause for an explicit decision, while independent local fixes and conclusive no-change replies can still proceed.
 
 ```
 /handle-pr-feedback #42
@@ -182,7 +182,7 @@ Reads unresolved review comments on a GitHub PR, groups them by root cause, and 
 1. Checks out the PR branch and fetches unresolved review threads via the GitHub GraphQL API
 2. Groups threads by root cause while preserving a mapping to every original comment
 3. Classifies each cluster as **fix now**, **no change**, or **needs decision** based on evidence, severity, and implementation cost
-4. Pauses before mutation when a remedy adds or widens schemas, interfaces, concurrency, state, background behavior, or other gated mechanisms
+4. Pauses mutation only for gated clusters and shared-remedy dependents; continues independent local fixes and conclusive no-change replies
 5. Verifies local fixes and reports both the feedback-round delta and the total PR delta before committing
 6. Replies to every decided thread and resolves only verified fixes or conclusive no-change outcomes
 
@@ -197,8 +197,8 @@ Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agen
 
 1. Prefers the local lean `/code-review` skill when available
 2. Uses fresh, context-free, read-only review against the local PR diff
-3. Lets only demonstrated blocking findings drive another fix turn; Medium/Low findings and non-actionable observations are recorded without changing code
-4. Groups blockers by root cause and pauses before any design- or mechanism-expanding remedy
+3. Lets only demonstrated blocking findings drive another fix turn; after evidence validation, concrete correctness/security/data-loss/broken-contract issues are blocking even if labeled Medium/Low
+4. Groups blockers by root cause; pauses only design- or mechanism-expanding remedies while independent local fixes continue
 5. Runs tests/linters to verify changes, then commits and pushes only after a successful no-unresolved-Critical/High review state
 6. Tracks per-turn, self-review-run, and total PR growth along with mechanisms added, widened, or removed
 7. Uses file inventories and targeted local diffs for large PRs

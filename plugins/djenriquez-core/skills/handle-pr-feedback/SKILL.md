@@ -34,6 +34,7 @@ Load these resources from the installed `djenriquez-core` plugin root:
   local diff rules
 - `protocols/code-review-protocol.md` when validating defect claims
 - `protocols/feedback-disposition.md` before triage or mutation
+- `references/feedback-disposition-fixtures.md` when a disposition is ambiguous
 
 ## Set Up The PR
 
@@ -111,15 +112,17 @@ For each cluster, apply `protocols/feedback-disposition.md` and record:
 Show one line for each `FIX NOW` and `NO CHANGE` cluster. For `NEEDS DECISION`,
 show the full evidence, options, mechanism impact, and recommendation.
 
-If any cluster is `NEEDS DECISION`, stop before editing files, committing,
-pushing, replying, or resolving threads. Continue only after the user decides
-how to reclassify every gated cluster.
+If any cluster is `NEEDS DECISION`, present its decision packet and pause
+mutation, reply, and resolve only for that cluster and any cluster that shares
+its remedy or files. Continue with independent `FIX NOW` and conclusive
+`NO CHANGE` clusters. Do not treat the round as complete until the user
+reclassifies every gated cluster.
 
 ## Implement Proven Local Fixes
 
-Implement `FIX NOW` clusters by root cause. Prefer the smallest change that
-restores the cited invariant. Simplify or remove an existing mechanism before
-adding one.
+Implement independent `FIX NOW` clusters by root cause. Prefer the smallest
+change that restores the cited invariant. Simplify or remove an existing
+mechanism before adding one. Skip clusters paused for a shared gated remedy.
 
 Add a test only when it asserts the affected load-bearing invariant at a stable
 seam. Do not mirror incidental branches.
@@ -143,8 +146,9 @@ git diff --numstat "$pr_base_sha"
 
 Follow `protocols/feedback-disposition.md` to report per-round and total PR
 growth by category, plus mechanisms added, widened, and removed. If the actual
-diff crosses the complexity gate, stop before commit or push and reclassify the
-cluster as `NEEDS DECISION`.
+diff adds or widens a gated mechanism, stop before commit or push for that
+cluster and reclassify it as `NEEDS DECISION`. If it is only large by the soft
+size signal, report the growth and ask before commit.
 
 ## Commit And Push
 
@@ -178,9 +182,10 @@ Use these outcomes:
 - `FIX NOW`: Reply only after the verified commit is on the branch, then resolve
   the thread.
 - `NO CHANGE`: Reply with the conclusive evidence or scope reason, then resolve
-  the thread.
-- `NEEDS DECISION`: Do not reply or resolve until the user decides. Reclassify
-  the cluster before continuing.
+  the thread. Independent `NO CHANGE` clusters may proceed even when another
+  cluster is `NEEDS DECISION`.
+- `NEEDS DECISION`: Do not reply or resolve the gated threads until the user
+  decides. Leave them open while finishing independent clusters.
 
 Resolve an eligible thread with its GraphQL ID:
 
