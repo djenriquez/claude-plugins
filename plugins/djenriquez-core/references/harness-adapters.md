@@ -31,6 +31,23 @@ slash-command / Skill-tool invocation is unavailable, awkward, or unproven:
 2. Apply the child's Process section inline in the current turn.
 3. Do not skip a required pass because nesting failed.
 
+## Task And Plan Systems
+
+When a workflow needs an implementation queue or durable checklist, use the
+**harness-native** task/plan offering. Do not require an external planner (for
+example bits) unless the user explicitly asks for it.
+
+| Harness | Native offering | Typical use |
+|---------|-----------------|-------------|
+| **Claude Code** | `TaskCreate` / `TaskUpdate` / `TaskList` / `TaskGet` (and `TodoWrite` when that is what the session exposes) | Workflow checklist + implementation tasks |
+| **Cursor** | `TodoWrite` (and any session task list the host exposes) | Workflow checklist + implementation tasks |
+| **Codex** | `update_plan` | Workflow checklist + implementation plan steps |
+
+Separate orchestration checklist items from implementation work when the host
+allows labels, prefixes, or multiple lists. If there is only one list, keep
+workflow phases and implementation tasks clearly titled so drain logic can tell
+them apart.
+
 ## Agents And Teams
 
 Use fresh, read-only agents for review work. Map spawn tools by harness:

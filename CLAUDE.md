@@ -19,6 +19,14 @@ Shared protocols and references are resolved from the installed `djenriquez-core
 - Do not hard-code a single user cache path such as `~/.claude/plugins` or
   `~/.codex/plugins` as the only lookup method.
 
+## Task And Plan Systems
+
+Implementation queues and workflow checklists should use the **harness-native**
+task/plan offering (Claude Code Task tools, Cursor `TodoWrite`, Codex
+`update_plan`). Do not bias workflows toward external planners such as bits
+unless the user explicitly requests them. Details live in
+`references/harness-adapters.md`.
+
 ## Prompt Architecture
 
 Keep `SKILL.md` files as concise default-path orchestrators. Put detailed mechanics in `protocols/` or `references/` and load them only when that branch of the workflow is reached.

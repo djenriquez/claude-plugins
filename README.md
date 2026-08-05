@@ -42,8 +42,8 @@ The skill:
 
 1. Writes a standalone spec from the conversation context via `/write-spec`
 2. Runs `/spec-review` and revises the spec, using judgment to skip nits or irrelevant findings
-3. Runs `/bits-plan` against the final spec
-4. Runs `/bits-drain` until the implementation queue is complete
+3. Builds an implementation task plan with the harness-native task system (Claude Code Task tools, Cursor `TodoWrite`, Codex `update_plan`) — no bits dependency unless the user asks for it
+4. Drains that implementation queue until product work is complete
 5. Commits remaining work and runs `/pr-publish`
 6. Chooses whether the PR should target the default branch or stack on an existing PR branch
 7. Runs `/self-review-loop` against the published PR
