@@ -7,12 +7,24 @@ Use this for code review findings and synthesis. Keep specialist selection in th
 Only report a finding when all are true:
 
 1. The issue was introduced or materially exposed by this change.
-2. It has concrete impact on correctness, security, operability, performance, maintainability, or reviewability.
-3. It is actionable by the author.
-4. The evidence points to specific changed code or a changed contract.
-5. The finding does not depend on guessing the author's intent.
+2. It identifies the exact changed contract or invariant and cites its source.
+3. It demonstrates a reachable violating path, reproducer, failing verification, or why the path must be reachable.
+4. It has concrete impact on correctness, security, operability, performance, maintainability, or reviewability.
+5. It is actionable by the author.
+6. It does not depend on guessing the author's intent.
 
 Prefer zero findings over weak findings.
+
+Severity describes impact if the finding is true, not confidence in the evidence.
+Do not raise severity to compensate for weak evidence.
+
+For performance findings, require a change-introduced unbounded or asymptotic
+path, a measured regression, or a cited workload, service-level, or production
+constraint. Do not report an existing bounded path or a small constant-factor
+concern without that evidence.
+
+Collapse symptoms at the same seam into one root-cause finding. Recommend the
+least-mechanistic correction that resolves the demonstrated harm.
 
 ## Severity
 
@@ -22,6 +34,14 @@ Prefer zero findings over weak findings.
 - `Low`: nit, small clarity issue, or non-blocking suggestion.
 
 Normalize severity during synthesis. A finding's evidence matters more than the label a reviewer used.
+
+## Observations
+
+Do not present speculative concerns as findings. An unusually valuable point
+that does not meet the review bar may appear under `## Observations` only when it
+is labeled `No change requested`, has no severity, makes no file-line action
+request, and does not affect the verdict. Downstream feedback workflows must not
+treat observations as implied work.
 
 ## Context And Prompt Size
 
@@ -58,10 +78,13 @@ Final review output:
 ## Low
 ...
 
+## Observations
+No change requested — <rare, non-actionable context worth preserving>
+
 ## Verdict: APPROVE
 <brief rationale>
 ```
 
-Omit empty severity sections. The verdict must be last and must be either `APPROVE` or `REQUEST CHANGES`.
+Omit empty severity and Observations sections. The verdict must be last and must be either `APPROVE` or `REQUEST CHANGES`.
 
 Use `REQUEST CHANGES` when any unresolved Critical or High finding remains.

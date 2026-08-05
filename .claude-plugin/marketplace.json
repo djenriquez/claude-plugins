@@ -4,7 +4,7 @@
   "plugins": [
     {
       "name": "djenriquez-core",
-      "version": "0.13.0",
+      "version": "0.14.0",
       "source": "./plugins/djenriquez-core",
       "description": "Full spec-to-PR dev flow, planning interviews, human-first spec writing, humanizer for human-facing output, lean code review, spec review, issue-to-spec, PR feedback handling, reliable self-review loops, PR digest, PR publication, and advisory Go code-health standards"
     }

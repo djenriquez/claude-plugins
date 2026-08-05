@@ -255,6 +255,7 @@ Do not loop on 422.
 ## Boundaries
 
 - Do not generate findings.
+- Do not publish non-actionable Observations from `code-review` as inline findings unless the user explicitly promotes one after supplying actionable evidence and severity.
 - Do not edit code.
 - Do not resolve threads.
 - Do not reply to existing review threads.
