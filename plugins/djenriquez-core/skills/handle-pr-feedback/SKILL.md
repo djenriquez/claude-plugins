@@ -1,6 +1,6 @@
 ---
 name: handle-pr-feedback
-description: "Reads unresolved GitHub PR feedback, independently validates and groups it, applies proven local fixes, pauses before design-expanding changes, verifies the result, and replies with a reasoned disposition."
+description: "Reads unresolved GitHub PR feedback, independently validates and groups it by owning seam, applies ranked remove/simplify or seam fixes for proven issues, pauses design-expanding or same-seam stacked changes, verifies the result, and replies with a reasoned disposition."
 argument-hint: "#N or N (PR number)"
 disable-model-invocation: false
 allowed-tools:
@@ -105,24 +105,28 @@ For each cluster, apply `protocols/feedback-disposition.md` and record:
 
 - evidence and invariant source
 - impact and normalized severity
-- smallest known remedy
+- owning seam
+- ranked remedy (`remove/simplify`, then seam, then local)
 - mechanisms added, widened, or removed
 - `FIX NOW`, `NO CHANGE`, or `NEEDS DECISION`
 
-Show one line for each `FIX NOW` and `NO CHANGE` cluster. For `NEEDS DECISION`,
-show the full evidence, options, mechanism impact, and recommendation.
+Show one line for each `FIX NOW` and `NO CHANGE` cluster, including the remedy
+rank. For `NEEDS DECISION`, show the full evidence, options, mechanism impact,
+and recommendation.
 
 If any cluster is `NEEDS DECISION`, present its decision packet and pause
-mutation, reply, and resolve only for that cluster and any cluster that shares
-its remedy or files. Continue with independent `FIX NOW` and conclusive
-`NO CHANGE` clusters. Do not treat the round as complete until the user
-reclassifies every gated cluster.
+mutation, reply, and resolve for that cluster and any cluster that shares its
+owning seam, remedy, or files. Do not land more patches on a gated seam.
+Continue with independent `FIX NOW` and conclusive `NO CHANGE` clusters on other
+seams. Do not treat the round as complete until the user reclassifies every
+gated cluster.
 
-## Implement Proven Local Fixes
+## Implement Ranked Fixes
 
-Implement independent `FIX NOW` clusters by root cause. Prefer the smallest
-change that restores the cited invariant. Simplify or remove an existing
-mechanism before adding one. Skip clusters paused for a shared gated remedy.
+Implement independent `FIX NOW` clusters by root cause. Rank remedies with
+`protocols/feedback-disposition.md`: remove/simplify first, then fix at the
+owning seam, then local patch only with a recorded why. Skip clusters paused
+for a shared gated seam or remedy.
 
 Add a test only when it asserts the affected load-bearing invariant at a stable
 seam. Do not mirror incidental branches.
@@ -148,7 +152,8 @@ Follow `protocols/feedback-disposition.md` to report per-round and total PR
 growth by category, plus mechanisms added, widened, and removed. If the actual
 diff adds or widens a gated mechanism, stop before commit or push for that
 cluster and reclassify it as `NEEDS DECISION`. If it is only large by the soft
-size signal, report the growth and ask before commit.
+size signal, report the growth and ask before commit. If mechanisms were added,
+record the ranked-remedy justification or stop before calling the round clean.
 
 ## Commit And Push
 

@@ -42,8 +42,9 @@ Speculative concerns are not actionable findings. Keep rare useful observations 
 ## PR Feedback Invariants
 
 - Use `protocols/feedback-disposition.md` whenever review feedback can cause code changes.
-- Group comments by root cause while preserving a mapping to every original thread or finding.
-- Pause mutation only for clusters that expand design scope or cross the complexity gate, plus clusters that share their remedy or files. Independent `FIX NOW` and conclusive `NO CHANGE` work may continue. Invoking a feedback workflow does not preauthorize new production mechanisms.
+- Group comments by root cause while preserving a mapping to every original thread or finding and its owning seam.
+- Rank remedies before mutation: remove/simplify, then owning-seam fix, then local patch. Clearing findings with defensive sediment is failure.
+- Pause mutation for clusters that expand design scope or cross the complexity gate, plus clusters that share their owning seam, remedy, or files. Do not land more patches on a gated seam. Independent work on other seams may continue. Invoking a feedback workflow does not preauthorize new production mechanisms.
 - Treat size (roughly >50 non-test lines or >3 production files) as a soft checkpoint, not an automatic `NEEDS DECISION`. The hard gate is the gated-mechanism list.
 - Resolve only verified fixes and conclusive no-change outcomes. Leave decision-gated threads unresolved.
 
@@ -52,9 +53,10 @@ Speculative concerns are not actionable findings. Keep rare useful observations 
 `plugins/djenriquez-core/skills/self-review-loop/SKILL.md` is meant to be a safety-critical orchestration skill. Preserve these invariants when editing it:
 
 - Review turns use fresh, context-free, read-only reviewers against the local diff from `origin/<pr_base_ref>...HEAD`.
-- Successful completion requires no unresolved Critical or High findings after severity normalization. Max turns, oscillation, and final-review failures are blocked states, not successful exits.
+- Successful completion requires no unresolved Critical or High findings after severity normalization and no unexplained mechanism growth from the self-review run. Max turns, oscillation, same-seam escalation without a decision, unexplained mechanism growth, and final-review failures are blocked states, not successful exits.
 - Only demonstrated blocking findings drive loop edits. After evidence validation, concrete correctness, security, data-loss, broken-contract, or failing-verification issues are blocking regardless of the reviewer's Medium/Low label. Remaining Medium/Low findings and non-actionable observations do not create fix turns.
-- Apply the shared feedback complexity gate before mutation and before each per-turn commit. Pause only gated clusters and shared-remedy dependents; allow independent local fixes to proceed.
+- Rank remedies before mutation and escalate a second blocking finding on an already-fixed seam to `NEEDS DECISION`. After the first fix-mutation turn, run an approach checkpoint over the self-review delta before further patches.
+- Cap fix-mutation turns at 3 without an explicit user continue. Apply the shared feedback complexity gate before mutation and before each per-turn commit. Pause gated seams; allow independent fixes only on other seams.
 - Prefer the local lean `djenriquez-core:code-review` path when available. Direct fallback must follow the same staged L0/L1/L2 policy.
 - Any MCP or cross-model code changes after the main loop require a final fresh review before squash/push.
 - Per-turn commits stay local. Publish only the final squashed review commit, and never force-push from this workflow.
