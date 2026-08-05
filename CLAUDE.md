@@ -37,12 +37,23 @@ Code review should be staged by risk:
 
 External debate is an escalation tool for uncertain high-severity findings, specialist disagreement, or judgment-sensitive L2 verdicts. It is not a default per-agent ritual.
 
+Speculative concerns are not actionable findings. Keep rare useful observations explicitly non-actionable, without severity or verdict impact.
+
+## PR Feedback Invariants
+
+- Use `protocols/feedback-disposition.md` whenever review feedback can cause code changes.
+- Group comments by root cause while preserving a mapping to every original thread or finding.
+- Pause the entire mutation phase when a remedy expands design scope or crosses the complexity gate. Invoking a feedback workflow does not preauthorize new production mechanisms.
+- Resolve only verified fixes and conclusive no-change outcomes. Leave decision-gated threads unresolved.
+
 ## Self-Review Loop Invariants
 
 `plugins/djenriquez-core/skills/self-review-loop/SKILL.md` is meant to be a safety-critical orchestration skill. Preserve these invariants when editing it:
 
 - Review turns use fresh, context-free, read-only reviewers against the local diff from `origin/<pr_base_ref>...HEAD`.
 - Successful completion requires no unresolved Critical or High findings after severity normalization. Max turns, oscillation, and final-review failures are blocked states, not successful exits.
+- Only demonstrated blocking findings drive loop edits. Medium/Low findings and non-actionable observations do not create fix turns.
+- Apply the shared feedback complexity gate before mutation and before each per-turn commit.
 - Prefer the local lean `djenriquez-core:code-review` path when available. Direct fallback must follow the same staged L0/L1/L2 policy.
 - Any MCP or cross-model code changes after the main loop require a final fresh review before squash/push.
 - Per-turn commits stay local. Publish only the final squashed review commit, and never force-push from this workflow.

@@ -1,6 +1,6 @@
 ---
 name: handle-pr-feedback
-description: "Reads unresolved review comments on a GitHub PR, triages each one (address or skip), makes code changes, pushes a commit, replies to every comment with the action taken or reason for skipping, and resolves each thread."
+description: "Reads unresolved GitHub PR feedback, independently validates and groups it, applies proven local fixes, pauses before design-expanding changes, verifies the result, and replies with a reasoned disposition."
 argument-hint: "#N or N (PR number)"
 disable-model-invocation: false
 allowed-tools:
@@ -18,78 +18,47 @@ allowed-tools:
 
 # Handle PR Feedback
 
-You are an autonomous agent that processes unresolved review comments on a GitHub pull request. You read every comment, decide whether to address or skip it, make code changes, push them, reply to each comment explaining what you did (or why you skipped), and resolve every thread.
+Process every unresolved review thread, but optimize for minimum total
+correctness risk and implementation complexity, not comment closure. Treat a
+review comment as a claim or design request to evaluate, not implied
+authorization to change code.
 
-The target PR is: $ARGUMENTS
+Every thread must receive a reasoned disposition. Leave threads that need a user
+decision unresolved.
 
-If $ARGUMENTS is empty, ask the user which PR to work on.
+Target PR: `$ARGUMENTS`.
 
----
+Load these resources from the installed `djenriquez-core` plugin root:
 
-## Step 1: Parse the PR Reference
+- `references/github-pr-workflow.md` for PR parsing, checkout, branch safety, and
+  local diff rules
+- `protocols/code-review-protocol.md` when validating defect claims
+- `protocols/feedback-disposition.md` before triage or mutation
 
-`$ARGUMENTS` should be a PR number. Accepted formats:
+## Set Up The PR
 
-- **`#N`** or **`N`**: e.g., `#42` or `42`
-- **GitHub PR URL**: e.g., `https://github.com/owner/repo/pull/42` — extract the PR number from the URL path
+1. Resolve the target with `references/github-pr-workflow.md`. If no argument is
+   provided, try the current branch's PR before asking the user.
+2. Confirm that the PR is open, check out its head branch, pull, and fetch the
+   base branch.
+3. Stop if tracked files are already modified or the branch has diverged.
+4. Record:
 
-Any other format is not supported. If the argument doesn't match these patterns, ask the user to provide a PR number.
-
----
-
-## Step 2: Fetch PR Context
-
-### 2a. Retrieve the PR
-
-```
-gh pr view <N>
-```
-
-Note the PR title, body, base branch, head branch, and current status. Confirm the PR is open — if it is merged or closed, inform the user and stop.
-
-### 2b. Check out the PR branch
-
-Ensure you are on the correct branch for this PR:
-
-```
-gh pr checkout <N>
+```sh
+feedback_start_sha=$(git rev-parse HEAD)
+pr_base_sha=$(git merge-base "origin/$baseRefName" HEAD)
 ```
 
-Then pull to make sure you have the latest:
+5. Read the PR description, linked issue, changed-file inventory, relevant
+   specifications or architecture decisions, and tests that define changed
+   behavior. Review the local diff from `origin/<baseRefName>...HEAD`.
 
-```
-git pull
-```
+## Fetch Unresolved Threads
 
-### 2c. Understand the PR's changes
+Resolve `owner` and `repo` from `gh repo view --json nameWithOwner`. Fetch review
+threads with their resolution state:
 
-Get the diff to understand what this PR changes:
-
-```
-gh pr diff <N>
-```
-
-Read the key files touched by the PR to build context about the changes.
-
----
-
-## Step 3: Fetch Unresolved Review Comments
-
-### 3a. Fetch all review comments
-
-Use the GitHub API to retrieve review comments on the PR:
-
-```
-gh api repos/{owner}/{repo}/pulls/<N>/comments --paginate
-```
-
-### 3b. Filter to unresolved comments
-
-From the fetched comments, identify **unresolved** comments. A review comment thread is unresolved if it has NOT been resolved/minimized by GitHub's thread resolution.
-
-Use the GraphQL API to get thread resolution status:
-
-```
+```sh
 gh api graphql -f query='
   query($owner: String!, $repo: String!, $pr: Int!) {
     repository(owner: $owner, name: $repo) {
@@ -116,154 +85,106 @@ gh api graphql -f query='
       }
     }
   }
-' -f owner='{owner}' -f repo='{repo}' -F pr=<N>
+' -f owner='<owner>' -f repo='<repo>' -F pr=<N>
 ```
 
-Filter to threads where `isResolved` is `false`. These are the threads you need to process.
+Keep only threads where `isResolved` is `false`. For each thread, retain the
+thread GraphQL ID, the first comment's database ID, the full discussion, path,
+line, diff hunk, and author.
 
-If there are zero unresolved threads, inform the user that all feedback has been addressed and stop.
+If no unresolved threads remain, report that result and stop.
 
-### 3c. Build a comment inventory
+## Cluster And Triage
 
-For each unresolved thread, extract:
+Group threads by root cause and affected seam before deciding actions. Do not
+process comments as independent code requests. Keep a mapping from every
+original thread to its cluster.
 
-- **Thread GraphQL ID**: The `id` field on the `reviewThread` node (needed for resolution)
-- **Comment body**: The review comment text (use the first comment in the thread as the primary feedback; subsequent comments are discussion context)
-- **File path**: The file the comment is on
-- **Line number**: The line in the diff the comment refers to
-- **Diff hunk**: The surrounding code context
-- **Author**: Who left the comment
-- **Discussion**: Any follow-up replies in the thread
+For each cluster, apply `protocols/feedback-disposition.md` and record:
 
-Present the inventory to the user as a numbered list:
+- evidence and invariant source
+- impact and normalized severity
+- smallest known remedy
+- mechanisms added, widened, or removed
+- `FIX NOW`, `NO CHANGE`, or `NEEDS DECISION`
 
-```
-Found N unresolved review thread(s):
+Show one line for each `FIX NOW` and `NO CHANGE` cluster. For `NEEDS DECISION`,
+show the full evidence, options, mechanism impact, and recommendation.
 
-1. [file:line] @author — "first ~80 chars of comment..."
-2. [file:line] @author — "first ~80 chars of comment..."
-...
-```
+If any cluster is `NEEDS DECISION`, stop before editing files, committing,
+pushing, replying, or resolving threads. Continue only after the user decides
+how to reclassify every gated cluster.
 
----
+## Implement Proven Local Fixes
 
-## Step 4: Triage and Address Each Comment
+Implement `FIX NOW` clusters by root cause. Prefer the smallest change that
+restores the cited invariant. Simplify or remove an existing mechanism before
+adding one.
 
-Process each unresolved thread one at a time. For each thread:
+Add a test only when it asserts the affected load-bearing invariant at a stable
+seam. Do not mirror incidental branches.
 
-### 4a. Analyze the comment
+Record the files changed for each cluster and preserve the mapping to each
+original thread.
 
-Read the full comment, its discussion thread, the referenced file, and the surrounding code. Understand:
+## Verify And Recheck Complexity
 
-- **What is being requested?** A code change, a question, a style preference, a bug fix, a design concern?
-- **Is it actionable?** Can you make a concrete code change to address it?
-- **Is it correct?** Does the feedback identify a real issue?
+Run focused verification for every fixed invariant, then run the broader
+available suite in proportion to the risk. If no suite exists, record that fact.
+Fix failures introduced by this work before continuing. Report pre-existing
+failures with evidence.
 
-### 4b. Decide: Address or Skip
+Before committing, inspect both ranges:
 
-**Address** the comment if:
-- It identifies a real bug, logic error, or correctness issue
-- It requests a reasonable code improvement (naming, structure, readability)
-- It asks for missing error handling, validation, or edge case coverage
-- It points out a style/convention violation consistent with the codebase
-- It requests documentation, comments, or type annotations that add value
-- It is a question you can answer by improving the code or adding a clarifying comment
-
-**Skip** the comment if:
-- It is a subjective style preference with no clear codebase convention backing it
-- Addressing it would require a large architectural change beyond the PR's scope
-- The comment is based on a misunderstanding of the code (explain in your reply)
-- It conflicts with another reviewer's feedback (note the conflict in your reply)
-- The suggested change would introduce a regression or break existing behavior
-- It has already been addressed by a previous change in this session
-
-### 4c. Make the change (if addressing)
-
-If addressing the comment:
-
-1. Read the referenced file
-2. Make the code change with the host's file-editing capability
-3. Verify the change makes sense in context — read surrounding code if needed
-4. Track the change for the commit message
-
-### 4d. Record the action
-
-For each thread, record:
-- **Action**: `addressed` or `skipped`
-- **Summary**: 1-2 sentence description of what you did or why you skipped
-- **Files changed**: List of files modified (if addressed)
-
----
-
-## Step 5: Commit and Push
-
-After processing ALL comments:
-
-### 5a. Check if any changes were made
-
-```
-git status
+```sh
+git diff --numstat "$feedback_start_sha"
+git diff --numstat "$pr_base_sha"
 ```
 
-If no files were changed (all comments were skipped), skip to Step 6.
+Follow `protocols/feedback-disposition.md` to report per-round and total PR
+growth by category, plus mechanisms added, widened, and removed. If the actual
+diff crosses the complexity gate, stop before commit or push and reclassify the
+cluster as `NEEDS DECISION`.
 
-### 5b. Stage and commit
+## Commit And Push
 
-Stage only the files you modified:
+If code changed:
 
-```
-git add <file1> <file2> ...
-```
+1. Inspect `git status` and the complete diff.
+2. Stage only the explicit files changed by this workflow.
+3. Create one conventional commit that summarizes the addressed root causes.
+4. Pull with rebase only when the branch remains safe and clean.
+5. Push normally. Never force-push.
 
-Write a clear commit message summarizing the feedback addressed:
+If every cluster is `NO CHANGE`, do not create an empty commit.
 
-```
-git commit -m "Address PR review feedback
+## Reply And Resolve
 
-- <summary of change 1>
-- <summary of change 2>
-..."
-```
+Reply to the first comment in every processed thread. Apply
+`djenriquez-core:humanizer` in `pr-reply` mode to each reply before posting it.
+Keep replies to one or two factual sentences and explain how the cluster
+disposition resolves that specific thread.
 
-### 5c. Push
+Reply to the first comment with:
 
-```
-git push
-```
-
----
-
-## Step 6: Reply to Each Comment and Resolve Threads
-
-For each unresolved thread processed in Step 4, reply and resolve.
-
-### 6a. Reply to the comment
-
-Reply to the **first comment** in each thread (the original review comment) with a summary of the action taken.
-
-For the reply, use the REST API. You need the `databaseId` of the first comment in the thread (the one you are replying to) and the `pull_number`:
-
-**If addressed:**
-
-```
-gh api repos/{owner}/{repo}/pulls/<N>/comments -X POST \
-  -f body='Addressed — <1-2 sentence description of the change made and why>' \
+```sh
+gh api repos/<owner>/<repo>/pulls/<N>/comments -X POST \
+  -f body='<reply>' \
   -F in_reply_to=<comment_database_id>
 ```
 
-**If skipped:**
+Use these outcomes:
 
-```
-gh api repos/{owner}/{repo}/pulls/<N>/comments -X POST \
-  -f body='Skipped — <1-2 sentence explanation of why this was not addressed>' \
-  -F in_reply_to=<comment_database_id>
-```
+- `FIX NOW`: Reply only after the verified commit is on the branch, then resolve
+  the thread.
+- `NO CHANGE`: Reply with the conclusive evidence or scope reason, then resolve
+  the thread.
+- `NEEDS DECISION`: Do not reply or resolve until the user decides. Reclassify
+  the cluster before continuing.
 
-### 6b. Resolve the thread
+Resolve an eligible thread with its GraphQL ID:
 
-After replying, resolve the thread using the GraphQL API:
-
-```
+```sh
 gh api graphql -f query='
   mutation($threadId: ID!) {
     resolveReviewThread(input: { threadId: $threadId }) {
@@ -273,60 +194,26 @@ gh api graphql -f query='
 ' -f threadId='<thread_graphql_id>'
 ```
 
-The `threadId` is the GraphQL `id` from the `reviewThread` node fetched in Step 3b.
+## Report The Result
 
-### 6c. Process all threads
+Report:
 
-Repeat 6a and 6b for every thread. Do all replies and resolutions — do not leave any thread unhandled.
+- PR number, branch, and base
+- cluster and thread counts for each disposition
+- every thread-to-cluster mapping
+- verification commands and results
+- per-round and total PR change growth
+- mechanisms added, widened, and removed
+- commit and push status, when code changed
+- any unresolved `NEEDS DECISION` threads
 
----
+The terminal objective is a reasoned disposition for every thread, not zero
+unresolved threads.
 
-## Step 7: Summary
+## Safety
 
-Present a final summary to the user:
-
-```
-## PR Feedback Handled: #<N>
-
-**Threads processed**: X
-**Addressed**: Y
-**Skipped**: Z
-
-### Addressed
-- [file:line] — <what was changed>
-- ...
-
-### Skipped
-- [file:line] — <why it was skipped>
-- ...
-
-### Commit
-<commit SHA> pushed to <branch>
-```
-
-If all comments were skipped (no commit), omit the Commit section and note that no code changes were needed.
-
----
-
-## Guidelines
-
-### Tone for replies
-
-- Be concise and factual: "Fixed — renamed `foo` to `bar` for consistency with the rest of the module."
-- When skipping, be respectful and specific: "Skipped — this would require restructuring the auth middleware, which is out of scope for this PR. Happy to address in a follow-up."
-- Do not be defensive or dismissive
-- Do not use filler phrases like "Great catch!" or "Thanks for the feedback!"
-- **Required humanizer pass:** before posting each reply, apply `djenriquez-core:humanizer` in `pr-reply` mode (Claude: `/humanizer` or load the skill; Codex: read the installed skill). Keep replies to one or two factual sentences. Claim a fix only when the change is in the branch; otherwise say what remains.
-
-### Safety
-
-- Never force-push
-- Never modify files outside the scope of the PR's changes unless a comment explicitly requests it and the change is safe
-- If a requested change seems risky (could break tests, change public API behavior, etc.), skip it and explain why in the reply
-- If you are unsure whether a comment should be addressed, err toward addressing it — the reviewer asked for a reason
-
-### Efficiency
-
-- Read each file only once, even if multiple comments reference it
-- Batch all changes before committing — one commit for all addressed feedback
-- Process comments in file order to minimize context switching
+- Never force-push.
+- Never make an uncertain change merely because a reviewer requested it.
+- Never claim a fix before the verified change is on the branch.
+- Never resolve a thread that still needs a user decision.
+- Never modify unrelated files or silently absorb pre-existing worktree changes.
