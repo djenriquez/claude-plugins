@@ -221,7 +221,7 @@ Publishes finished branch work as a GitHub pull request (or refreshes the curren
 
 ### /publish-review
 
-Publishes already-written code-review findings as one GitHub PR review with inline comments. Validates diff anchors, rewrites each finding through `/humanizer` in `review-comment` mode, previews for confirmation, then submits a single grouped review.
+Publishes already-written code-review findings as one GitHub PR review with inline comments. Validates diff anchors, drafts a qualitative top-level summary (how close to approve, how much work remains; details stay inline), runs a required `/humanizer` pass in `review-comment` mode on the main body and each comment, formats inline comments as bold `**Severity: short label**` plus a brief body with backtick-wrapped code/logic refs, then submits a single grouped review. Invoking the skill is consent to publish — no second confirmation gate.
 
 ### /pr-digest
 

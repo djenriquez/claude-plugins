@@ -56,7 +56,7 @@ or presenting final text:
 | Caller | Mode | Required |
 |--------|------|----------|
 | `pr-publish` | `pr-body` | yes, before printing/publishing |
-| `publish-review` | `review-comment` | yes, before preview |
+| `publish-review` | `review-comment` | yes, before posting (main body + each inline) |
 | `pr-digest` | `digest` | yes, before presenting the digest |
 | `write-spec` | `spec-narrative` | yes, narrative layer only |
 | `handle-pr-feedback` | `pr-reply` | yes, for each reply body |
@@ -108,16 +108,34 @@ Target: a reviewer who has the base branch and the diff, not the author's journe
 
 ### `review-comment`
 
-Target: a teammate with the diff open.
+Two shapes under this mode (publish-review uses both):
 
-- 2–4 short sentences for substantive findings; shorter for nits.
+**Main review body** (top-level GitHub review `body`): qualitative skim summary
+for the notification. About 2–5 sentences on how close to approve, how much
+work remains, and what themes matter. Leave per-line detail to inline
+comments. No `**Severity: label**` wrapper, no `#` headers, no finding dump.
+Do not invent severity or effort the findings do not support.
+
+**Inline finding** (anchored comment): teammate with the diff open at the line.
+
+- Keep (or restore) the mechanical lead-in on its own line:
+  `**<Severity>: <short label>**` then a blank line, then the body.
+  Severity is one of `Critical`, `High`, `Medium`, `Low`, `Nit`. Use bold only
+  — never `#` headers.
+- Prefer 1–2 short sentences in the body; 3 only for a real tradeoff question.
+  Nits are often one sentence. Do not pad to a 2–4 sentence template.
+- Do not restate what the hunk already shows (`This adds…`, `This now…`,
+  `Here we…`). Start at the defect, risk, missing guard, or decision.
 - Point at the mechanism, not the author.
+- Use inline backticks for code and logic references (identifiers, APIs,
+  fields, literals, short conditions). Do not wrap whole sentences in code.
 - Preserve the technical claim, severity, path, and line. Do not add findings.
-- Strip severity labels from the body; prefix only `low`/`nit` with `Nit: `.
+- Do not repeat severity inside the body prose; it belongs only in the bold
+  lead-in.
 - No corporate openers, no closing pleasantries, no markdown headers in inline
   comments, no em-dash stacks.
-- Good shape: what happens, why it matters in runtime/API/correctness terms,
-  optional real question for tradeoffs.
+- Good shape: failure mode or risk in runtime/API/correctness terms, then an
+  optional real question for tradeoffs. Skip the happy-path narration.
 - Do not rewrite evidence or soften a hard correctness claim into a vague nit.
 
 ### `digest`

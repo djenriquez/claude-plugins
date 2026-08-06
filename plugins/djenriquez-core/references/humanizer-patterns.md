@@ -238,9 +238,21 @@ Three skim checks for every reporting mode (not a long ritual checklist):
 
 ### review-comment
 
+Main review body (when present):
+
+- [ ] Qualitative skim: closeness to approve + how much work remains
+- [ ] Themes, not a dump of every inline finding
+- [ ] No `**Severity: label**` wrapper; no `#` headers; no filler preamble
+
+Inline finding:
+
 - [ ] Sounds like a senior engineer typing into GitHub
-- [ ] Mechanism + impact + optional question
-- [ ] No severity labels left in the body (except final `Nit: ` prefix)
+- [ ] Starts with bold `**Severity: short label**` then blank line then body
+- [ ] No `#` headers; severity not repeated in body prose
+- [ ] Code/logic refs use inline backticks; prose stays plain English
+- [ ] Opens on defect/risk/question, not a paraphrase of the hunk
+- [ ] Usually 1–2 sentences (3 only for a real tradeoff); nits often one
+- [ ] Impact in runtime/API/correctness terms; no happy-path setup
 - [ ] No "I noticed" / "Consider" / "It might be worth considering"
 - [ ] Technical claim force preserved
 

@@ -1,7 +1,7 @@
 ---
 name: publish-review
-description: "Publish existing code-review findings as one GitHub PR review with inline comments. Use when the user says /publish-review, publish the review, leave these as PR comments, post this review on the PR, drop these in as inline comments, or comment on the PR with these findings. Not for generating review findings, replying to existing threads, handling feedback, or one-off conversational comments."
-version: "0.1.0"
+description: "Publish existing code-review findings as one GitHub PR review with inline comments (required humanizer pass in review-comment mode). Use when the user says /publish-review, publish the review, leave these as PR comments, post this review on the PR, drop these in as inline comments, or comment on the PR with these findings. Not for generating review findings, replying to existing threads, handling feedback, or one-off conversational comments."
+version: "0.1.5"
 license: MIT
 compatibility: "Portable Agent Skills format. Requires a POSIX shell, authenticated GitHub CLI, network access to GitHub, and read/write filesystem access for a temporary JSON payload."
 dependencies:
@@ -13,7 +13,7 @@ allowed-tools: Bash(gh:*) Bash(git:*) Bash(command:*) Bash(rm:*) Bash(cat:*) Bas
 
 # Publish Review
 
-Publish already-written review findings as inline comments on a GitHub pull request. This skill does not perform code review. It only resolves the target PR, validates anchors, rewrites the wording into review-ready human voice, previews the review, and submits one grouped GitHub review.
+Publish already-written review findings as inline comments on a GitHub pull request. This skill does not perform code review. It only resolves the target PR, validates anchors, drafts a qualitative top-level review body, runs a required humanizer pass in `review-comment` mode on that body and every inline comment, and submits one grouped GitHub review. Invoking the skill is consent to publish — do not wait for a second confirmation before posting.
 
 The default outcome is one `COMMENT` review so the author gets one notification. Use `REQUEST_CHANGES` only when at least one finding is `critical` or `high` and the caller explicitly opted into a blocking review.
 
@@ -23,12 +23,48 @@ Collect these before publishing:
 
 - **PR reference**: `#N`, `N`, or a GitHub PR URL. Extract `owner`, `repo`, and PR number. If absent and the current directory is a clone with an open PR for the current branch, default from `gh pr view --json number,baseRepository`. Otherwise prompt.
 - **Findings list**: each finding has `path`, `line`, `body`, and `severity`. Severity must be one of `critical`, `high`, `medium`, `low`, or `nit`. Accept `start_line` when the caller provides a range.
-- **Optional preamble**: a one-sentence top-level review body. Default to `A few thoughts on this.`
-- **Optional auto-confirm**: a caller-supplied `--auto`, `confirm: true`, or equivalent host flag may skip preview confirmation. Default is preview and explicit confirmation.
 - **Optional blocking review**: a caller-supplied `--request-changes`, `blocking: true`, or equivalent host flag may set `event` to `REQUEST_CHANGES` when any finding is `critical` or `high`.
 - **Optional closed-PR opt-in**: a caller-supplied `--include-closed`, `allow_closed: true`, or equivalent host flag is required before posting on a closed or merged PR.
 
 If the findings list is empty, stop. Do not post an empty review.
+
+## Main Review Body (required)
+
+The GitHub review `body` is the main comment — a short qualitative summary for
+someone skimming the notification. Details stay in the inline comments.
+
+Draft it from the finding set (after anchor validation, before or during the
+voice pass). Required humanizer pass applies to this body too.
+
+Cover, in plain language (about 2–5 sentences):
+
+- Overall read: how close this is to approve / merge-ready vs how much work
+  remains (qualitative, not a fake score).
+- What matters most: call out Critical/High themes by concern, not by dumping
+  every path. Medium/Low/Nit can be rolled into "smaller cleanup" when that is
+  the truth.
+- Whether the open items look like focused fixes, a design rethink, or mostly
+  nits.
+
+Do not:
+
+- Restate each inline finding verbatim.
+- Invent severity, evidence, or work estimates the findings do not support.
+- Use `#` headers or the `**Severity: label**` wrapper (that shape is for
+  inline comments only).
+- Default to filler like `A few thoughts on this.`
+
+Good shape:
+
+```text
+Two High items on stale cache reuse need fixing before this is merge-ready;
+the rest is Medium/Nit cleanup. Looks close if those land — details inline.
+```
+
+```text
+No blockers from this pass. A few Medium notes and nits; nothing that should
+hold the merge if you agree with the tradeoffs inline.
+```
 
 ## Preflight
 
@@ -129,70 +165,125 @@ Only move a comment to the nearest line after explicit user confirmation. If con
 
 ## Voice Pass (required humanizer)
 
-Rewrite each finding body before previewing or posting. Preserve the technical claim, severity, path, and line. Do not add new findings.
+Do not post until this pass finishes for the main review body and every inline
+finding body. Shipping the raw draft is a skill failure.
 
-**Required:** apply `djenriquez-core:humanizer` in `review-comment` mode to every finding body and the optional preamble.
+**Required:** apply `djenriquez-core:humanizer` in `review-comment` mode to:
 
-- Default: read the humanizer skill and plugin-root references, then apply the Process **inline**. Do not skip if nested `/humanizer` is unavailable.
-- Optional: Claude Code `/humanizer review-comment` only when nested skill invocation is known to work.
-- Preserve the technical claim's force (do not soften a correctness bug into a vague suggestion). Do not invent evidence.
+1. The main review body (qualitative summary; no severity lead-in).
+2. Each inline comment (mechanical `**Severity: label**` shape below).
 
-The target voice is a senior engineer typing directly into GitHub: specific, brief, and calm. The comment should read like it was written for a teammate who already has the diff open.
+- Default: read `skills/humanizer/SKILL.md` and
+  `references/humanizer-patterns.md` from the plugin root, then run the
+  humanizer Process **inline**. Do not skip if nested `/humanizer` is
+  unavailable.
+- Optional: Claude Code `/humanizer review-comment` only when nested skill
+  invocation is known to work.
+- Preserve technical claims and severity. Do not add findings. Do not soften a
+  correctness bug into a vague suggestion. Do not invent evidence.
 
-Rules (also encoded in the humanizer `review-comment` mode — apply all of them):
+The target voice is a senior engineer typing into GitHub: brief, specific,
+calm. Inline comments assume the reader has the hunk open — lead with the
+defect, risk, or question, not a paraphrase of what the line already shows.
 
-- Use short sentences. Most comments should be 2-4 sentences.
-- Point at the mechanism, not the author. Say `This shifts the retained window on every eviction`, not `your code shifts...`.
-- Explain why the issue matters in concrete runtime, API, correctness, maintainability, or operator terms.
-- For design tradeoffs, acknowledge the tradeoff and end with a real question. Good shape: `Conscious tradeoff, or worth a second look?`
-- For nits, soften when appropriate with `Not worth doing speculatively` or `just flagging`.
-- Reference specific files, lines, docs, or PR numbers when relevant.
-- Strip severity labels like `Critical:`, `High:`, `Medium:`, `Low:`, and `Nit:` from the original body before adding the final nit prefix.
-- Prefix `low` and `nit` findings with exactly `Nit: ` after rewriting. Do not prefix `critical`, `high`, or `medium`.
-- Do not use markdown headers inside inline comments.
-- Avoid bullet lists unless the comment needs to name multiple concrete locations.
-- Avoid corporate openers like `I noticed`, `It would be a good idea to`, `Consider`, `Based on my analysis`, and `Just wanted to flag`.
-- Avoid closing pleasantries.
+### Required inline comment shape
+
+Every inline comment body must use this exact mechanical shape (no `#`
+headers — they render too large in GitHub):
+
+```text
+**<Severity>: <short label>**
+
+<body>
+```
+
+- `<Severity>` is exactly one of `Critical`, `High`, `Medium`, `Low`, or
+  `Nit`, matching the finding's severity (`critical`/`high`/`medium`/`low`/
+  `nit`).
+- `<short label>` is a few words naming the issue (not a full sentence). Title
+  case is fine; keep it skimmable.
+- Put a blank line between the bold lead-in and the body.
+- Strip any prior severity prefixes from the draft body before assembling this
+  shape. Do not repeat severity inside the body prose.
+- Humanizer rewrites the body (and may tighten the short label). It must keep
+  this mechanical wrapper intact.
+
+Rules for the body (also encoded in humanizer `review-comment` — apply all):
+
+- Prefer 1–2 short sentences for most findings; 3 only when a tradeoff question
+  needs room. Nits are often one sentence.
+- Cut setup that restates visible behavior (`This adds X`, `This function now
+  does Y`, `Here we check Z`). The anchor already shows that. Keep only what
+  the reader would miss: failure mode, contract break, race, missing guard, or
+  the decision you want them to confirm.
+- Point at the mechanism, not the author. Say `This shifts the retained window
+  on every eviction`, not `your code shifts...`.
+- Wrap identifiers, APIs, fields, literals, and short logic fragments in inline
+  backticks (`likeThis`, `retry_budget`, `status == 404`). Plain English for the
+  prose around them; do not fence whole sentences as code.
+- Say why it matters in concrete runtime, API, correctness, maintainability, or
+  operator terms — without narrating the happy path first.
+- For design tradeoffs, end with a real question. Good shape:
+  `Conscious tradeoff, or worth a second look?`
+- For nits, soften when appropriate with `Not worth doing speculatively` or
+  `just flagging`.
+- Reference other files, docs, or PR numbers only when the reader cannot see
+  them from this anchor.
+- No markdown headers (`#` / `##`) in inline comments. Avoid bullet lists
+  unless naming multiple concrete locations.
+- Avoid corporate openers (`I noticed`, `It would be a good idea to`,
+  `Consider`, `Based on my analysis`, `Just wanted to flag`) and closing
+  pleasantries.
 - Avoid em dashes when commas, parentheses, or a separate sentence work.
-- Do not restate obvious file facts. Assume the reader has the code open.
 - Do not pad criticism with generic praise.
-- Avoid using `PR`, `this PR`, or `your change` as the subject when a file, function, behavior, or line can be the subject.
-- Strip AI jargon and significance inflation (`leverages`, `ensures`, `robust`, `comprehensive`, `it is important to note`).
+- Avoid `PR`, `this PR`, or `your change` as the subject when a file, function,
+  behavior, or line can be the subject.
+- Strip AI jargon and significance inflation (`leverages`, `ensures`, `robust`,
+  `comprehensive`, `it is important to note`).
 
 Rewrite these anti-patterns:
 
-- `This PR introduces X` -> `X`
+- `This PR introduces X` / `This change adds X` / `This now does X` -> drop the
+  restatement; start at the bug or risk
 - `It might be worth considering X` -> `Worth a flag?` or `Worth a second look?`
-- `I think we should X` -> state the position directly.
-- `The code does X. This is because Y.` -> `X, because Y.`
-- Numbered or bulleted recommendations in one inline comment -> collapse to prose unless the list identifies multiple concrete locations.
-- Severity labels inside the body -> strip them.
+- `I think we should X` -> state the position directly
+- `The code does X. This is because Y.` -> `X, because Y.` (or just `Y` if X is
+  visible in the hunk)
+- Numbered or bulleted recommendations in one inline comment -> collapse to
+  prose unless the list identifies multiple concrete locations
+- Loose severity words mid-body (`This is Critical because…`) -> severity lives
+  only in the bold lead-in
+
+Bad (restates the work, missing severity lead-in):
+
+```text
+This adds a cache lookup before auth and keeps the old entry alive after the
+key rotates, which is simpler on the fast path. The problem is a failed refresh
+can still serve data for the previous tenant, so an auth miss can become a
+cross-tenant read. Was that fallback intentional?
+```
 
 Good substantive shape:
 
 ```text
-This keeps the old cache entry alive after the key rotates, so a failed refresh can still serve data for the previous tenant. The fast path is simpler this way, but it also means an auth miss can become a cross-tenant read. Was that fallback intentional, or should the stale entry be scoped to the same tenant before reuse?
+**High: Stale entry can cross tenants**
+
+After key rotation, a failed refresh can still serve the previous tenant's
+entry via `cache.Get`. Should stale reuse require a tenant match before
+`reuseStale`?
 ```
 
 Good nit shape:
 
 ```text
-Nit: the timeout is hardcoded here while the outer retry budget is configurable. Not worth doing speculatively, but a flag would let operators tune this if production latency moves.
+**Nit: Hardcoded timeout vs retry budget**
+
+`timeout` is hardcoded while the outer `retry_budget` is configurable. Not
+worth doing speculatively, but a flag would help if prod latency moves.
 ```
 
-If the rewritten text does not read like a human GitHub review comment, rewrite it again before previewing.
-
-## Preview And Confirm
-
-Before posting, show the user:
-
-- PR URL and resolved `owner/repo#number`
-- Review event: `COMMENT` or `REQUEST_CHANGES`
-- Top-level body
-- Each inline comment as `path:line severity`, followed by the rewritten body
-- Any unanchored notes that will be appended to the top-level body
-
-Publishing review comments is socially visible and notifies the author. Wait for an explicit confirmation such as `yes`, `post`, or `publish` unless the caller passed an auto-confirm flag.
+If a body still opens by describing what the hunk does, or lacks the bold
+`**Severity: label**` lead-in, rewrite again before posting.
 
 ## Build The Payload
 
@@ -204,7 +295,7 @@ Default single-line comment shape:
 {
   "commit_id": "<sha>",
   "event": "COMMENT",
-  "body": "<preamble>",
+  "body": "<main review body summary>",
   "comments": [
     { "path": "path/to/file.go", "line": 42, "body": "..." }
   ]
@@ -239,7 +330,9 @@ gh api -X POST "repos/$owner/$repo/pulls/$number/reviews" \
   --jq '.html_url'
 ```
 
-Print the returned `html_url` to the user.
+Print the returned `html_url` to the user. Optionally include a short posted
+inventory (`owner/repo#number`, event, each `path:line` with severity) after
+the URL — never as a gate before the API call.
 
 ## 422 Retry
 
@@ -256,8 +349,12 @@ Do not loop on 422.
 
 - Do not generate findings.
 - Do not publish non-actionable Observations from `code-review` as inline findings unless the user explicitly promotes one after supplying actionable evidence and severity.
+- Do not skip the humanizer voice pass, and do not post a raw main body or raw
+  finding bodies.
+- Do not post without a qualitative main review body.
 - Do not edit code.
 - Do not resolve threads.
 - Do not reply to existing review threads.
 - Do not submit an empty review.
-- Do not bypass preview confirmation unless the caller explicitly requested auto-confirm.
+- Do not wait for a second publish confirmation after the skill was invoked.
+  Still pause for invalid-anchor choices and closed/merged PR opt-in.
