@@ -238,11 +238,10 @@ Three skim checks for every reporting mode (not a long ritual checklist):
 
 ### review-comment
 
-- [ ] Sounds like a senior engineer typing into GitHub
-- [ ] Mechanism + impact + optional question
-- [ ] No severity labels left in the body (except final `Nit: ` prefix)
-- [ ] No "I noticed" / "Consider" / "It might be worth considering"
-- [ ] Technical claim force preserved
+- [ ] Main body: qualitative skim only (no finding dump / severity wrapper)
+- [ ] Inline: `**Severity: short label**` then brief body; backticks on code
+- [ ] Opens on defect/risk/question, not a hunk paraphrase
+- [ ] Claim force preserved; no corporate openers
 
 ### digest / spec-narrative
 

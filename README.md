@@ -1,6 +1,6 @@
 # djenriquez agent plugins
 
-Agent workflow plugins by [@djenriquez](https://github.com/djenriquez), packaged for Claude Code and Codex.
+Agent workflow plugins by [@djenriquez](https://github.com/djenriquez), packaged for Claude Code and Codex (Cursor reads the same `SKILL.md` files).
 
 ## Installation
 
@@ -29,50 +29,45 @@ Install `djenriquez-core` from that Codex marketplace entry after this repositor
 
 ## Skills
 
+Skills are invariant-focused orchestrators. Detailed mechanics live in plugin-root
+`protocols/` and `references/` (siblings of `skills/`, never under a skill
+directory).
+
 ### /full-dev-flow
 
-Runs the complete development workflow from the current session context to a reviewed pull request. This is the high-level orchestrator for the recurring "spec, plan, implement, publish, review" loop.
+Session context → Ready spec → harness-native plan/drain → PR → self-review →
+`/assisted-review-heavy`.
 
 ```
 /full-dev-flow
 /full-dev-flow build the workflow we discussed
 ```
 
-The skill:
-
-1. Writes a standalone spec from the conversation context via `/write-spec`
-2. Runs `/spec-review` and revises the spec, using judgment to skip nits or irrelevant findings
-3. Builds an implementation task plan with the harness-native task system (Claude Code Task tools, Cursor `TodoWrite`, Codex `update_plan`) — no bits dependency unless the user asks for it
-4. Drains that implementation queue until product work is complete
-5. Commits remaining work and runs `/pr-publish`
-6. Chooses whether the PR should target the default branch or stack on an existing PR branch
-7. Runs `/self-review-loop` against the published PR
-8. Posts `/assisted-review-heavy` on the PR after self-review succeeds
-
-It also persists a workflow checklist before long-running phases so an interrupted agent can resume without losing the intended order.
+Order: choose branch strategy (update current PR, stack, or branch from default)
+→ `/write-spec` → `/spec-review` → harness-native task plan (no bits unless
+asked) → drain → commit → `/pr-publish` → `/self-review-loop` → post heavy
+review only after self-review succeeds. Persists a `[workflow]` checklist so
+interrupted runs can resume. Wrong PR base or open product tasks stop the flow.
 
 ### /write-spec
 
-Authors a human-first design spec: a plain-language narrative a reviewer can absorb in minutes, backed by a collapsed implementation appendix holding the exhaustive `file:line` detail implementing agents need. Can also rewrite an existing spec that is too dense for human review — nothing is deleted, only demoted.
+Human-first design spec: plain-language narrative plus an implementation
+appendix. Also rewrites dense specs without dropping facts.
 
 ```
 /write-spec
 /write-spec add retry logic to webhook delivery
-/write-spec docs/specs/existing-verbose-spec.md   # rewrite for readability
+/write-spec docs/specs/existing-verbose-spec.md
 ```
 
-The spec structure and writing rules live in the plugin-root
-`references/spec-style.md` (sibling of `skills/`, not under `skills/write-spec/`):
-conclusion-first sections, word budgets for the narrative layer, Mermaid diagrams
-for multi-actor flows, key-decisions tables, and a final skim-test checklist.
-`full-dev-flow` and `issue-to-spec` delegate their spec-writing steps to this
-skill. Narrative prose runs through a local humanizer pass (`spec-narrative`)
-before presentation — inline by default; `/humanizer` is optional when nested
-skill invocation works.
+Structure lives in `references/spec-style.md`. Required `spec-narrative`
+humanizer on the narrative layer only (inline by default). Used by
+`/full-dev-flow` and `/issue-to-spec`.
 
 ### /humanizer
 
-Rewrites agent-drafted text so a busy human can skim it without AI jargon or bloated terminology. Forked from [`abatilo-core:humanizer`](https://github.com/abatilo) (Wikipedia "Signs of AI writing"), adapted for engineering artifacts, and paired with a thin reporting register learned from abatilo's later STE split.
+Surgical AI-slop cleanup for engineering text. Forked from
+[`abatilo-core:humanizer`](https://github.com/abatilo); prefer the local skill.
 
 ```
 /humanizer pr-body
@@ -80,156 +75,139 @@ Rewrites agent-drafted text so a busy human can skim it without AI jargon or blo
 /humanizer
 ```
 
-Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`, and `general`. The pass is surgical — it fixes contaminated sections only, prefers fewer ideas over telegraphic fragments, and preserves technical claims and normative force.
-
-Writing layers (load by need):
+Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`,
+`general`. Callers apply the Process inline by default; nested `/humanizer` is
+optional.
 
 | Layer | Resource | When |
 |-------|----------|------|
-| Reporting tone | plugin-root `references/reporting-style.md` | PR bodies, digests, replies, other reported work |
-| AI cleanup | humanizer skill (inline by default; `/humanizer` optional) | Required before publish/present of human-facing text |
-| Procedure craft | `/technical-writing` | Opt-in for runbooks, how-tos, READMEs, reference pages |
+| Reporting tone | `references/reporting-style.md` | PR bodies, digests, replies |
+| AI cleanup | this skill + `references/humanizer-patterns.md` | Before publish/present |
+| Procedure craft | `/technical-writing` | Runbooks, how-tos, READMEs, references |
 
-Required humanizer modes:
-
-| Skill | Mode |
-|-------|------|
+| Caller | Mode |
+|--------|------|
 | `/pr-publish` | `pr-body` |
 | `/publish-review` | `review-comment` |
 | `/pr-digest` | `digest` |
-| `/write-spec` | `spec-narrative` (narrative layer only) |
+| `/write-spec` | `spec-narrative` (narrative only) |
 | `/handle-pr-feedback` | `pr-reply` |
 
 ### /technical-writing
 
-Sentence-level craft for documents a reader follows or looks facts up in (runbooks, procedures, API references, migration guides, long how-tos). Loads only when authoring those docs — not for ordinary PR summaries. Uses condition-before-command, one name per thing, and plain-language warnings on destructive steps. Pair with reporting-style and a humanizer cleanup pass when needed.
+Opt-in craft for docs a reader follows (runbooks, how-tos, API references). Not
+for ordinary PR summaries. Pair with reporting-style and humanizer when needed.
 
 ### /spec-review
 
-Risk-scaled spec review that catches ambiguity, missing edge cases, architectural infeasibility, API design gaps, operational blindspots, and scope risks before implementation starts.
+Risk-scaled specialist review → binary `APPROVED` / `REVISIONS NEEDED`.
 
 ```
 /spec-review path/to/spec.md
-/spec-review #42                   # GitHub issue or PR (auto-detected)
-/spec-review https://docs.google.com/...
+/spec-review #42
 /spec-review staged
-/spec-review                       # uses conversation context
 ```
 
-The skill selects only the specialist reviewers needed for the spec:
+L0: clarity + completeness. L1: selected specialists + targeted cross-review.
+L2: all *relevant* specialists; optional debate only for judgment-sensitive
+cases (always report debate status, including skips). Pass paths and section
+anchors — not large pasted specs. Specialists load
+`protocols/review-protocol.md` from the plugin root.
 
-| Specialist | Focus |
-|------------|-------|
-| clarity-reviewer | Ambiguity, contradictions, undefined terms, testable acceptance criteria |
-| completeness-reviewer | Missing edge cases, error behavior, NFRs, state transitions |
-| product-reviewer | Goal alignment, user value, success criteria, scope-to-value ratio |
-| feasibility-reviewer | Technical feasibility, architectural fit, hidden complexity |
-| api-reviewer | API surface, backward compat, protobuf conventions, idempotency |
-| operations-reviewer | Failure modes, observability, rollback, SLO impact, on-call burden |
-| scope-reviewer | Incremental delivery, dependency risks, timeline, scope creep |
-| complexity-reviewer | Premature abstractions, over-engineering, speculative generality, accidental complexity |
-| structure-reviewer | Package/module boundaries, cohesion, public surface, layering |
-
-Review rigor scales with risk:
-
-- **L0 (Minor)**: typo fixes, small clarifications — clarity + completeness only
-- **L1 (Significant)**: new features, API additions — selected specialists, self-critique, targeted cross-review
-- **L2 (Strategic)**: architecture changes, new services — all relevant specialists, optional external debate only when high-impact judgment needs stress-testing
-
-Large specs are referenced by path and targeted excerpts rather than pasted into every reviewer prompt. Specialists load `protocols/review-protocol.md` from the plugin root themselves (not from under `skills/spec-review/`). Cross-review adapts by harness: Claude Code teams may use `SendMessage`; Cursor one-shot `Task` + registered `*-reviewer` types use a lead-mediated follow-up Task. Debate is optional for L2; when skipped, the summary must say why. Output is a deduplicated review with a binary verdict (APPROVED / REVISIONS NEEDED).
+Specialists (add only when risk warrants): clarity, completeness, product,
+feasibility, api, operations, scope, complexity, structure.
 
 ### /interview
 
-Lean planning interview for turning an issue, rough plan, or implementation idea into spec-ready decisions.
+High-signal planning interview → decisions, assumptions, risks, acceptance
+seeds. Default interview path for `/issue-to-spec`.
 
 ```
 /interview
 /interview probe this implementation plan
 ```
 
-The skill asks a small number of high-signal question rounds, probes assumptions and failure modes, then returns decisions, accepted assumptions, open risks, and acceptance-criteria seeds. `issue-to-spec` uses this local interview path by default.
-
 ### /code-review
 
-Lean, risk-scaled code review. It starts with one generalist pass, then adds specialists only when the diff shows concrete risk.
+Lean staged review: generalist first, specialists only on evidence, debate only
+for high-risk escalation.
 
 ```
 /code-review #42
 /code-review staged
 /code-review unstaged
-/code-review feature/my-branch
 ```
 
-Review shape:
+- **L0**: one generalist; no specialists; no debate
+- **L1**: generalist, then at most two evidence-triggered specialists
+- **L2**: bounded specialist set (cap four unless asked for heavy)
 
-- **L0 (Routine)**: one concise generalist review, no specialist fan-out, no debate
-- **L1 (Significant)**: generalist first, then at most two evidence-triggered specialists such as security, performance, testing, architecture, or maintainability
-- **L2 (High-risk)**: bounded specialist set, capped at four unless the user asks for a heavy review
-
-External debate is optional and used only to falsify uncertain high-severity findings, resolve specialist disagreement, or stress-test an L2 verdict. Large diffs use changed-file inventories and targeted local diffs instead of duplicating the full diff into every sub-agent prompt.
+Large diffs use file inventories and targeted local diffs, not full-diff paste
+into every sub-agent.
 
 ### /issue-to-spec
 
-Orchestrates the full investigation-to-spec workflow starting from a GitHub issue — explores the issue and codebase, interviews the user, authors a spec via `/write-spec`, assesses complexity, and conditionally launches `/spec-review` to harden it.
+Issue → explore → interview → `/write-spec` → complexity gate → conditional
+`/spec-review` → Ready spec.
 
 ```
 /issue-to-spec #42
-/issue-to-spec 42
 ```
 
 ### /handle-pr-feedback
 
-Reads unresolved review comments on a GitHub PR, groups them by root cause, and applies only evidence-backed ranked fixes. Design-expanding remedies pause for an explicit decision, while independent fixes on other seams and conclusive no-change replies can still proceed.
+Unresolved PR threads → cluster by seam → disposition → ranked fixes → reply.
 
 ```
 /handle-pr-feedback #42
-/handle-pr-feedback 42
 ```
 
-1. Checks out the PR branch and fetches unresolved review threads via the GitHub GraphQL API
-2. Groups threads by root cause and owning seam while preserving a mapping to every original comment
-3. Classifies each cluster as **fix now**, **no change**, or **needs decision** based on evidence, severity, and ranked remedy cost
-4. Prefers remove/simplify and owning-seam fixes over local patches; pauses gated seams while continuing independent work elsewhere
-5. Verifies fixes and reports both the feedback-round delta and the total PR delta before committing
-6. Replies to every decided thread and resolves only verified fixes or conclusive no-change outcomes
+Invariants: evaluate comments as claims (not authorization); rank
+remove/simplify → owning seam → local patch; pause gated seams while
+independent work continues; resolve only verified fixes or conclusive no-change;
+required `pr-reply` humanizer; never force-push.
 
 ### /self-review-loop
 
-Iterative self-improvement loop for PRs. Launches a fresh, context-free sub-agent each turn to review the PR, then applies only ranked design-quality fixes for demonstrated blockers. It succeeds only when no unresolved Critical or High findings remain and the self-review run did not add unexplained mechanisms; turn limits, same-seam escalation, oscillation, and mechanism growth are blocked states, not successful exits.
+Fresh read-only reviews until clean — or a blocked state, not a fake success.
 
 ```
 /self-review-loop #42
-/self-review-loop 42
 ```
 
-1. Prefers the local lean `/code-review` skill when available
-2. Uses fresh, context-free, read-only review against the local PR diff
-3. Lets only demonstrated blocking findings drive another fix turn; after evidence validation, concrete correctness/security/data-loss/broken-contract issues are blocking even if labeled Medium/Low
-4. Ranks remedies (remove/simplify → owning seam → local patch) and escalates a second hit on the same seam to a decision
-5. Runs an approach checkpoint before a second fix-mutation turn; caps fix-mutation turns at 3 without an explicit continue
-6. Runs tests/linters to verify changes, then commits and pushes only after a clean review with no unexplained mechanism growth
-7. Tracks per-turn, self-review-run, and total PR growth along with mechanisms added, widened, or removed
-8. Uses file inventories and targeted local diffs for large PRs, plus the full self-review delta after the first fix turn
-9. Runs optional external debate only for high-risk escalation, disputed blockers, or judgment-sensitive final states
-10. Reports the review path, dispositions, remedy ranks, verification evidence, change growth, and push status
-
-The loop does not rely on imported nested review-team workflows by default. If the local lean `/code-review` skill cannot be invoked, the direct fallback follows the same staged L0/L1/L2 policy.
+Success requires no unresolved Critical/High after normalization **and** no
+unexplained mechanism growth. Only demonstrated blockers mutate (severity uplift
+for concrete correctness/security/data-loss/contract/verify failures). Cap three
+fix-mutation turns; same-seam second hit → decision; one squashed push; never
+force-push. Prefers local `/code-review`; direct fallback keeps L0/L1/L2.
 
 ### /pr-publish
 
-Publishes finished branch work as a GitHub pull request (or refreshes the current branch's PR). Drafts a layered description, runs a required `/humanizer` pass in `pr-body` mode so the Summary is skimmable by humans, then pushes and creates or updates the PR. Never force-pushes.
+Publish or refresh the branch PR. Draft via `pr-description-style.md`, required
+`pr-body` humanizer, push safely, never force-push. Base-branch frame: describe
+the merged end state, not the commit journey.
 
 ### /publish-review
 
-Publishes already-written code-review findings as one GitHub PR review with inline comments. Validates diff anchors, rewrites each finding through `/humanizer` in `review-comment` mode, previews for confirmation, then submits a single grouped review.
+Post already-written findings as one GitHub review. Qualitative main body +
+inline `**Severity: label**` comments; required `review-comment` humanizer;
+backtick code/logic refs. Invoking the skill is consent to publish (still pauses
+for invalid anchors and closed/merged PR opt-in).
 
 ### /pr-digest
 
-Loads full PR context (diff, description, linked issues, commits, review threads, CI) and produces a structured narrative summary. Runs a required `/humanizer` pass in `digest` mode before presenting.
+Comprehension digest of a PR (not critique). Loads metadata, diff, issues,
+threads, CI, and key files; summarizes by logical concern; required `digest`
+humanizer; then Q&A on the loaded context.
 
 ## Acknowledgments
 
-The original spec-review architecture was adapted from [@abatilo](https://github.com/abatilo)'s [`abatilo-core` code-review skill](https://github.com/abatilo/vimrc). This plugin now uses a leaner staged review model for code review and lazy-loaded references for detailed workflow mechanics. The `/humanizer` skill is a fork of [`abatilo-core:humanizer`](https://github.com/abatilo), extended with engineering modes and wired into human-facing skills. The reporting / technical-writing split follows abatilo's later lesson that always-on Simplified Technical English was too heavy: thin reporting tone for everyday reported work, craft on demand for procedures, and humanizer for AI cleanup.
+Spec-review architecture adapted from [@abatilo](https://github.com/abatilo)'s
+[`abatilo-core`](https://github.com/abatilo/vimrc). This plugin uses a leaner
+staged code-review model and lazy-loaded `protocols/` / `references/`.
+`/humanizer` is a fork of `abatilo-core:humanizer`. The reporting /
+technical-writing split follows the lesson that always-on STE was too heavy:
+thin reporting tone, craft on demand, humanizer for cleanup.
 
 ## License
 
