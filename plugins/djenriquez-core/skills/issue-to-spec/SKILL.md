@@ -136,7 +136,15 @@ Codex form: read the installed `djenriquez-core:write-spec` `SKILL.md` and follo
 
 The exploration and interview already in this conversation are write-spec's primary source. Supply what it cannot rediscover: the issue number and title, so the filename derives from the issue title and the spec header records `**Issue**: #<N>` alongside its standard header lines.
 
-**Fallback**: if the write-spec skill is unavailable, load `references/spec-style.md` from the installed `djenriquez-core` plugin root and author `docs/specs/<filename>.md` directly following it. When the spec introduces new packages or modules, also validate the proposed shape against `references/structure-standards.md` (plus `references/structure-standards-go.md` when the target repo has a root `go.mod`) before presenting.
+**Fallback**: if the write-spec skill is unavailable, load
+`<plugin-root>/references/spec-style.md` (plugin root = directory containing
+`skills/` and `references/` as siblings; never
+`skills/issue-to-spec/references/...`) and author `docs/specs/<filename>.md`
+directly following it. When the spec introduces new packages or modules, also
+validate the proposed shape against
+`<plugin-root>/references/structure-standards.md` (plus
+`<plugin-root>/references/structure-standards-go.md` when the target repo has a
+root `go.mod`) before presenting.
 
 Do not proceed until the user has reviewed the presented spec and requested adjustments are applied.
 

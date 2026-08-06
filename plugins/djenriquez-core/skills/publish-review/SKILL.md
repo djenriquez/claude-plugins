@@ -133,8 +133,8 @@ Rewrite each finding body before previewing or posting. Preserve the technical c
 
 **Required:** apply `djenriquez-core:humanizer` in `review-comment` mode to every finding body and the optional preamble.
 
-- Claude Code: invoke `/humanizer` with mode `review-comment`, or load the skill and apply the pass inline.
-- Codex: read the installed `djenriquez-core:humanizer` skill and apply.
+- Default: read the humanizer skill and plugin-root references, then apply the Process **inline**. Do not skip if nested `/humanizer` is unavailable.
+- Optional: Claude Code `/humanizer review-comment` only when nested skill invocation is known to work.
 - Preserve the technical claim's force (do not soften a correctness bug into a vague suggestion). Do not invent evidence.
 
 The target voice is a senior engineer typing directly into GitHub: specific, brief, and calm. The comment should read like it was written for a teammate who already has the diff open.

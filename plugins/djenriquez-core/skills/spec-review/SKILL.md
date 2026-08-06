@@ -28,7 +28,20 @@ mcpServers:
 
 Review the target spec in `$ARGUMENTS`. If no target is provided and the conversation does not contain the spec, ask what to review.
 
-Use `references/harness-adapters.md` when translating team, task, or sub-agent operations across Claude Code and Codex. Use `protocols/review-protocol.md` as the single source for reviewer taxonomy, qualification, self-critique, cross-review, and output mechanics.
+## Plugin paths (read first)
+
+Resolve shared files from the installed `djenriquez-core` **plugin root** — the
+directory that contains `.claude-plugin/`, `skills/`, `references/`,
+`protocols/`, and `agents/` as siblings. Unqualified `references/...`,
+`protocols/...`, and `agents/...` mean that root. They do **not** resolve under
+`skills/spec-review/`.
+
+Before spawning reviewers, load:
+
+- `<plugin-root>/references/harness-adapters.md` — Claude Code / Cursor / Codex
+  spawn and cross-review mapping
+- `<plugin-root>/protocols/review-protocol.md` — taxonomy, qualification,
+  self-critique, cross-review, output mechanics (single source)
 
 ## Goals
 
@@ -68,23 +81,40 @@ Use the fewest specialists that cover the risk:
 - Add `complexity-reviewer` for abstraction, configurability, or over-engineering risk.
 - Add `structure-reviewer` for new packages/modules or package boundary changes.
 
-For `L0`, use only clarity and completeness unless the spec obviously touches another domain. For `L2`, include all relevant specialists, not every specialist by default.
+For `L0`, use only clarity and completeness unless the spec obviously touches another domain. For `L2`, include all **relevant** specialists, not every specialist by default. Prefer a tight set over a token-heavy fan-out.
 
 ## Run Reviewers
 
-Load `protocols/review-protocol.md` once before spawning reviewers.
+### Lead checklist (required before spawn)
 
-Each reviewer prompt should contain:
+Each reviewer prompt **must** include:
 
-- the selected reviewer's `agents/<reviewer>.md` instructions if the harness does not register that agent directly
-- the shared review protocol
-- risk lane and self-critique requirement
-- concise spec context and related codebase context
-- either the full spec text when small, or the spec path plus targeted excerpts when large
+1. Risk lane (`L0` / `L1` / `L2`) and that self-critique is required for L1/L2
+2. Absolute repository path and absolute (or repo-relative) spec path
+3. Important section anchors (not the full large spec body)
+4. Instruction to load `<plugin-root>/protocols/review-protocol.md` and the
+   matching `<plugin-root>/agents/<reviewer>.md` if the harness does not inject
+   that agent definition automatically
+5. Instruction to return Phase 1 findings as the **final response body** (all
+   harnesses). Claude Code team tools (`SendMessage`, etc.) are optional extras
+   only when available — see harness adapters
 
-Do not paste a large spec or large related diff into every specialist prompt. For large targets, give the repository path, spec path, important sections, and instructions to read targeted files directly.
+Do **not** rely on the lead pasting the full protocol text. Specialists load it.
+Still pass risk lane + paths; forgetting those is a lead error.
 
-Spawn selected reviewers in parallel when the harness supports it. If a reviewer fails, re-run that reviewer once with the same scoped context. If it fails again, record the failure and continue only if the missing specialist is not required for the risk lane.
+### Prompt size
+
+Do not paste a large spec or large related diff into every specialist prompt.
+For large targets: repository path, spec path, important sections, and
+instructions to read targeted files. Prefer path + section list over inlining.
+
+### Spawn
+
+Spawn selected reviewers in parallel when the harness supports it (see
+`harness-adapters.md` for Claude Code teams, Cursor `Task` + `*-reviewer`
+types, and Codex `spawn_agent`). If a reviewer fails, re-run that reviewer once
+with the same scoped context. If it fails again, record the failure and continue
+only if the missing specialist is not required for the risk lane.
 
 ## Cross-Review
 
@@ -98,15 +128,26 @@ For `L1` and `L2`, route only meaningful disputes:
 
 Limit each disputed finding to one challenge round. The lead arbitrates unresolved disagreement.
 
+Harness mapping:
+
+- **Claude Code teams**: lead uses `SendMessage`; specialists wait for challenges.
+- **Cursor / one-shot Task**: lead collects Phase 1 returns, then spawns a
+  follow-up Task (same reviewer type, `resume` when available) with only the
+  disputed finding(s). Do not expect specialists to idle after the first return.
+- **Codex**: lead uses follow-up input / second spawn per harness adapters.
+
 ## Optional External Debate
 
-Do not run debate by default. Load `protocols/mcp-debate.md` only when one of these is true:
+Do not run debate by default. Load `<plugin-root>/protocols/mcp-debate.md` only when one of these is true:
 
 - the spec is `L2` and the final verdict depends on high-impact judgment
 - reviewers disagree on a Critical finding
 - the lead suspects a high-severity false positive or missed blocker
 
-If no debate-capable MCP exists or the user declines the debate checkpoint, skip debate and state that in the summary.
+**Debate status is mandatory in the synthesis summary.** If no debate-capable MCP
+exists, the user declines the checkpoint, or the trigger conditions are not met,
+skip debate and state explicitly which case applied (for example
+`Debate: skipped — no debate-capable MCP in this session`). Never omit the line.
 
 ## Synthesize
 
@@ -118,6 +159,9 @@ Deduplicate reviewer output and map findings:
 - Low: P3, nitpicks, or thoughts
 
 Omit empty tiers. Do not include unresolved contradictory feedback.
+
+Include a short coverage line: risk lane, specialists run, specialists skipped
+(with reason), reviewer failures, and debate status.
 
 End with the last section exactly as one of:
 

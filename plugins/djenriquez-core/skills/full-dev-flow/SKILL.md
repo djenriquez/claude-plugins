@@ -1,10 +1,9 @@
 ---
 name: full-dev-flow
-description: "Runs the complete development workflow from session context to reviewed pull request: write a spec, run spec-review and revise the spec, create bits tasks, drain the bits implementation queue, commit, publish a PR, run self-review-loop, and post /assisted-review-heavy. Use when the user asks for the full dev flow, spec-to-PR workflow, plan/build/publish workflow, or wants an agent to carry a discussed feature through spec, implementation, PR publication, and automated review."
+description: "Runs the complete development workflow from session context to reviewed pull request: write a spec, run spec-review and revise the spec, create an implementation task plan with the harness-native task system, drain that queue, commit, publish a PR, run self-review-loop, and post /assisted-review-heavy. Use when the user asks for the full dev flow, spec-to-PR workflow, plan/build/publish workflow, or wants an agent to carry a discussed feature through spec, implementation, PR publication, and automated review."
 allowed-tools:
   - Bash(git:*)
   - Bash(gh:*)
-  - Bash(bits:*)
   - Bash(jq:*)
   - Bash(mkdir:*)
   - Read
@@ -18,6 +17,7 @@ allowed-tools:
   - TaskUpdate
   - TaskList
   - TaskGet
+  - TodoWrite
   - ToolSearch
 ---
 
@@ -34,8 +34,8 @@ Your workflow:
 2. Persist a workflow checklist so the run can resume after interruptions
 3. Write a standalone spec
 4. Run spec-review and revise the spec
-5. Run bits-plan against the final spec
-6. Run bits-drain until implementation work is complete
+5. Build an implementation task plan with the harness-native task system
+6. Drain that implementation queue until work is complete
 7. Commit any remaining work
 8. Run pr-publish with the right PR base
 9. Run self-review-loop against the published PR
@@ -47,8 +47,14 @@ Your workflow:
 
 Invoke the underlying skills using the host's native mechanism:
 
-- **Claude Code**: use slash commands such as `/write-spec`, `/spec-review`, `/bits-plan`, `/bits-drain`, `/pr-publish`, and `/self-review-loop` when available.
-- **Codex**: invoke installed skills such as `djenriquez-core:write-spec`, `djenriquez-core:spec-review`, `bits:bits-plan`, `bits:bits-drain`, `djenriquez-core:pr-publish`, and `djenriquez-core:self-review-loop`. If direct skill invocation is not available, read the installed `SKILL.md` and follow it exactly.
+- **Claude Code**: use slash commands such as `/write-spec`, `/spec-review`, `/pr-publish`, and `/self-review-loop` when available.
+- **Codex**: invoke installed skills such as `djenriquez-core:write-spec`, `djenriquez-core:spec-review`, `djenriquez-core:pr-publish`, and `djenriquez-core:self-review-loop`. If direct skill invocation is not available, read the installed `SKILL.md` and follow it exactly.
+- **Cursor**: read installed skill `SKILL.md` files and follow them; use registered `Task` reviewer types for spec-review when available.
+
+For implementation planning and draining, use the harness-native task/plan
+offering described in `<plugin-root>/references/harness-adapters.md` (Task
+tools, `TodoWrite`, or `update_plan`). Do **not** require bits or any other
+external planner unless the user explicitly asks for it.
 
 Do not reimplement a sub-skill when the sub-skill is available. This skill coordinates ordering, branch strategy, state tracking, and handoffs between skills.
 
@@ -92,25 +98,28 @@ Record `branch_strategy`, `expected_pr_base`, `starting_branch`, and `working_br
 
 ## Step 2: Persist the Workflow Checklist
 
-Create durable orchestration tasks before starting long-running work. Prefer the host task system:
+Create durable orchestration tasks before starting long-running work. Prefer the host task system (see harness adapters):
 
-- **Codex**: use `update_plan`.
-- **Claude Code**: use `TaskCreate` / `TaskUpdate`, `TodoWrite`, or the equivalent available task list.
+- **Codex**: `update_plan`
+- **Claude Code**: `TaskCreate` / `TaskUpdate` (or `TodoWrite` when that is what the session exposes)
+- **Cursor**: `TodoWrite` (or the session task list the host exposes)
 
 Create one checklist item per workflow phase:
 
 1. Write spec
 2. Run spec-review and revise spec
-3. Run bits-plan
-4. Run bits-drain
+3. Build implementation task plan
+4. Drain implementation tasks
 5. Commit work
 6. Publish PR
 7. Run self-review-loop
 8. Post `/assisted-review-heavy`
 
-Keep the checklist updated as each phase starts and completes. Include durable state in checklist notes whenever possible: `spec_path`, `branch_strategy`, `expected_pr_base`, `bits_root_id`, `pr_number`, `pr_url`, and the last completed phase.
+Keep the checklist updated as each phase starts and completes. Include durable state in checklist notes whenever possible: `spec_path`, `branch_strategy`, `expected_pr_base`, `pr_number`, `pr_url`, and the last completed phase.
 
-Do not use bits for orchestration checklist items by default. Bits is the implementation queue created by `bits-plan`. If the host has no other durable task system and you must use bits for workflow control, prefix every orchestration task with `[workflow]` and close all `[workflow]` tasks before invoking `bits-drain`, so `bits-drain` only sees implementation work.
+Keep orchestration checklist items visually distinct from implementation tasks
+(prefix, separate list, or clear titles such as `[workflow] …`). Drain logic in
+Step 6 must not treat unfinished workflow checklist items as blocked product work.
 
 On resume after an interruption, inspect the checklist and repo state, then continue from the first incomplete phase rather than restarting.
 
@@ -120,7 +129,10 @@ On resume after an interruption, inspect the checklist and repo state, then cont
 
 **Primary path**: invoke the write-spec skill (`/write-spec` on Claude Code; on Codex, read the installed `djenriquez-core:write-spec` `SKILL.md` and follow it exactly). It owns the spec's location, structure, human-readability standards, and presenting the draft. The current session context is its primary source.
 
-**Fallback**: if the write-spec skill is unavailable, load `references/spec-style.md` from the installed `djenriquez-core` plugin root and author `docs/specs/<filename>.md` directly following it.
+**Fallback**: if the write-spec skill is unavailable, load
+`<plugin-root>/references/spec-style.md` (plugin root = directory containing
+`skills/` and `references/` as siblings; never under `skills/full-dev-flow/`)
+and author `docs/specs/<filename>.md` directly following it.
 
 Either way, the spec must be understandable without the original conversation, and acceptance criteria must be observable by command output, file inspection, or behavior.
 
@@ -159,60 +171,58 @@ Record the final `spec_path` and spec-review verdict in the checklist.
 
 ---
 
-## Step 5: Run Bits Plan
+## Step 5: Build the Implementation Task Plan
 
-Invoke bits-plan against the final spec:
+From the ready spec, create an implementation queue in the **harness-native**
+task/plan system (see harness adapters). Do not invoke bits-plan or any other
+external planner unless the user explicitly asks.
 
-```
-/bits-plan docs/specs/<filename>.md
-```
+The plan must include:
 
-Codex equivalent: invoke `bits:bits-plan` with the spec path and current conversation context.
+- A root goal / verify-done item that states the acceptance contract from the spec
+- Self-contained implementation tasks (each runnable without rediscovering the
+  conversation; point at `spec_path` and the relevant appendix sections)
+- Verification tasks (tests, lint, or other observable checks from the spec)
+  ordered after the work they verify when the host supports dependencies or
+  ordering
+- A documentation maintenance task when the repo uses `CLAUDE.md` / `AGENTS.md`
+  (or equivalent) and the change affects guidance those files own
 
-Require `bits-plan` to create:
+Prefer fewer, larger tasks over a fragmented checklist. Record task identifiers
+or titles in the workflow checklist notes so a resumed run can find the queue.
 
-- A root "Verify goal:" task with a goal contract
-- Self-contained implementation tasks
-- Verification tasks wired as dependencies
-- The CLAUDE.md documentation maintenance task required by `bits-plan`
-
-After `bits-plan` completes, inspect the created bits and record the root verifier ID:
-
-```
-bits list --open --json | jq -r '.[] | select(.title | startswith("Verify goal:")) | [.id, .title] | @tsv'
-```
-
-If no root verifier exists, do not continue to implementation. Fix the plan or rerun `bits-plan`.
+If the host cannot create tasks at all, fall back to an explicit markdown task
+list in the workflow checklist notes and work that list in Step 6 — still do not
+pull in an external planner by default.
 
 ---
 
-## Step 6: Drain Bits
+## Step 6: Drain the Implementation Queue
 
-Before invoking `bits-drain`, confirm no workflow-control bits are open:
+Work the implementation queue until every implementation and verification item
+is complete (or cancelled with a recorded reason). Use the same harness-native
+task/plan tools as Step 5.
 
-```
-bits list --open --json | jq -r '.[] | select(.title | startswith("[workflow]")) | [.id, .title] | @tsv'
-```
+Order of work:
 
-If any `[workflow]` bits exist, close or otherwise resolve them before continuing.
+1. Pick a ready implementation task (dependencies satisfied, or next incomplete
+   item when the host has no dependency graph).
+2. Implement it against the ready spec.
+3. Mark it complete only when its acceptance evidence exists.
+4. Run associated verification tasks before treating that slice as done.
+5. Continue until only the root verify-done item remains, then satisfy that
+   contract (or mark it complete when all acceptance criteria are met).
 
-Invoke bits-drain:
+If a task is blocked on a product decision, missing dependency, or failing
+verification you cannot fix within scope, stop the full-dev-flow and report the
+blocking condition. Do not commit, publish, or request heavy review while
+implementation tasks remain open or blocked.
 
-```
-/bits-drain
-```
+Do not treat unfinished `[workflow]` / orchestration checklist phases as
+implementation blockers for this step — update those separately as the outer
+phases advance.
 
-Codex equivalent: invoke `bits:bits-drain`.
-
-Let `bits-drain` continue until it reaches a terminal state. If it creates a Replan task, reports blocked dependencies, or requires user input, stop the full-dev-flow and report the blocking condition. Do not commit, publish, or request heavy review while implementation tasks are blocked.
-
-After drain completes, verify no implementation work remains open:
-
-```
-bits list --open --json | jq -r 'length'
-```
-
-Proceed only when the open count is `0`.
+Proceed only when the implementation queue has no open product work.
 
 ---
 
@@ -322,7 +332,7 @@ Record in the checklist that heavy assisted review was requested.
 End with a compact audit trail:
 
 - Spec path and final spec-review verdict
-- Bits root verifier ID and drain result
+- Implementation plan summary (task count / host task system used) and drain result
 - Branch strategy and PR base
 - Commit(s) created by the workflow
 - PR URL

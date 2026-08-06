@@ -61,15 +61,17 @@ or presenting final text:
 | `write-spec` | `spec-narrative` | yes, narrative layer only |
 | `handle-pr-feedback` | `pr-reply` | yes, for each reply body |
 
-**Claude Code**: invoke `/humanizer` with the mode, or apply this skill inline
-after loading the references above.
+**Default for callers (all harnesses):** load this `SKILL.md` and the listed
+references from the plugin root, then run the Process section **inline** in the
+current turn. Nested `/humanizer` / Skill-tool invocation is optional and only
+worth using when it is known to work in that harness.
 
-**Codex**: read this installed `SKILL.md` and the listed references, then apply
-the pass. Do not skip the pass because a nested skill call is awkward.
+**Claude Code convenience:** when nested skill invocation works, `/humanizer`
+with the mode is fine; otherwise stay on the inline default.
 
-Fallback: if this skill cannot be invoked, load the same references and run
-the Process section below. Never ship the unhumanized draft when the caller
-marks the pass required.
+Never skip a required pass because nested skill invocation is unavailable or
+awkward. Never ship the unhumanized draft when the caller marks the pass
+required.
 
 ## Collision rules
 

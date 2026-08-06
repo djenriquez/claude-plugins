@@ -2,7 +2,17 @@
 
 Load this when authoring or rewriting a design spec. The `write-spec` skill owns the workflow; this file only governs structure and writing.
 
+This file lives at `<djenriquez-core-plugin-root>/references/spec-style.md`,
+sibling to `skills/` — not under `skills/write-spec/`.
+
 A spec has two audiences with opposite needs. Human reviewers skim it on a PR and need a narrative they can absorb in minutes. Implementing agents consume it later and need exhaustive, verified detail. Serve both by layering: a plain-language narrative on top, an implementation appendix at the bottom. Both layers are normative — the appendix binds the implementation exactly as much as the narrative does. Never delete implementer detail to make a spec readable — demote it.
+
+If the target repository has local spec guidance (for example
+`docs/specs/CLAUDE.md`), keep this layered shape and also follow repo rules that
+do not conflict — typically present-tense standalone prose and no narration of
+branch edit history. On structural conflict, this file wins; on
+repository-specific voice or invariants, the repo file wins for content written
+there.
 
 ## Structure
 
