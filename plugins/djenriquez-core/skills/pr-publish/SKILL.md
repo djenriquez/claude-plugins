@@ -47,8 +47,8 @@ The PR body is for humans. If a busy reviewer cannot understand the change from 
 4. Draft a conventional-commit title under 70 characters.
 5. Draft the body using `references/pr-description-style.md` and `references/reporting-style.md`, then re-read each sentence against the base-branch frame and rewrite any journey-relative phrasing. Use whole sentences, not arrow-chain shorthand. Do not invent test results.
 6. **Humanizer pass (required):** apply `djenriquez-core:humanizer` in `pr-body` mode to the title and body (loads reporting-style + humanizer-patterns).
-   - Claude Code: invoke `/humanizer` with mode `pr-body`, or load the skill and apply the pass inline.
-   - Codex: read the installed `djenriquez-core:humanizer` skill and apply.
+   - Default: read the humanizer skill and plugin-root references, then apply the Process **inline**. Do not skip if nested `/humanizer` is unavailable.
+   - Optional: Claude Code `/humanizer pr-body` only when nested skill invocation is known to work.
    - Preserve structure, technical claims, and normative force. Prefer fewer ideas over telegraphic fragments. Summary must read in plain language without internal type/function names.
    - Re-run the base-branch frame check and reporting skim checks on the humanized text. Do not publish until this pass completes.
    - For long follow-along procedure sections inside a PR (rare), optionally load `djenriquez-core:technical-writing`; do not load it for ordinary PR summaries.

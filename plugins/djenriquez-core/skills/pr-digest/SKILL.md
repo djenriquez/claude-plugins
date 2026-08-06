@@ -224,10 +224,10 @@ If the PR is a single commit, omit this section.
 
 ### Humanizer pass (required)
 
-Draft with `references/reporting-style.md` in mind (outcome-first Intent, whole sentences, no arrow-chain shorthand). Before presenting the digest, apply `djenriquez-core:humanizer` in `digest` mode to the full summary.
+Draft with plugin-root `references/reporting-style.md` in mind (outcome-first Intent, whole sentences, no arrow-chain shorthand). Before presenting the digest, apply `djenriquez-core:humanizer` in `digest` mode to the full summary.
 
-- Claude Code: invoke `/humanizer` with mode `digest`, or load the skill and apply inline.
-- Codex: read the installed skill and apply.
+- Default: read the humanizer skill and plugin-root references, then apply the Process **inline**. Do not skip if nested `/humanizer` is unavailable.
+- Optional: Claude Code `/humanizer digest` only when nested skill invocation is known to work.
 
 Surgical only: keep structure, facts, and file references; remove AI jargon, filler transitions, and inflated significance. Prefer fewer ideas over fragments. One name for one component.
 

@@ -1,14 +1,26 @@
 # Review Protocol
 
-This protocol governs all specialist reviewers on the team. Follow it exactly.
+This protocol governs all specialist reviewers. Follow it exactly.
+
+This file lives at `<djenriquez-core-plugin-root>/protocols/review-protocol.md`
+(sibling of `skills/` and `agents/`). Specialists load it themselves; do not
+depend on the lead pasting a full copy.
 
 ## Review Phases
 
 **Phase 1 — Specialist Review + Self-Critique**
-Conduct your domain-specific review. Then rigorously self-critique your findings (L1/L2 only — skip for L0).
+Conduct your domain-specific review. Then rigorously self-critique your findings (L1/L2 only — skip for L0). Return Phase 1 findings as your final response body (see Output).
 
 **Phase 2 — Cross-Review**
-After sending Phase 1 findings, wait. The lead may route findings from other specialists for you to challenge, or forward challenges to your findings. Respond substantively to every cross-review message.
+Harness-dependent:
+
+- **Persistent team harness (Claude Code teams):** after returning Phase 1
+  findings, remain available. The lead may route challenges via `SendMessage`.
+  Respond substantively; do not exit on your own while the team is active.
+- **One-shot Task harness (Cursor, many Codex spawns):** end after Phase 1.
+  If the lead needs a challenge round, it will spawn a follow-up task with the
+  disputed finding(s). Treat that follow-up as Phase 2 and respond in the new
+  task’s final response.
 
 ## Comment Taxonomy
 
@@ -89,17 +101,22 @@ After self-critique, note which findings were strengthened, modified, or withdra
 
 ## Cross-Review
 
-After sending Phase 1 findings, remain available. The team lead may send you:
+When Phase 2 runs (same session or follow-up spawn), the lead may send:
 
 - **A challenge**: Another specialist's finding for you to evaluate from your domain. Respond with agreement, disagreement, or nuance the original agent missed. Cite evidence from the content.
 - **A defense request**: Another specialist has challenged your finding. Defend with evidence or concede if the challenge has merit. Don't defend for ego — defend for correctness.
 - **An elaboration request**: Provide more detail on a specific finding.
 
-Respond to all cross-review messages promptly and substantively.
+Respond to all cross-review requests promptly and substantively.
 
 ## Output
 
-After completing your specialist review and self-critique (if applicable), send your findings to the team lead via `SendMessage`. Structure:
+After Phase 1 (specialist review + self-critique when applicable), deliver
+findings to the lead as your **final response body**. If Claude Code team tools
+are available, you may also `SendMessage` the same payload — that is optional
+and must not be the only deliverable in one-shot harnesses.
+
+Structure:
 
 1. **Findings list** — Each finding includes:
    - Classification (taxonomy label + priority, e.g. `blocker/P0`)
@@ -109,4 +126,5 @@ After completing your specialist review and self-critique (if applicable), send 
    - Self-critique status (L1/L2 only): "confirmed" / "modified" / "withdrawn" with brief note
 2. **Overall assessment** — "ready" or "needs revision". Ready = clear enough and complete enough to proceed without significant risk of rework.
 
-After sending, wait for cross-review messages or shutdown from the lead. Do not exit on your own.
+After Phase 1 in a one-shot harness, exit normally. In a persistent team harness,
+remain available for Phase 2 until the lead shuts the team down.

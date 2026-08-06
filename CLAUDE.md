@@ -4,7 +4,28 @@ This repository packages agent workflow plugins for Claude Code and Codex. Keep 
 
 ## Plugin Resource Paths
 
-Shared protocols and references should be located relative to the installed `djenriquez-core` plugin root. Do not hard-code a single user cache path such as `~/.claude/plugins` or `~/.codex/plugins` as the only lookup method.
+Shared protocols and references are resolved from the installed `djenriquez-core`
+**plugin root**: the directory that contains `.claude-plugin/`, `skills/`,
+`references/`, and `protocols/` as siblings.
+
+- Paths written as `references/...` or `protocols/...` mean
+  `<plugin-root>/references/...` and `<plugin-root>/protocols/...`.
+- Never resolve those paths relative to the calling skill's directory
+  (for example `skills/write-spec/references/spec-style.md` is wrong;
+  use `<plugin-root>/references/spec-style.md`).
+- A few skills keep skill-local files under `skills/<name>/references/`;
+  those paths are called out explicitly in that skill. Unqualified
+  `references/` still means the plugin root.
+- Do not hard-code a single user cache path such as `~/.claude/plugins` or
+  `~/.codex/plugins` as the only lookup method.
+
+## Task And Plan Systems
+
+Implementation queues and workflow checklists should use the **harness-native**
+task/plan offering (Claude Code Task tools, Cursor `TodoWrite`, Codex
+`update_plan`). Do not bias workflows toward external planners such as bits
+unless the user explicitly requests them. Details live in
+`references/harness-adapters.md`.
 
 ## Prompt Architecture
 
@@ -22,7 +43,7 @@ Default-path djenriquez-core workflows should prefer local djenriquez-core skill
 Three writing layers, loaded by need (do not dump all into every session):
 
 1. **Reporting tone** (`references/reporting-style.md`) — thin rules for reported work: meaning first, outcome first, fewer ideas (not compressed fragments), claim only verified results.
-2. **Humanizer** (`skills/humanizer` + `references/humanizer-patterns.md`) — required cleanup pass before publish/present for `pr-publish`, `publish-review`, `pr-digest`, `write-spec` narrative, and `handle-pr-feedback` replies. Prefer local over `abatilo-core:humanizer`.
+2. **Humanizer** (`skills/humanizer` + `references/humanizer-patterns.md`) — required cleanup pass before publish/present for `pr-publish`, `publish-review`, `pr-digest`, `write-spec` narrative, and `handle-pr-feedback` replies. Callers apply it **inline by default**; `/humanizer` is optional when nested skill invocation works. Prefer local over `abatilo-core:humanizer`.
 3. **Technical writing** (`skills/technical-writing`) — opt-in craft for runbooks, how-tos, READMEs, and reference pages a reader follows. Not required for ordinary PR summaries.
 
 Do not add numeric sentence word caps or long always-on style checklists; models clip meaning to satisfy them. Collision rules live in the humanizer skill.
