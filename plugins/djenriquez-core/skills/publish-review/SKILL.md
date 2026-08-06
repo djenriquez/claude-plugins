@@ -1,7 +1,7 @@
 ---
 name: publish-review
-description: "Publish existing code-review findings as one GitHub PR review with inline comments. Use when the user says /publish-review, publish the review, leave these as PR comments, post this review on the PR, drop these in as inline comments, or comment on the PR with these findings. Not for generating review findings, replying to existing threads, handling feedback, or one-off conversational comments."
-version: "0.1.0"
+description: "Publish existing code-review findings as one GitHub PR review with inline comments (required humanizer pass in review-comment mode). Use when the user says /publish-review, publish the review, leave these as PR comments, post this review on the PR, drop these in as inline comments, or comment on the PR with these findings. Not for generating review findings, replying to existing threads, handling feedback, or one-off conversational comments."
+version: "0.1.6"
 license: MIT
 compatibility: "Portable Agent Skills format. Requires a POSIX shell, authenticated GitHub CLI, network access to GitHub, and read/write filesystem access for a temporary JSON payload."
 dependencies:
@@ -13,22 +13,48 @@ allowed-tools: Bash(gh:*) Bash(git:*) Bash(command:*) Bash(rm:*) Bash(cat:*) Bas
 
 # Publish Review
 
-Publish already-written review findings as inline comments on a GitHub pull request. This skill does not perform code review. It only resolves the target PR, validates anchors, rewrites the wording into review-ready human voice, previews the review, and submits one grouped GitHub review.
+Publish already-written review findings as one GitHub PR review. This skill
+does not perform code review. It resolves the PR, validates anchors, drafts
+wording, runs a required humanizer pass, and posts. Invoking the skill is
+consent to publish — do not wait for a second confirmation.
 
-The default outcome is one `COMMENT` review so the author gets one notification. Use `REQUEST_CHANGES` only when at least one finding is `critical` or `high` and the caller explicitly opted into a blocking review.
+Default event is `COMMENT`. Use `REQUEST_CHANGES` only when a finding is
+`critical` or `high` and the caller opted into a blocking review.
 
 ## Inputs
 
-Collect these before publishing:
+- **PR reference**: `#N`, `N`, or a GitHub PR URL. If absent, use the current
+  branch's open PR via `gh pr view --json number,baseRepository`. Otherwise
+  prompt.
+- **Findings list**: `path`, `line`, `body`, `severity`
+  (`critical`|`high`|`medium`|`low`|`nit`). Optional `start_line` for ranges.
+- **Optional blocking review**: `--request-changes` / `blocking: true`.
+- **Optional closed-PR opt-in**: `--include-closed` / `allow_closed: true`
+  required before posting on a closed or merged PR.
 
-- **PR reference**: `#N`, `N`, or a GitHub PR URL. Extract `owner`, `repo`, and PR number. If absent and the current directory is a clone with an open PR for the current branch, default from `gh pr view --json number,baseRepository`. Otherwise prompt.
-- **Findings list**: each finding has `path`, `line`, `body`, and `severity`. Severity must be one of `critical`, `high`, `medium`, `low`, or `nit`. Accept `start_line` when the caller provides a range.
-- **Optional preamble**: a one-sentence top-level review body. Default to `A few thoughts on this.`
-- **Optional auto-confirm**: a caller-supplied `--auto`, `confirm: true`, or equivalent host flag may skip preview confirmation. Default is preview and explicit confirmation.
-- **Optional blocking review**: a caller-supplied `--request-changes`, `blocking: true`, or equivalent host flag may set `event` to `REQUEST_CHANGES` when any finding is `critical` or `high`.
-- **Optional closed-PR opt-in**: a caller-supplied `--include-closed`, `allow_closed: true`, or equivalent host flag is required before posting on a closed or merged PR.
+Stop if the findings list is empty.
 
-If the findings list is empty, stop. Do not post an empty review.
+## Comment contracts
+
+**Main review `body` (required):** short qualitative skim — how close to
+approve, how much work remains, which themes matter. Details stay inline. No
+finding dump, no filler preamble, no `**Severity:**` wrapper.
+
+**Each inline comment:**
+
+```text
+**<Severity>: <short label>**
+
+<body>
+```
+
+`Severity` is `Critical`|`High`|`Medium`|`Low`|`Nit` matching the finding.
+Bold only — never `#` headers. Backtick code/logic refs in the body.
+
+**Voice:** apply `djenriquez-core:humanizer` in `review-comment` mode to the
+main body and every inline body before posting (inline Process by default;
+nested `/humanizer` optional). Do not post raw drafts. Preserve claims and
+severity; do not add findings or invent evidence.
 
 ## Preflight
 
@@ -127,72 +153,8 @@ Choose one: drop this finding, attach to 79, or convert it to the top-level revi
 
 Only move a comment to the nearest line after explicit user confirmation. If converted to the top-level body, append a short unanchored note such as `path/to/file.go:84: <rewritten body>`.
 
-## Voice Pass (required humanizer)
-
-Rewrite each finding body before previewing or posting. Preserve the technical claim, severity, path, and line. Do not add new findings.
-
-**Required:** apply `djenriquez-core:humanizer` in `review-comment` mode to every finding body and the optional preamble.
-
-- Default: read the humanizer skill and plugin-root references, then apply the Process **inline**. Do not skip if nested `/humanizer` is unavailable.
-- Optional: Claude Code `/humanizer review-comment` only when nested skill invocation is known to work.
-- Preserve the technical claim's force (do not soften a correctness bug into a vague suggestion). Do not invent evidence.
-
-The target voice is a senior engineer typing directly into GitHub: specific, brief, and calm. The comment should read like it was written for a teammate who already has the diff open.
-
-Rules (also encoded in the humanizer `review-comment` mode — apply all of them):
-
-- Use short sentences. Most comments should be 2-4 sentences.
-- Point at the mechanism, not the author. Say `This shifts the retained window on every eviction`, not `your code shifts...`.
-- Explain why the issue matters in concrete runtime, API, correctness, maintainability, or operator terms.
-- For design tradeoffs, acknowledge the tradeoff and end with a real question. Good shape: `Conscious tradeoff, or worth a second look?`
-- For nits, soften when appropriate with `Not worth doing speculatively` or `just flagging`.
-- Reference specific files, lines, docs, or PR numbers when relevant.
-- Strip severity labels like `Critical:`, `High:`, `Medium:`, `Low:`, and `Nit:` from the original body before adding the final nit prefix.
-- Prefix `low` and `nit` findings with exactly `Nit: ` after rewriting. Do not prefix `critical`, `high`, or `medium`.
-- Do not use markdown headers inside inline comments.
-- Avoid bullet lists unless the comment needs to name multiple concrete locations.
-- Avoid corporate openers like `I noticed`, `It would be a good idea to`, `Consider`, `Based on my analysis`, and `Just wanted to flag`.
-- Avoid closing pleasantries.
-- Avoid em dashes when commas, parentheses, or a separate sentence work.
-- Do not restate obvious file facts. Assume the reader has the code open.
-- Do not pad criticism with generic praise.
-- Avoid using `PR`, `this PR`, or `your change` as the subject when a file, function, behavior, or line can be the subject.
-- Strip AI jargon and significance inflation (`leverages`, `ensures`, `robust`, `comprehensive`, `it is important to note`).
-
-Rewrite these anti-patterns:
-
-- `This PR introduces X` -> `X`
-- `It might be worth considering X` -> `Worth a flag?` or `Worth a second look?`
-- `I think we should X` -> state the position directly.
-- `The code does X. This is because Y.` -> `X, because Y.`
-- Numbered or bulleted recommendations in one inline comment -> collapse to prose unless the list identifies multiple concrete locations.
-- Severity labels inside the body -> strip them.
-
-Good substantive shape:
-
-```text
-This keeps the old cache entry alive after the key rotates, so a failed refresh can still serve data for the previous tenant. The fast path is simpler this way, but it also means an auth miss can become a cross-tenant read. Was that fallback intentional, or should the stale entry be scoped to the same tenant before reuse?
-```
-
-Good nit shape:
-
-```text
-Nit: the timeout is hardcoded here while the outer retry budget is configurable. Not worth doing speculatively, but a flag would let operators tune this if production latency moves.
-```
-
-If the rewritten text does not read like a human GitHub review comment, rewrite it again before previewing.
-
-## Preview And Confirm
-
-Before posting, show the user:
-
-- PR URL and resolved `owner/repo#number`
-- Review event: `COMMENT` or `REQUEST_CHANGES`
-- Top-level body
-- Each inline comment as `path:line severity`, followed by the rewritten body
-- Any unanchored notes that will be appended to the top-level body
-
-Publishing review comments is socially visible and notifies the author. Wait for an explicit confirmation such as `yes`, `post`, or `publish` unless the caller passed an auto-confirm flag.
+Draft the main body and inline comments per **Comment contracts**, then run the
+humanizer pass before building the payload.
 
 ## Build The Payload
 
@@ -204,7 +166,7 @@ Default single-line comment shape:
 {
   "commit_id": "<sha>",
   "event": "COMMENT",
-  "body": "<preamble>",
+  "body": "<main review body summary>",
   "comments": [
     { "path": "path/to/file.go", "line": 42, "body": "..." }
   ]
@@ -255,9 +217,10 @@ Do not loop on 422.
 ## Boundaries
 
 - Do not generate findings.
-- Do not publish non-actionable Observations from `code-review` as inline findings unless the user explicitly promotes one after supplying actionable evidence and severity.
-- Do not edit code.
-- Do not resolve threads.
-- Do not reply to existing review threads.
+- Do not publish non-actionable Observations from `code-review` as inline
+  findings unless the user explicitly promotes one with evidence and severity.
+- Do not skip humanizer or post without the main review body.
+- Do not edit code, resolve threads, or reply to existing threads.
 - Do not submit an empty review.
-- Do not bypass preview confirmation unless the caller explicitly requested auto-confirm.
+- Do not wait for a second publish confirmation. Still pause for invalid
+  anchors and closed/merged PR opt-in.

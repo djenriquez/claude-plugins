@@ -18,212 +18,54 @@ allowed-tools:
 
 # Handle PR Feedback
 
-Process every unresolved review thread, but optimize for minimum total
-correctness risk and implementation complexity, not comment closure. Treat a
-review comment as a claim or design request to evaluate, not implied
+Process every unresolved review thread. Optimize for minimum correctness risk
+and complexity, not comment closure. A comment is a claim to evaluate, not
 authorization to change code.
 
-Every thread must receive a reasoned disposition. Leave threads that need a user
-decision unresolved.
+Target: `$ARGUMENTS`. Load from plugin root:
 
-Target PR: `$ARGUMENTS`.
+- `references/github-pr-workflow.md` — parse, checkout, safety, local diff
+- `protocols/feedback-disposition.md` — before triage or mutation
+- `protocols/code-review-protocol.md` — when validating defect claims
+- `references/feedback-disposition-fixtures.md` — when disposition is ambiguous
 
-Load these resources from the installed `djenriquez-core` plugin root:
+## Invariants
 
-- `references/github-pr-workflow.md` for PR parsing, checkout, branch safety, and
-  local diff rules
-- `protocols/code-review-protocol.md` when validating defect claims
-- `protocols/feedback-disposition.md` before triage or mutation
-- `references/feedback-disposition-fixtures.md` when a disposition is ambiguous
+- Cluster by root cause/seam; map every original thread.
+- Rank remedies: remove/simplify → owning seam → local patch.
+- `NEEDS DECISION` pauses that cluster and any sharing seam/remedy/files.
+  Independent `FIX NOW` / conclusive `NO CHANGE` on other seams may continue.
+- Resolve only verified `FIX NOW` and conclusive `NO CHANGE`. Leave decision-
+  gated threads unresolved.
+- Never force-push, never claim a fix before it is on the branch, never modify
+  unrelated files or absorb pre-existing dirty worktree changes.
+- Humanizer `pr-reply` on every reply before posting.
 
-## Set Up The PR
+## Flow
 
-1. Resolve the target with `references/github-pr-workflow.md`. If no argument is
-   provided, try the current branch's PR before asking the user.
-2. Confirm that the PR is open, check out its head branch, pull, and fetch the
-   base branch.
-3. Stop if tracked files are already modified or the branch has diverged.
-4. Record:
+1. **Setup** — Resolve/checkout open PR; stop if dirty or diverged. Record
+   `feedback_start_sha` and `pr_base_sha`. Read description, linked context, and
+   `origin/<base>...HEAD`.
+2. **Fetch** — Unresolved `reviewThreads` via GitHub GraphQL (thread id, first
+   comment `databaseId`, body, path, line, hunk, author). Stop if none.
+3. **Triage** — Disposition each cluster (`FIX NOW` / `NO CHANGE` /
+   `NEEDS DECISION`). Show one line per independent disposition; full decision
+   packet for gated clusters. Pause gated seams.
+4. **Fix** — Independent `FIX NOW` only, ranked remedies. Tests only for
+   load-bearing invariants at stable seams.
+5. **Verify** — Focused checks for fixed invariants, then broader suite by
+   risk. Inspect `git diff --numstat` from `feedback_start_sha` and
+   `pr_base_sha`. Soft size → ask before commit; gated mechanism growth →
+   reclassify `NEEDS DECISION` before commit/push.
+6. **Commit/push** — One conventional commit of explicit paths when code
+   changed; rebase-pull only when safe; normal push. No empty commit for
+   all-`NO CHANGE`.
+7. **Reply/resolve** — Humanized one-to-two sentence replies on the first
+   comment. Resolve after verified fix or conclusive no-change. Do not
+   reply/resolve gated threads until the user decides.
 
-```sh
-feedback_start_sha=$(git rev-parse HEAD)
-pr_base_sha=$(git merge-base "origin/$baseRefName" HEAD)
-```
+## Report
 
-5. Read the PR description, linked issue, changed-file inventory, relevant
-   specifications or architecture decisions, and tests that define changed
-   behavior. Review the local diff from `origin/<baseRefName>...HEAD`.
-
-## Fetch Unresolved Threads
-
-Resolve `owner` and `repo` from `gh repo view --json nameWithOwner`. Fetch review
-threads with their resolution state:
-
-```sh
-gh api graphql -f query='
-  query($owner: String!, $repo: String!, $pr: Int!) {
-    repository(owner: $owner, name: $repo) {
-      pullRequest(number: $pr) {
-        reviewThreads(first: 100) {
-          nodes {
-            id
-            isResolved
-            comments(first: 50) {
-              nodes {
-                id
-                databaseId
-                body
-                author { login }
-                path
-                line
-                originalLine
-                diffHunk
-                createdAt
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-' -f owner='<owner>' -f repo='<repo>' -F pr=<N>
-```
-
-Keep only threads where `isResolved` is `false`. For each thread, retain the
-thread GraphQL ID, the first comment's database ID, the full discussion, path,
-line, diff hunk, and author.
-
-If no unresolved threads remain, report that result and stop.
-
-## Cluster And Triage
-
-Group threads by root cause and affected seam before deciding actions. Do not
-process comments as independent code requests. Keep a mapping from every
-original thread to its cluster.
-
-For each cluster, apply `protocols/feedback-disposition.md` and record:
-
-- evidence and invariant source
-- impact and normalized severity
-- owning seam
-- ranked remedy (`remove/simplify`, then seam, then local)
-- mechanisms added, widened, or removed
-- `FIX NOW`, `NO CHANGE`, or `NEEDS DECISION`
-
-Show one line for each `FIX NOW` and `NO CHANGE` cluster, including the remedy
-rank. For `NEEDS DECISION`, show the full evidence, options, mechanism impact,
-and recommendation.
-
-If any cluster is `NEEDS DECISION`, present its decision packet and pause
-mutation, reply, and resolve for that cluster and any cluster that shares its
-owning seam, remedy, or files. Do not land more patches on a gated seam.
-Continue with independent `FIX NOW` and conclusive `NO CHANGE` clusters on other
-seams. Do not treat the round as complete until the user reclassifies every
-gated cluster.
-
-## Implement Ranked Fixes
-
-Implement independent `FIX NOW` clusters by root cause. Rank remedies with
-`protocols/feedback-disposition.md`: remove/simplify first, then fix at the
-owning seam, then local patch only with a recorded why. Skip clusters paused
-for a shared gated seam or remedy.
-
-Add a test only when it asserts the affected load-bearing invariant at a stable
-seam. Do not mirror incidental branches.
-
-Record the files changed for each cluster and preserve the mapping to each
-original thread.
-
-## Verify And Recheck Complexity
-
-Run focused verification for every fixed invariant, then run the broader
-available suite in proportion to the risk. If no suite exists, record that fact.
-Fix failures introduced by this work before continuing. Report pre-existing
-failures with evidence.
-
-Before committing, inspect both ranges:
-
-```sh
-git diff --numstat "$feedback_start_sha"
-git diff --numstat "$pr_base_sha"
-```
-
-Follow `protocols/feedback-disposition.md` to report per-round and total PR
-growth by category, plus mechanisms added, widened, and removed. If the actual
-diff adds or widens a gated mechanism, stop before commit or push for that
-cluster and reclassify it as `NEEDS DECISION`. If it is only large by the soft
-size signal, report the growth and ask before commit. If mechanisms were added,
-record the ranked-remedy justification or stop before calling the round clean.
-
-## Commit And Push
-
-If code changed:
-
-1. Inspect `git status` and the complete diff.
-2. Stage only the explicit files changed by this workflow.
-3. Create one conventional commit that summarizes the addressed root causes.
-4. Pull with rebase only when the branch remains safe and clean.
-5. Push normally. Never force-push.
-
-If every cluster is `NO CHANGE`, do not create an empty commit.
-
-## Reply And Resolve
-
-Reply to the first comment in every processed thread. Apply
-`djenriquez-core:humanizer` in `pr-reply` mode to each reply before posting it.
-Keep replies to one or two factual sentences and explain how the cluster
-disposition resolves that specific thread.
-
-Reply to the first comment with:
-
-```sh
-gh api repos/<owner>/<repo>/pulls/<N>/comments -X POST \
-  -f body='<reply>' \
-  -F in_reply_to=<comment_database_id>
-```
-
-Use these outcomes:
-
-- `FIX NOW`: Reply only after the verified commit is on the branch, then resolve
-  the thread.
-- `NO CHANGE`: Reply with the conclusive evidence or scope reason, then resolve
-  the thread. Independent `NO CHANGE` clusters may proceed even when another
-  cluster is `NEEDS DECISION`.
-- `NEEDS DECISION`: Do not reply or resolve the gated threads until the user
-  decides. Leave them open while finishing independent clusters.
-
-Resolve an eligible thread with its GraphQL ID:
-
-```sh
-gh api graphql -f query='
-  mutation($threadId: ID!) {
-    resolveReviewThread(input: { threadId: $threadId }) {
-      thread { isResolved }
-    }
-  }
-' -f threadId='<thread_graphql_id>'
-```
-
-## Report The Result
-
-Report:
-
-- PR number, branch, and base
-- cluster and thread counts for each disposition
-- every thread-to-cluster mapping
-- verification commands and results
-- per-round and total PR change growth
-- mechanisms added, widened, and removed
-- commit and push status, when code changed
-- any unresolved `NEEDS DECISION` threads
-
-The terminal objective is a reasoned disposition for every thread, not zero
-unresolved threads.
-
-## Safety
-
-- Never force-push.
-- Never make an uncertain change merely because a reviewer requested it.
-- Never claim a fix before the verified change is on the branch.
-- Never resolve a thread that still needs a user decision.
-- Never modify unrelated files or silently absorb pre-existing worktree changes.
+PR identity; counts and thread→cluster map by disposition; verification;
+growth/mechanisms; commit/push; remaining `NEEDS DECISION`. Goal is a reasoned
+disposition for every thread, not zero open threads.

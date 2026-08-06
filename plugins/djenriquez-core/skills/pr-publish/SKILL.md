@@ -21,42 +21,31 @@ Load `references/github-pr-workflow.md` before making branch or PR decisions. Lo
 
 The PR body is for humans. If a busy reviewer cannot understand the change from the Summary alone, the body is not done.
 
-## Core Rules
+## Invariants
 
-- Do not publish with modified or staged tracked files; ask what belongs in the PR.
-- Never force-push.
-- If the local and remote branch diverged, stop and ask.
-- Do not auto-commit tracked changes.
-- If the current branch is the default branch and the only changes are untracked files, you may create a feature branch, stage those explicit new paths, and commit them with an inferred conventional commit message.
-- Describe the merged end state **relative to the base branch**, never the path taken to build it. Re-read each sentence as a reviewer who has only seen the base branch and the diff, and cut anything that presupposes the branch's commit history (see `references/pr-description-style.md`).
-- **Required humanizer pass** on the title and body before printing or publishing (see Workflow step 6). Do not ship AI jargon, significance inflation, or implementation-symbol dumps in the Summary.
-- Print the final title and body before publishing so the transcript records what was sent.
+- Stop on dirty tracked files or diverged local/remote; never force-push; do not
+  auto-commit tracked changes.
+- On default branch with only untracked files, you may create a feature branch
+  and commit those explicit paths.
+- Describe the merged end state relative to the base branch — never the journey
+  through intermediate commits.
+- Required `pr-body` humanizer on title and body before print/publish (inline
+  Process by default). Summary must skim in plain language without internal
+  type/function names. Do not invent test results.
+- Print final title and body before publishing.
 
 ## Workflow
 
-1. Discover state in parallel:
-   - `git status --short --branch`
-   - current branch and default branch
-   - commits and diff from the merge base
-   - current branch PR via `gh pr view --json number,body,title,state,baseRefName,headRefName,url`
-2. Stop for the safety cases in `references/github-pr-workflow.md`.
-3. Gather only framing context that materially changes the PR body:
-   - linked issue or incident references from commits, branch name, PR body, or `$ARGUMENTS`
-   - reproduction, logs, dashboards, or validation evidence for bug fixes
-   - affected users, services, or operators when not obvious from the diff
-4. Draft a conventional-commit title under 70 characters.
-5. Draft the body using `references/pr-description-style.md` and `references/reporting-style.md`, then re-read each sentence against the base-branch frame and rewrite any journey-relative phrasing. Use whole sentences, not arrow-chain shorthand. Do not invent test results.
-6. **Humanizer pass (required):** apply `djenriquez-core:humanizer` in `pr-body` mode to the title and body (loads reporting-style + humanizer-patterns).
-   - Default: read the humanizer skill and plugin-root references, then apply the Process **inline**. Do not skip if nested `/humanizer` is unavailable.
-   - Optional: Claude Code `/humanizer pr-body` only when nested skill invocation is known to work.
-   - Preserve structure, technical claims, and normative force. Prefer fewer ideas over telegraphic fragments. Summary must read in plain language without internal type/function names.
-   - Re-run the base-branch frame check and reporting skim checks on the humanized text. Do not publish until this pass completes.
-   - For long follow-along procedure sections inside a PR (rare), optionally load `djenriquez-core:technical-writing`; do not load it for ordinary PR summaries.
-7. Push the branch normally if it is not already on origin.
-8. Create or update the PR:
-   - no existing PR: `gh pr create --title "<title>" --body "<body>"`
-   - existing open PR: update the body; update the title only if it is generated, non-conventional, or over 70 characters
-9. Print the PR URL.
+1. Discover: status, current/default branch, merge-base commits/diff, current PR.
+2. Stop for safety cases in `references/github-pr-workflow.md`.
+3. Gather only framing that changes the body (issues, evidence, affected users).
+4. Draft title (<70 chars) and body via `pr-description-style.md` +
+   `reporting-style.md`; rewrite journey-relative phrasing.
+5. Humanize (`pr-body`); re-check base-branch frame. Optional
+   `technical-writing` only for rare long procedure sections.
+6. Push if needed; create or update the PR (`gh pr create` / edit body; retitle
+   only if generated, non-conventional, or over 70 chars).
+7. Print the PR URL.
 
 ## Output
 
