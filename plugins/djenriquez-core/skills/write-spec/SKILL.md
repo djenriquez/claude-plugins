@@ -44,8 +44,11 @@ the repo file wins for content written into that repository.
 3. **Draft per the style reference.** Narrative layer on top, implementation appendix at the bottom. Everything an implementer needs survives — demoted, not deleted.
 4. **Structural sanity pass.** Only if the spec introduces new packages or modules: load `<plugin-root>/references/structure-standards.md` (plus `<plugin-root>/references/structure-standards-go.md` when the target repo has a root `go.mod`) and validate the proposed shape. Make each new package's responsibility, exports, and separation legible in the Design section; redesign before presenting if a package fails a standard.
 5. **Completeness and readability pass.** First run the style reference's implementer test: diff the gathered context against the draft, and place every fact, constraint, and decision that shaped the design into the narrative or the appendix — the narrative budget is never met by dropping facts. Then run the reviewer test against the narrative layer alone. Fix what fails.
-6. **Humanizer pass (required on narrative only).** Default path: read `skills/humanizer/SKILL.md` plus `<plugin-root>/references/reporting-style.md` and `<plugin-root>/references/humanizer-patterns.md`, then apply the `spec-narrative` Process **inline** in this turn. Do not skip the pass because nested `/humanizer` or Skill-tool invocation is unavailable. Slash-command `/humanizer spec-narrative` is an optional Claude Code shortcut only when nested skill invocation is known to work. Prefer fewer ideas over growing length; meaning outranks plainness — do not drop constraints to sound simpler. Do not touch the implementation appendix. Prefer the local skill over any external humanizer. For long procedure-heavy design docs, optionally load `djenriquez-core:technical-writing` while drafting steps; it is not required for ordinary specs.
-7. **Present.** Show the user the full spec and ask what to adjust. Apply requested changes before declaring the spec done.
+6. **Humanizer (required, narrative only).** Apply `spec-narrative` inline
+   (local humanizer). Do not grow length or drop constraints; leave the
+   appendix untouched. Optional `technical-writing` only for procedure-heavy
+   design docs.
+7. **Present.** Show the full spec; apply requested adjustments before done.
 
 ## Rewrite mode
 
@@ -56,10 +59,6 @@ the repo file wins for content written into that repository.
 
 ## Harness notes
 
-- **Claude Code**: this skill may be invoked directly (`/write-spec`) or by orchestrators such as `issue-to-spec` and `full-dev-flow`.
-- **Codex / no nested Skill tool**: read this installed `SKILL.md` and
-  `<plugin-root>/references/spec-style.md` and follow them exactly. Apply the
-  humanizer pass inline (see step 6) — do not treat missing `/humanizer`
-  invocation as permission to skip it.
-- **Path reminder**: every unqualified `references/...` path in this skill and
-  in `spec-style.md` is under the plugin root, sibling to `skills/`.
+Invoke via host (`/write-spec` or orchestrators). Without nested Skill tools,
+read this `SKILL.md` and `references/spec-style.md` and apply humanizer inline.
+Unqualified `references/` means the plugin root, sibling to `skills/`.
