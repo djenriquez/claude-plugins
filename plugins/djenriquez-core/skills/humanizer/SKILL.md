@@ -57,7 +57,9 @@ Mode rules override when they conflict.
 
 - **`pr-body`** — Outcome-first Summary in plain language (no internal type/
   function names). Neutral; no journey language. Keep section structure from
-  `pr-description-style.md`. Do not invent tests/risks.
+  `pr-description-style.md`. Unwrap hard-wrapped prose into unbroken
+  paragraphs (Summary first); blank lines between paragraphs/sections stay;
+  lists and fences keep structure. Do not invent tests/risks.
 - **`review-comment`** — Teammate voice; preserve claims/severity; no new
   findings. Main body: qualitative skim only. Inline:
   `**<Severity>: <short label>**` then body; bold only. Lead with

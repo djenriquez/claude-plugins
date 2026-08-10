@@ -55,6 +55,10 @@ These show up constantly in agent-written engineering prose. Prefer the rewrite.
 protocol jargon into the first paragraph. Summary/Intent layers need plain
 language; symbols belong in Details / What changed / appendix.
 
+**Hard-wrapped prose trap:** mid-paragraph newlines from terminal-width wrapping
+in PR bodies (especially Summary). Join into one unbroken line per paragraph;
+keep blank lines between paragraphs. Lists and fenced code keep their newlines.
+
 **Before (PR summary):**
 > This PR introduces a comprehensive refactoring of the orchestration layer,
 > leveraging a robust middleware pipeline that streamlines request handling and

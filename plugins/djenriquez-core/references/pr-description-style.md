@@ -22,6 +22,8 @@ Write two short paragraphs:
 
 Good summaries are understandable to someone who has not opened the repository. The first sentence should state the problem or outcome in plain language — not agent shorthand like `Fixed: X → Y → green`. After drafting the full body, run the required `djenriquez-core:humanizer` pass in `pr-body` mode. The Summary is the main skim target: if it still sounds like AI marketing or implementation soup, rewrite it again.
 
+Write each Summary paragraph as a **single unbroken line**. Do not hard-wrap prose for terminal width — GitHub soft-wraps. Blank lines between paragraphs are fine; lists and fenced code keep their structure.
+
 ## What Changed
 
 Lead with the primary fix. If the PR includes secondary cleanup or hardening, separate it under a clear label such as `Related hardening`.
@@ -53,6 +55,7 @@ Every unchecked item must be runnable by a reviewer or operator. Avoid vague ent
 
 - Never force-push to publish a PR.
 - Never enumerate commits in the PR body.
+- Never hard-wrap prose paragraphs (especially Summary): one paragraph, one line.
 - Distinguish the primary fix from secondary hardening.
 - Cite evidence for bug fixes when evidence exists.
 - Write in post-merge present tense: `The runner now...`.

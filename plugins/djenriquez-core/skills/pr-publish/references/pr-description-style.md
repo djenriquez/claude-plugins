@@ -47,6 +47,9 @@ and `references/reporting-style.md`) must leave this section skimmable by a
 busy reviewer. First sentence: problem or outcome in whole sentences, not
 arrow-chain shorthand.
 
+Write each Summary paragraph as a single unbroken line. Do not hard-wrap prose
+for terminal width — GitHub soft-wraps. Blank lines between paragraphs are fine.
+
 ### What changed
 
 Group by logical concern, not by file. Each group is a coherent unit a reviewer
@@ -71,6 +74,14 @@ change is low-risk, say so in a sentence.
 
 The commands or steps that verify the change, as a checklist of what was
 actually run. Note coverage gaps factually, not as apology.
+
+## Formatting
+
+- **Prose paragraphs** (Summary and other narrative blocks): one paragraph per
+  unbroken line. No mid-sentence or mid-paragraph newlines.
+- **Blank lines** separate paragraphs and sections.
+- **Lists and fenced code** keep their normal newlines; this rule is about
+  prose, not structure.
 
 ## Tone
 

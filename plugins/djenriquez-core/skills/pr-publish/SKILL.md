@@ -32,6 +32,10 @@ The PR body is for humans. If a busy reviewer cannot understand the change from 
 - Required `pr-body` humanizer on title and body before print/publish (inline
   Process by default). Summary must skim in plain language without internal
   type/function names. Do not invent test results.
+- No hard-wrapped prose in the PR body: each prose paragraph (especially
+  Summary) is one unbroken line. Blank lines between paragraphs/sections are
+  fine; lists and fenced code keep structure. GitHub soft-wraps — do not insert
+  mid-paragraph newlines for terminal width.
 - Print final title and body before publishing.
 
 ## Workflow
@@ -40,9 +44,11 @@ The PR body is for humans. If a busy reviewer cannot understand the change from 
 2. Stop for safety cases in `references/github-pr-workflow.md`.
 3. Gather only framing that changes the body (issues, evidence, affected users).
 4. Draft title (<70 chars) and body via `pr-description-style.md` +
-   `reporting-style.md`; rewrite journey-relative phrasing.
-5. Humanize (`pr-body`); re-check base-branch frame. Optional
-   `technical-writing` only for rare long procedure sections.
+   `reporting-style.md`; rewrite journey-relative phrasing; join hard-wrapped
+   prose into unbroken paragraphs.
+5. Humanize (`pr-body`); unwrap any remaining hard wraps in prose; re-check
+   base-branch frame. Optional `technical-writing` only for rare long procedure
+   sections.
 6. Push if needed; create or update the PR (`gh pr create` / edit body; retitle
    only if generated, non-conventional, or over 70 chars).
 7. Print the PR URL.
