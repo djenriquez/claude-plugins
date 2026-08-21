@@ -1,7 +1,7 @@
 {
   "name": "djenriquez-core",
-  "version": "0.16.0",
-  "description": "Agent workflow plugin collection by @djenriquez: full spec-to-PR dev flow, planning interviews, human-first spec writing, humanizer for human-facing output, lean code review, spec review, issue-to-spec, PR feedback handling, reliable self-review loops, PR digest, PR publication, and advisory Go code-health standards",
+  "version": "0.17.0",
+  "description": "Agent workflow plugin collection by @djenriquez: full spec-to-PR dev flow, planning interviews, human-first spec writing, humanizer for human-facing output, lean code review, spec review, issue-to-spec, PR feedback handling, reliable self-review loops, PR digest, PR publication, reviewer PR figures, and advisory Go code-health standards",
   "author": {
     "name": "djenriquez",
     "url": "https://github.com/djenriquez"
@@ -23,8 +23,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "djenriquez Core",
-    "shortDescription": "Full dev flow, planning interviews, humanizer, lean code review, spec review, PR feedback, PR digest, publishing, and self-review workflows.",
-    "longDescription": "A collection of agent workflow skills for the full spec-to-PR development flow, planning interviews, human-first specs, humanizer passes on human-facing text, lean staged code review, spec review, issue-to-spec drafting, PR feedback handling, self-review loops, PR digestion, and PR publication. Self-review keeps per-turn commits local, squashes before pushing once, prefers the local lean code-review path, and uses external debate only for high-risk escalation.",
+    "shortDescription": "Full dev flow, planning interviews, humanizer, lean code review, spec review, PR feedback, PR digest, publishing, reviewer figures, and self-review workflows.",
+    "longDescription": "A collection of agent workflow skills for the full spec-to-PR development flow, planning interviews, human-first specs, humanizer passes on human-facing text, lean staged code review, spec review, issue-to-spec drafting, PR feedback handling, self-review loops, PR digestion, PR publication, and reviewer PR figures. Self-review keeps per-turn commits local, squashes before pushing once, prefers the local lean code-review path, and uses external debate only for high-risk escalation.",
     "developerName": "djenriquez",
     "category": "Productivity",
     "capabilities": [
@@ -38,6 +38,7 @@
       "Review this code change",
       "Review this spec",
       "Digest this pull request",
+      "Add a reviewer figure to this PR",
       "Publish this branch as a PR"
     ],
     "brandColor": "#2563EB"

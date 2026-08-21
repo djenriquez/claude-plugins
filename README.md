@@ -88,6 +88,7 @@ optional.
 | Caller | Mode |
 |--------|------|
 | `/pr-publish` | `pr-body` |
+| `/pr-figure` | `pr-reply` (comment body) |
 | `/publish-review` | `review-comment` |
 | `/pr-digest` | `digest` |
 | `/write-spec` | `spec-narrative` (narrative only) |
@@ -181,10 +182,26 @@ for concrete correctness/security/data-loss/contract/verify failures). Cap three
 fix-mutation turns; same-seam second hit → decision; one squashed push; never
 force-push. Prefers local `/code-review`; direct fallback keeps L0/L1/L2.
 
+### /pr-figure
+
+One reviewer diagram of a PR's merged end state. Hosts as a GitHub
+user-attachment (no commit) and posts a comment, returns body markdown, or
+prints the URL. Works from any checkout when given a PR URL.
+
+```
+/pr-figure
+/pr-figure https://github.com/djenriquez/claude-plugins/pull/33
+/pr-figure #42 comment
+```
+
+Drawing rules live in `references/pr-figure.md`. Used by `/pr-publish`
+(placement `body`). Standalone default is a PR comment. Skip only when there
+is nothing to draw, no generator, or a picture that would mislead.
+
 ### /pr-publish
 
 Publish or refresh the branch PR. Draft via `pr-description-style.md`, required
-`pr-body` humanizer, required reviewer figure after Summary, push safely, never
+`pr-body` humanizer, required `/pr-figure` after Summary, push safely, never
 force-push. Base-branch frame: describe the merged end state, not the commit
 journey. Prose paragraphs (especially Summary) stay as unbroken lines — no hard
 wraps for terminal width. The figure is an LLM diagram of the end-state change
