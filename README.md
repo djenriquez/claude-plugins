@@ -184,9 +184,11 @@ force-push. Prefers local `/code-review`; direct fallback keeps L0/L1/L2.
 ### /pr-publish
 
 Publish or refresh the branch PR. Draft via `pr-description-style.md`, required
-`pr-body` humanizer, push safely, never force-push. Base-branch frame: describe
-the merged end state, not the commit journey. Prose paragraphs (especially
-Summary) stay as unbroken lines — no hard wraps for terminal width.
+`pr-body` humanizer, required reviewer figure after Summary, push safely, never
+force-push. Base-branch frame: describe the merged end state, not the commit
+journey. Prose paragraphs (especially Summary) stay as unbroken lines — no hard
+wraps for terminal width. The figure is an LLM diagram of the end-state change
+(not Mermaid); skip only when there is nothing to draw or no generator.
 
 ### /publish-review
 

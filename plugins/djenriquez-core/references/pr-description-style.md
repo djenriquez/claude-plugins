@@ -7,9 +7,10 @@ Load this when drafting or revising a non-trivial pull request body. The `pr-pub
 Use this order:
 
 1. `## Summary`
-2. `## What changed`
-3. `## Details`
-4. `## Test plan`
+2. Reviewer figure (`![title](url)` — not a heading; see `references/pr-figure.md`)
+3. `## What changed`
+4. `## Details`
+5. `## Test plan`
 
 Keep the top skimmable and the lower sections useful for reviewers.
 
@@ -23,6 +24,8 @@ Write two short paragraphs:
 Good summaries are understandable to someone who has not opened the repository. The first sentence should state the problem or outcome in plain language — not agent shorthand like `Fixed: X → Y → green`. After drafting the full body, run the required `djenriquez-core:humanizer` pass in `pr-body` mode. The Summary is the main skim target: if it still sounds like AI marketing or implementation soup, rewrite it again.
 
 Write each Summary paragraph as a **single unbroken line**. Do not hard-wrap prose for terminal width — GitHub soft-wraps. Blank lines between paragraphs are fine; lists and fenced code keep their structure.
+
+After the Summary paragraphs, embed the reviewer figure when `pr-publish` produced one (`![title](url)`). See `references/pr-figure.md`. A reviewer who reads only Summary plus the figure should understand the change.
 
 ## What Changed
 
