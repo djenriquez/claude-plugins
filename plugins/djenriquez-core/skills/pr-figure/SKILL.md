@@ -6,7 +6,7 @@ description: >
   returns markdown for a PR body. Use when the user asks for a PR figure,
   reviewer diagram, image on a PR, a picture of the change, or when
   pr-publish needs the figure. Works from any checkout; pass a PR URL such as
-  https://github.com/djenriquez/claude-plugins/pull/N or coreweave/aviato#N.
+  https://github.com/djenriquez/claude-plugins/pull/34 or OWNER/REPO#N.
 argument-hint: "[PR URL|#N] [comment|body|url]"
 disable-model-invocation: false
 allowed-tools:

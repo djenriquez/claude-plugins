@@ -209,7 +209,7 @@ prints the URL. Works from any checkout when given a PR URL.
 
 ```
 /pr-figure
-/pr-figure https://github.com/djenriquez/claude-plugins/pull/33
+/pr-figure https://github.com/djenriquez/claude-plugins/pull/34
 /pr-figure #42 comment
 ```
 
