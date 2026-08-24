@@ -3,10 +3,11 @@ name: humanizer
 description: |
   Rewrite agent-drafted text so a human can skim it without AI jargon or bloated
   terminology. Use when editing PR descriptions, review comments, digests, specs,
-  or any other text people must read. Surgical: fix contaminated sections only;
-  preserve technical claims, structure, and real specificity. Pairs with
-  reporting-style for reported work and technical-writing for procedures.
-argument-hint: "[mode] — pr-body | review-comment | digest | spec-narrative | pr-reply | general"
+  decision ledgers, or any other text people must read. Surgical: fix
+  contaminated sections only; preserve technical claims, structure, and real
+  specificity. Pairs with reporting-style for reported work and
+  technical-writing for procedures.
+argument-hint: "[mode] — pr-body | review-comment | digest | spec-narrative | pr-reply | ledger | general"
 disable-model-invocation: false
 allowed-tools:
   - Read
@@ -24,7 +25,7 @@ Surgical AI-slop cleanup for engineering text. Prefer this local skill over
 
 Load from the `djenriquez-core` plugin root:
 
-- Reporting modes (`pr-body`, `digest`, `pr-reply`, `spec-narrative`):
+- Reporting modes (`pr-body`, `digest`, `pr-reply`, `spec-narrative`, `ledger`):
   `references/reporting-style.md` then `references/humanizer-patterns.md`
 - `review-comment`: patterns; light meaning/evidence; teammate voice wins
 - `general`: patterns; keep real human voice when present
@@ -38,6 +39,7 @@ Load from the `djenriquez-core` plugin root:
 | `pr-digest` | `digest` | before present |
 | `write-spec` | `spec-narrative` | narrative layer only |
 | `handle-pr-feedback` | `pr-reply` | each reply body |
+| `audit-decisions` | `ledger` | before present |
 
 Callers run the Process **inline** by default. Nested `/humanizer` is optional.
 Never ship the unhumanized draft when the caller requires the pass.
@@ -47,6 +49,7 @@ Never ship the unhumanized draft when the caller requires the pass.
 | Text | Wins |
 |------|------|
 | PR body / digest / reported summary | reporting-style + this mode; no blog voice |
+| Decision ledger | reporting-style + `ledger`; keep rank; no findings |
 | Review comment / short reply | this mode; contractions OK |
 | Procedure / reference | technical-writing structure; this skill only cleans slop |
 | Narrative / person-sounding | `general`; do not invent personality for eng docs |
@@ -71,6 +74,9 @@ Mode rules override when they conflict.
   constraints.
 - **`pr-reply`** — One or two factual sentences; claim fixes only when on the
   branch; no gratitude padding.
+- **`ledger`** — Keep ranked order and the where / what / would-have-asked
+  fields. Neutral; one name per thing. Do not invent confidence, add
+  findings, or turn the list into a digest narrative.
 - **`general`** — Full pattern catalog, surgical. Prefer a reporting mode for
   eng reported work.
 

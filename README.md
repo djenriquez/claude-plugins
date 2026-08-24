@@ -76,12 +76,12 @@ Surgical AI-slop cleanup for engineering text. Forked from
 ```
 
 Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`,
-`general`. Callers apply the Process inline by default; nested `/humanizer` is
-optional.
+`ledger`, `general`. Callers apply the Process inline by default; nested
+`/humanizer` is optional.
 
 | Layer | Resource | When |
 |-------|----------|------|
-| Reporting tone | `references/reporting-style.md` | PR bodies, digests, replies |
+| Reporting tone | `references/reporting-style.md` | PR bodies, digests, ledgers, replies |
 | AI cleanup | this skill + `references/humanizer-patterns.md` | Before publish/present |
 | Procedure craft | `/technical-writing` | Runbooks, how-tos, READMEs, references |
 
@@ -92,6 +92,7 @@ optional.
 | `/pr-digest` | `digest` |
 | `/write-spec` | `spec-narrative` (narrative only) |
 | `/handle-pr-feedback` | `pr-reply` |
+| `/audit-decisions` | `ledger` |
 
 ### /technical-writing
 
@@ -144,6 +145,24 @@ for high-risk escalation.
 
 Large diffs use file inventories and targeted local diffs, not full-diff paste
 into every sub-agent.
+
+### /audit-decisions
+
+Silent-decision ledger for agent-authored work. An independent read-only
+pass lists every choice the spec or request did not prescribe, in plain
+language, least-confident first. The human reads that list and pushes back.
+Not a code review, not a PR body, and it cannot change code or block merge.
+
+```
+/audit-decisions #42
+/audit-decisions staged
+/audit-decisions docs/specs/example.md
+```
+
+Same work-target shapes as `/code-review`. Request sources are the spec
+path, PR body, linked issue, or notes in the argument — not the
+implementer's private session. Required `ledger` humanizer. Standalone;
+not a `full-dev-flow` phase.
 
 ### /issue-to-spec
 
@@ -210,7 +229,10 @@ Spec-review architecture adapted from [@abatilo](https://github.com/abatilo)'s
 staged code-review model and lazy-loaded `protocols/` / `references/`.
 `/humanizer` is a fork of `abatilo-core:humanizer`. The reporting /
 technical-writing split follows the lesson that always-on STE was too heavy:
-thin reporting tone, craft on demand, humanizer for cleanup.
+thin reporting tone, craft on demand, humanizer for cleanup. The
+silent-decision review surface follows David Zhang's audit-choices framing
+([dzhng/skills](https://github.com/dzhng/skills)); `/audit-decisions` is
+written for this plugin, not ported.
 
 ## License
 
