@@ -261,6 +261,15 @@ Three skim checks for every reporting mode (not a long ritual checklist):
 - [ ] No gratitude padding
 - [ ] Fix claimed only when the change exists
 
+### ledger
+
+- [ ] Three skim checks on the identity block
+- [ ] Rank preserved (least-confident first)
+- [ ] Each entry keeps where / what / would-have-asked
+- [ ] No invented confidence or finer scores
+- [ ] No findings, verdicts, or approve advice
+- [ ] Silent decisions only; no defect language
+
 ---
 
 ## Voice note

@@ -1,11 +1,11 @@
 # PR Figure Reference
 
-Load this from `pr-publish` when drafting or refreshing a pull request body.
-The figure is for a busy reviewer: Summary plus picture should explain the
-change before they open the diff.
+Load this from `pr-figure` (standalone or via `pr-publish`) when producing a
+reviewer diagram. The figure is for a busy reviewer: Summary plus picture
+should explain the change before they open the diff.
 
-Worked example: [coreweave/aviato#1782](https://github.com/coreweave/aviato/pull/1782)
-(DNS-name HTTPS egress — declare, steer, SNI allowlist).
+Worked example: [djenriquez/claude-plugins#34](https://github.com/djenriquez/claude-plugins/pull/34)
+(standalone `/pr-figure` — comment, body, or URL; `--repo` upload; no commit).
 
 ## Why a picture
 
@@ -56,7 +56,7 @@ no isometric city, no screenshots of IDEs.
 
 What this is
 <5–10 sentences. End-state behavior. What is unchanged. Concrete names a
-reviewer will see. Cardinality (one fleet vs one-per-tenant).>
+reviewer will see. Cardinality (one figure per PR; one attachment).>
 
 Do not draw
 <Rejected designs, future work, and lookalikes the model will otherwise
@@ -67,8 +67,8 @@ Actors / boxes
 <Numbered. Nested bullets only for internals that affect the picture.>
 
 Control-plane arrows
-<Admission, persist, place, configure. Omit this band when there is no
-control plane in the change.>
+<Who invokes whom: publish → figure, figure → upload. Omit this band when
+there is no control flow in the change.>
 
 Data-plane arrows — two styles
 <Happy / granted path in one color. The other real path in a second color
@@ -88,7 +88,7 @@ Title the figure: <short title, also used as markdown alt text>
 Label discipline:
 
 - Few boxes. Short labels (one to three words). Quote verbatim any string that
-  must appear (`*.pypi.org`, `443`, `HPA min 1`).
+  must appear (`--repo`, `comment`, `body`).
 - Ask for large unobscured text. Do not pack paragraphs into the figure.
 - Component names belong here; function and type names do not.
 
@@ -115,33 +115,41 @@ successful upload unless the commit fallback below applies.
 
 ## Host the file (no surprise commit)
 
-The figure belongs in the **PR body**, not in the merge, unless the change
-already adds a doc/spec asset (then save it next to that doc, as #1782 did
-under `docs/specs/assets/`).
+The figure is hosted as a GitHub user-attachment, not in the merge, unless
+the change already adds a doc/spec asset (then save it next to that doc).
+`pr-publish` embeds it in the PR body; standalone `/pr-figure` posts a
+comment unless asked otherwise. #34 hosted the figure as an attachment and
+did not commit a PNG.
 
 Preferred: GitHub user-attachments, which do not require a git commit.
 
 From the `djenriquez-core` plugin root (the directory that contains
-`.claude-plugin/`, `skills/`, and `references/` as siblings):
+`.claude-plugin/`, `skills/`, and `references/` as siblings). Pass `--repo`
+when the current checkout is not the PR's repository:
 
 ```sh
-python3 skills/pr-publish/scripts/upload_github_asset.py "$FIGURE_PATH"
+python3 skills/pr-figure/scripts/upload_github_asset.py "$FIGURE_PATH" --repo OWNER/REPO
 ```
 
-The script prints the asset URL on stdout. Embed it after the Summary
-paragraphs, before `## What changed`:
+The script prints the asset URL on stdout. Delivery (`comment` / `body` /
+`url`) is owned by `skills/pr-figure/SKILL.md`. For a PR body, embed after
+the Summary paragraphs, before `## What changed`:
 
 ```markdown
 ![<figure title>](<url>)
 ```
 
-If the script is missing, run the same upload inline: `gh repo view` for
-`nameWithOwner`, `gh api repos/<owner>/<repo> --jq .id` for the numeric id,
+If the script is missing, run the same upload inline: `gh api repos/<owner>/<repo> --jq .html_url`
+for the host, `gh api repos/<owner>/<repo> --jq .id` for the numeric id,
 `gh auth token` for the bearer token, then `POST` the file bytes to
 `https://uploads.github.com/user-attachments/assets?name=<file>&content_type=<mime>&repository_id=<id>`
 with `Accept: application/json`. Read `url` from the JSON (fall back to
 `href` or `asset.href`). This endpoint is unofficial; if it fails, do not
 scrape `github.com` cookies to work around it.
+
+After upload, GET the URL without credentials. Private and internal repos
+must not serve the file anonymously. Public repos make posted figures
+public; if the user asked to keep the figure non-public, skip hosting.
 
 Skip upload and use the commit fallback only when:
 
