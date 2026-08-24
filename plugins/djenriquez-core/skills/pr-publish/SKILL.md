@@ -19,7 +19,7 @@ allowed-tools:
 
 Publish completed branch work as a PR, or refresh the current branch's existing PR. Treat `$ARGUMENTS` as extra drafting context such as linked issues, incident notes, or validation evidence.
 
-Load `references/github-pr-workflow.md` before making branch or PR decisions. Load `references/pr-description-style.md` when drafting the body. Load `references/reporting-style.md` for tone while drafting (outcome first, meaning before plainness, fewer ideas, claim only verified results). Load `references/pr-figure.md` when generating the reviewer figure.
+Load `references/github-pr-workflow.md` before making branch or PR decisions. Load `references/pr-description-style.md` when drafting the body. Load `references/reporting-style.md` for tone while drafting (outcome first, meaning before plainness, fewer ideas, claim only verified results). Invoke `pr-figure` with placement `body` for the reviewer figure (load `skills/pr-figure/SKILL.md` and `references/pr-figure.md`).
 
 The PR body is for humans. If a busy reviewer cannot understand the change from the Summary and figure, the body is not done.
 
@@ -34,8 +34,8 @@ The PR body is for humans. If a busy reviewer cannot understand the change from 
 - Required `pr-body` humanizer on title and body before print/publish (inline
   Process by default). Summary must skim in plain language without internal
   type/function names. Do not invent test results.
-- Required reviewer figure after Summary (`references/pr-figure.md`): one
-  LLM-generated diagram of the end-state change. Skip only per that reference
+- Required reviewer figure after Summary (`pr-figure`, placement `body`): one
+  LLM-generated diagram of the end-state change. Skip only per that skill
   (nothing to draw, no generator, or a picture that would mislead). Host via
   user-attachments; do not auto-commit a binary onto a code PR.
 - No hard-wrapped prose in the PR body: each prose paragraph (especially
@@ -56,8 +56,8 @@ The PR body is for humans. If a busy reviewer cannot understand the change from 
    base-branch frame. Optional `technical-writing` only for rare long procedure
    sections.
 6. Generate the reviewer figure from the humanized Summary plus the base-branch
-   diff (`references/pr-figure.md`). Embed `![title](url)` after Summary. Preserve
-   an existing figure on refresh when the outcome did not change.
+   diff (`pr-figure`, placement `body`). Embed `![title](url)` after Summary.
+   Preserve an existing figure on refresh when the outcome did not change.
 7. Push if needed; create or update the PR (`gh pr create` / edit body; retitle
    only if generated, non-conventional, or over 70 chars).
 8. Print the PR URL.

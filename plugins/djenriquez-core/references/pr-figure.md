@@ -1,8 +1,8 @@
 # PR Figure Reference
 
-Load this from `pr-publish` when drafting or refreshing a pull request body.
-The figure is for a busy reviewer: Summary plus picture should explain the
-change before they open the diff.
+Load this from `pr-figure` (standalone or via `pr-publish`) when producing a
+reviewer diagram. The figure is for a busy reviewer: Summary plus picture
+should explain the change before they open the diff.
 
 Worked example: [coreweave/aviato#1782](https://github.com/coreweave/aviato/pull/1782)
 (DNS-name HTTPS egress — declare, steer, SNI allowlist).
@@ -115,33 +115,40 @@ successful upload unless the commit fallback below applies.
 
 ## Host the file (no surprise commit)
 
-The figure belongs in the **PR body**, not in the merge, unless the change
-already adds a doc/spec asset (then save it next to that doc, as #1782 did
-under `docs/specs/assets/`).
+The figure is hosted as a GitHub user-attachment, not in the merge, unless
+the change already adds a doc/spec asset (then save it next to that doc, as
+#1782 did under `docs/specs/assets/`). `pr-publish` embeds it in the PR body;
+standalone `/pr-figure` posts a comment unless asked otherwise.
 
 Preferred: GitHub user-attachments, which do not require a git commit.
 
 From the `djenriquez-core` plugin root (the directory that contains
-`.claude-plugin/`, `skills/`, and `references/` as siblings):
+`.claude-plugin/`, `skills/`, and `references/` as siblings). Pass `--repo`
+when the current checkout is not the PR's repository:
 
 ```sh
-python3 skills/pr-publish/scripts/upload_github_asset.py "$FIGURE_PATH"
+python3 skills/pr-figure/scripts/upload_github_asset.py "$FIGURE_PATH" --repo OWNER/REPO
 ```
 
-The script prints the asset URL on stdout. Embed it after the Summary
-paragraphs, before `## What changed`:
+The script prints the asset URL on stdout. Delivery (`comment` / `body` /
+`url`) is owned by `skills/pr-figure/SKILL.md`. For a PR body, embed after
+the Summary paragraphs, before `## What changed`:
 
 ```markdown
 ![<figure title>](<url>)
 ```
 
-If the script is missing, run the same upload inline: `gh repo view` for
-`nameWithOwner`, `gh api repos/<owner>/<repo> --jq .id` for the numeric id,
+If the script is missing, run the same upload inline: `gh api repos/<owner>/<repo> --jq .html_url`
+for the host, `gh api repos/<owner>/<repo> --jq .id` for the numeric id,
 `gh auth token` for the bearer token, then `POST` the file bytes to
 `https://uploads.github.com/user-attachments/assets?name=<file>&content_type=<mime>&repository_id=<id>`
 with `Accept: application/json`. Read `url` from the JSON (fall back to
 `href` or `asset.href`). This endpoint is unofficial; if it fails, do not
 scrape `github.com` cookies to work around it.
+
+After upload, GET the URL without credentials. Private and internal repos
+must not serve the file anonymously. Public repos make posted figures
+public; if the user asked to keep the figure non-public, skip hosting.
 
 Skip upload and use the commit fallback only when:
 

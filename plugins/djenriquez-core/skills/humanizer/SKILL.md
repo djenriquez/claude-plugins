@@ -35,6 +35,7 @@ Load from the `djenriquez-core` plugin root:
 | Caller | Mode | When |
 |--------|------|------|
 | `pr-publish` | `pr-body` | before print/publish |
+| `pr-figure` | `pr-reply` | comment body when posting the figure |
 | `publish-review` | `review-comment` | before post (main + each inline) |
 | `pr-digest` | `digest` | before present |
 | `write-spec` | `spec-narrative` | narrative layer only |

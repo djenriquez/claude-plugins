@@ -7,7 +7,7 @@ Load this when drafting or revising a non-trivial pull request body. The `pr-pub
 Use this order:
 
 1. `## Summary`
-2. Reviewer figure (`![title](url)` — not a heading; see `references/pr-figure.md`)
+2. Reviewer figure (`![title](url)` — not a heading; produced by `pr-figure`)
 3. `## What changed`
 4. `## Details`
 5. `## Test plan`
@@ -25,7 +25,7 @@ Good summaries are understandable to someone who has not opened the repository. 
 
 Write each Summary paragraph as a **single unbroken line**. Do not hard-wrap prose for terminal width — GitHub soft-wraps. Blank lines between paragraphs are fine; lists and fenced code keep their structure.
 
-After the Summary paragraphs, embed the reviewer figure when `pr-publish` produced one (`![title](url)`). See `references/pr-figure.md`. A reviewer who reads only Summary plus the figure should understand the change.
+After the Summary paragraphs, embed the reviewer figure when `pr-figure` produced one (`![title](url)`). See `skills/pr-figure/SKILL.md` and `references/pr-figure.md`. A reviewer who reads only Summary plus the figure should understand the change.
 
 ## What Changed
 

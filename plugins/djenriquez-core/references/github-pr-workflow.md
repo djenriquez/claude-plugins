@@ -46,6 +46,11 @@ git diff origin/<baseRefName>...HEAD -- <path>
 
 Use `gh pr view` for PR metadata. Do not use `gh pr diff <N>` as the review target after local review commits have been created but not pushed.
 
+## Figure-only or comment-only
+
+When the workflow does not modify the PR branch, resolve `owner/repo` from the
+PR URL and use `gh --repo`. A local checkout of that branch is optional.
+
 ## Safety Rules
 
 - Never force-push from an automated workflow.
