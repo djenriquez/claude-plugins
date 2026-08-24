@@ -50,9 +50,10 @@ arrow-chain shorthand.
 Write each Summary paragraph as a single unbroken line. Do not hard-wrap prose
 for terminal width — GitHub soft-wraps. Blank lines between paragraphs are fine.
 
-After the Summary paragraphs, embed the reviewer figure when `pr-publish`
-produced one (`![title](url)`). See `references/pr-figure.md`. A reviewer who
-reads only Summary plus the figure should understand the change.
+After the Summary paragraphs, embed the reviewer figure when `pr-figure`
+produced one (`![title](url)`). See `skills/pr-figure/SKILL.md` and
+`references/pr-figure.md`. A reviewer who reads only Summary plus the figure
+should understand the change.
 
 ### What changed
 

@@ -62,6 +62,13 @@ Claude Code `SendMessage` / “wait for cross-review / do not exit” are **not*
 
 When a harness registers `*-reviewer` types, pass a tight prompt (paths, risk lane, section anchors) and let the registered agent definition supply specialist focus. Still instruct the agent to load `<plugin-root>/protocols/review-protocol.md` so protocol drift does not depend on the lead pasting it.
 
+Decision audit (`audit-decisions`) is one fresh read-only spawn, not a
+specialist team and not a same-session self-audit. Cursor has no registered
+`decision-auditor` type — use `explore` or `generalPurpose` and require the
+agent to load `<plugin-root>/protocols/decision-audit-protocol.md`. Codex:
+`fork_context: false`. If spawn is unavailable, the skill stops; do not
+author the ledger in the parent session.
+
 ## Prompt Construction
 
 Sub-agents only see what their prompt or accessible tools provide. Prefer this order:

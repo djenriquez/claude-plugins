@@ -1,8 +1,8 @@
 # Reporting Style
 
 Thin, always-relevant tone for text that reports finished work to someone who
-did not watch it happen: PR descriptions, digests, thread replies, turn
-summaries, and other user-facing results.
+did not watch it happen: PR descriptions, digests, decision ledgers, thread
+replies, turn summaries, and other user-facing results.
 
 This is **not** a full Simplified Technical English manual. Heavy sentence
 craft for runbooks and reference pages lives in `djenriquez-core:technical-writing`
@@ -15,6 +15,7 @@ and loads only when authoring those documents. AI-slop cleanup lives in
 |----------|-----------------|-----------|
 | PR body / title (`pr-publish`) | yes | humanizer `pr-body` |
 | PR digest | yes | humanizer `digest` |
+| Decision ledger (`audit-decisions`) | yes | humanizer `ledger` |
 | PR thread reply | yes | humanizer `pr-reply` |
 | Spec narrative | yes (register) | humanizer `spec-narrative` |
 | Review inline comments | light (meaning + evidence) | humanizer `review-comment` (teammate voice wins on contractions) |
