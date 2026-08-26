@@ -15,6 +15,7 @@ and loads only when authoring those documents. AI-slop cleanup lives in
 |----------|-----------------|-----------|
 | PR body / title (`pr-publish`) | yes | humanizer `pr-body` |
 | PR digest | yes | humanizer `digest` |
+| Interactive review graph summary / roles / panel answers | yes | humanizer `digest` (contractions OK) |
 | Decision ledger (`audit-decisions`) | yes | humanizer `ledger` |
 | PR thread reply | yes | humanizer `pr-reply` |
 | Spec narrative | yes (register) | humanizer `spec-narrative` |

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Interactive review</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div class="brand-text">
+            <h1 id="figure-title">Interactive review</h1>
+            <a id="pr-link" class="pr-link" href="#" target="_blank" rel="noreferrer"></a>
+          </div>
+        </div>
+        <div class="topbar-meta">
+          <span id="conn" class="pill pill-wait">Connecting</span>
+          <button type="button" id="btn-stop" class="btn ghost">Stop</button>
+        </div>
+      </header>
+      <section class="summary" id="summary" hidden>
+        <div>
+          <p class="summary-label">Problem</p>
+          <p class="summary-body" id="summary-problem"></p>
+        </div>
+        <div>
+          <p class="summary-label">This PR</p>
+          <p class="summary-body" id="summary-change"></p>
+        </div>
+      </section>
+      <main class="workspace">
+        <section class="canvas-wrap" aria-label="PR figure">
+          <svg id="canvas" role="img" aria-label="Interactable architecture diagram">
+            <defs>
+              <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                <circle cx="1" cy="1" r="0.8" fill="currentColor" />
+              </pattern>
+              <marker id="arrow-control" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#a1a1aa" />
+              </marker>
+              <marker id="arrow-happy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#34d399" />
+              </marker>
+              <marker id="arrow-other" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#fbbf24" />
+              </marker>
+              <marker id="arrow-once" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#7dd3fc" />
+              </marker>
+            </defs>
+            <rect id="grid-bg" class="grid-bg" fill="url(#grid)" />
+            <g id="viewport"></g>
+          </svg>
+          <div class="canvas-hint" id="canvas-hint">Scroll to zoom · drag to pan · click a box</div>
+          <div class="legend" aria-hidden="true">
+            <span class="happy">Consumed today</span>
+            <span class="once">Carried, not read</span>
+            <span class="other">Rejected path</span>
+            <span class="control">Control</span>
+          </div>
+        </section>
+        <aside class="panel" id="panel">
+          <div class="panel-head">
+            <p class="eyebrow" id="panel-eyebrow">Whole change</p>
+            <h2 id="panel-title">Ask about this PR</h2>
+            <p class="role" id="panel-role">
+              Click a component to inspect it, or ask about the merged end state.
+            </p>
+            <ul class="evidence" id="panel-evidence"></ul>
+          </div>
+          <div class="thread" id="thread"></div>
+          <form class="composer" id="composer">
+            <textarea
+              id="ask-input"
+              rows="3"
+              placeholder="Ask about the selected component…"
+              autocomplete="off"
+            ></textarea>
+            <div class="composer-row">
+              <span class="hint" id="composer-hint"></span>
+              <button type="submit" class="btn primary" id="btn-send">Ask</button>
+            </div>
+          </form>
+        </aside>
+      </main>
+    </div>
+    <script src="/config.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

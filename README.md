@@ -217,6 +217,20 @@ Drawing rules live in `references/pr-figure.md`. Used by `/pr-publish`
 (placement `body`). Standalone default is a PR comment. Skip only when there
 is nothing to draw, no generator, or a picture that would mislead.
 
+### /interactive-review
+
+Local interactable diagram of a PR's merged end state. Opens a localhost
+page with a problem / this-PR summary, then boxes and arrows as the review
+surface; questions are answered by the same agent session in digest voice
+(required humanizer pass; read-only, no GitHub hosting). Sibling of
+`/pr-figure`, not a replacement for the GitHub PNG.
+
+```
+/interactive-review
+/interactive-review #42
+/interactive-review https://github.com/djenriquez/claude-plugins/pull/34
+```
+
 ### /pr-publish
 
 Publish or refresh the branch PR. Draft via `pr-description-style.md`, required
