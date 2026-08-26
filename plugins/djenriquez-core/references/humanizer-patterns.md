@@ -279,6 +279,8 @@ Stripping slop must not produce sterile mush *or* forced personality.
 - **PR bodies, digests, specs:** clear, neutral, specific. Reporting register.
   Not a blog post. Not an aircraft manual.
 - **Review comments and replies:** calm teammate voice. Direct, not theatrical.
+- **Interactive review:** digest register plus teammate contractions. Same
+  voice as explaining the figure to a coworker.
 - **Procedures/references:** technical-writing craft; humanizer only cleans AI
   tells.
 - **General prose:** keep genuine voice that was already present; do not invent
