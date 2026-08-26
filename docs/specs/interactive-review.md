@@ -237,7 +237,7 @@ Bind `127.0.0.1`, ephemeral port. Print one JSON object to stdout: `url`, `token
 | POST | `/agent/status` | agent | `{ "ask_id", "kind": "thinking"\|"tool"\|"text", "label", "detail"? }` |
 | POST | `/agent/answer` | agent | see answer JSON below |
 
-Mutating routes and `/agent/*` require `Authorization: Bearer <token>`. `Host` must be `127.0.0.1`. Browser POST must send `Origin: http://127.0.0.1:<port>`; agent curl uses the bearer token and omits `Origin`. `pr.url` must be http(s) with no credentials. Heartbeat miss (suggest 45s) triggers shutdown. Do not implement CORS `*` .
+Mutating routes and `/agent/*` require `Authorization: Bearer <token>`. `Host` must be `127.0.0.1`. Browser POST must send `Origin: http://127.0.0.1:<port>`; agent curl uses the bearer token and omits `Origin`. `pr.url` must be http(s) with no credentials. Heartbeat miss (1h after the last page ping) triggers shutdown. Stop shuts it down immediately. Do not implement CORS `*` .
 
 Answer JSON:
 

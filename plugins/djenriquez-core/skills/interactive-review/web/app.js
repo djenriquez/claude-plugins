@@ -869,7 +869,9 @@
 
   composer.addEventListener("submit", submitAsk);
   askInput.addEventListener("keydown", function (ev) {
-    if ((ev.metaKey || ev.ctrlKey) && ev.key === "Enter") submitAsk(ev);
+    if (ev.key !== "Enter" || ev.shiftKey || ev.isComposing) return;
+    ev.preventDefault();
+    submitAsk(ev);
   });
   btnStop.addEventListener("click", async function () {
     await fetch("/ui/stop", { method: "POST", credentials: "same-origin", headers: headers(), body: "{}" });
