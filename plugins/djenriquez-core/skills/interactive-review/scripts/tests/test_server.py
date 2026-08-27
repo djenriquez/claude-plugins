@@ -300,6 +300,18 @@ class SidecarTests(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertEqual(payload["type"], "idle")
 
+    def test_default_heartbeat_timeout_is_one_hour(self) -> None:
+        sess = server.Session(MIN_GRAPH)
+        self.assertEqual(sess.heartbeat_timeout, server.DEFAULT_HEARTBEAT_TIMEOUT_S)
+        self.assertEqual(sess.heartbeat_grace, server.DEFAULT_HEARTBEAT_GRACE_S)
+
+    def test_heartbeat_miss_shuts_down(self) -> None:
+        self.req("POST", "/ui/heartbeat", body={})
+        self.sess.last_heartbeat = time.monotonic() - (self.sess.heartbeat_timeout + 1)
+        code, payload = self.req("GET", "/agent/wait?timeout=1")
+        self.assertEqual(code, 200)
+        self.assertEqual(payload["type"], "shutdown")
+
     def test_stop_unblocks_wait(self) -> None:
         def stopper() -> None:
             time.sleep(0.2)

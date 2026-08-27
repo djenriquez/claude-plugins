@@ -123,7 +123,8 @@ embed the token in JavaScript. The printed `url` is
 set the cookie.
 
 Heartbeat: the page may take up to 120s to open. After the first
-heartbeat, a 45s miss shuts the session down.
+heartbeat, a 1h miss shuts the session down. Stop still shuts it down
+immediately.
 
 | Method | Path | Purpose |
 |--------|------|---------|

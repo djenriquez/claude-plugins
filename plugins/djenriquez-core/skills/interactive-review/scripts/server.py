@@ -24,6 +24,8 @@ SKILL_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_WEB = SKILL_DIR / "web"
 MAX_BODY = 256 * 1024
 COOKIE = "ir_session"
+DEFAULT_HEARTBEAT_GRACE_S = 120.0
+DEFAULT_HEARTBEAT_TIMEOUT_S = 3600.0
 ALLOWED_URL_SCHEMES = frozenset({"http", "https"})
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -275,8 +277,8 @@ class Session:
         graph: dict[str, Any],
         *,
         token: str | None = None,
-        heartbeat_grace: float = 120.0,
-        heartbeat_timeout: float = 45.0,
+        heartbeat_grace: float = DEFAULT_HEARTBEAT_GRACE_S,
+        heartbeat_timeout: float = DEFAULT_HEARTBEAT_TIMEOUT_S,
     ) -> None:
         self.graph = graph
         self.token = token or secrets.token_urlsafe(24)
@@ -693,7 +695,13 @@ def bind_server(
     return httpd
 
 
-def serve(session_dir: Path, web_dir: Path, *, heartbeat_grace: float = 120.0, heartbeat_timeout: float = 45.0) -> None:
+def serve(
+    session_dir: Path,
+    web_dir: Path,
+    *,
+    heartbeat_grace: float = DEFAULT_HEARTBEAT_GRACE_S,
+    heartbeat_timeout: float = DEFAULT_HEARTBEAT_TIMEOUT_S,
+) -> None:
     graph = load_graph(session_dir / "graph.json")
     session = Session(graph, heartbeat_grace=heartbeat_grace, heartbeat_timeout=heartbeat_timeout)
     httpd = bind_server(session, web_dir, session_dir=session_dir)
@@ -736,8 +744,8 @@ def main(argv: list[str] | None = None) -> None:
     p_serve = sub.add_parser("serve", help="serve the SPA on 127.0.0.1")
     p_serve.add_argument("--session", required=True)
     p_serve.add_argument("--web", default=str(DEFAULT_WEB))
-    p_serve.add_argument("--heartbeat-grace", type=float, default=120.0)
-    p_serve.add_argument("--heartbeat-timeout", type=float, default=45.0)
+    p_serve.add_argument("--heartbeat-grace", type=float, default=DEFAULT_HEARTBEAT_GRACE_S)
+    p_serve.add_argument("--heartbeat-timeout", type=float, default=DEFAULT_HEARTBEAT_TIMEOUT_S)
 
     ns = parser.parse_args(argv)
     if ns.cmd == "init":
