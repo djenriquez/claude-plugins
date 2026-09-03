@@ -1,25 +1,26 @@
 # PR Description Style Reference
 
-Load this when drafting or revising a non-trivial pull request body. The `pr-publish` skill owns when to publish; this file only governs structure. Load `references/reporting-style.md` for tone (outcome first, meaning before plainness, fewer ideas, verified claims only). Run `djenriquez-core:humanizer` in `pr-body` mode before publish.
+Load this when drafting or revising a pull request body. The `pr-publish` skill owns when to publish; this file governs structure. Load `references/reporting-style.md` for tone and apply `skills/humanizer/SKILL.md` in `pr-body` mode before publish.
 
 ## Shape
 
-Use this order:
+Use this order, omitting optional sections that add no new information:
 
 1. `## Summary`
 2. Reviewer figure (`![title](url)` — not a heading; produced by `pr-figure`)
-3. `## What changed`
-4. `## Details`
+3. `## What changed` (optional)
+4. `## Details` (optional)
 5. `## Test plan`
 
-Keep the top skimmable and the lower sections useful for reviewers.
+For a small change, Summary and Test plan may be enough. Preserve any sections
+required by the repository's PR template. Each section should add information
+at a useful level of detail, not repeat the same claim in different words.
 
 ## Summary
 
-Write two short paragraphs:
-
-1. Explain the user-visible problem and root cause in plain language. Avoid internal function names and type names here.
-2. State the outcome this PR creates.
+Explain what changes and why in a short paragraph. Add a second paragraph when
+the problem needs separate context. Avoid internal function and type names;
+include the root cause only when it helps explain the outcome.
 
 Good summaries are understandable to someone who has not opened the repository. The first sentence should state the problem or outcome in plain language — not agent shorthand like `Fixed: X → Y → green`. After drafting the full body, run the required `djenriquez-core:humanizer` pass in `pr-body` mode. The Summary is the main skim target: if it still sounds like AI marketing or implementation soup, rewrite it again.
 
@@ -29,9 +30,11 @@ After the Summary paragraphs, embed the reviewer figure when `pr-figure` produce
 
 ## What Changed
 
-Lead with the primary fix. If the PR includes secondary cleanup or hardening, separate it under a clear label such as `Related hardening`.
+Use this section when distinct changes need explanation beyond the Summary.
+Lead with the primary fix; distinguish secondary cleanup when relevant.
 
-Do not narrate commit-by-commit. Group by behavior or reviewer concern.
+Group by behavior or reviewer concern. Mention files when they help locate a
+change; do not inventory every touched file or narrate commits.
 
 ## Details
 
@@ -40,6 +43,8 @@ Include only subsections that earn their space:
 - `Root cause`: specific files, functions, data paths, or evidence.
 - `How it's fixed`: grouped by mechanism or theme.
 - `Before vs. after`: a table only when there are at least two distinct scenarios.
+- Non-obvious decisions, compatibility changes, or material risks a reviewer
+  needs to assess. Omit generic claims that a change is low risk.
 
 Reference implementation symbols here, not in the summary.
 
@@ -62,6 +67,8 @@ Every unchecked item must be runnable by a reviewer or operator. Avoid vague ent
 - Distinguish the primary fix from secondary hardening.
 - Cite evidence for bug fixes when evidence exists.
 - Write in post-merge present tense: `The runner now...`.
+- Compare only with behavior on the base branch. Earlier drafts and review
+  rounds do not belong in the description of the final change.
 - Do not add emoji unless recent project PRs use them.
 - If a before/after table would repeat the same failure mode, omit it.
 - Avoid engineering AI-speak (`leverages`, `streamlines`, `ensures`, `robust`, `seamless`, `comprehensive`, `aligns with best practices`). Prefer concrete mechanisms and outcomes. See `references/humanizer-patterns.md`.

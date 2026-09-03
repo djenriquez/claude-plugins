@@ -43,7 +43,7 @@ Default-path djenriquez-core workflows should prefer local djenriquez-core skill
 Three writing layers, loaded by need (do not dump all into every session):
 
 1. **Reporting tone** (`references/reporting-style.md`) — thin rules for reported work: meaning first, outcome first, fewer ideas (not compressed fragments), claim only verified results.
-2. **Humanizer** (`skills/humanizer` + `references/humanizer-patterns.md`) — required cleanup pass before publish/present for `pr-publish`, `pr-figure` comments, `publish-review`, `pr-digest`, `write-spec` narrative, `handle-pr-feedback` replies, `audit-decisions` ledgers, and `interactive-review` graph prose and panel answers. Callers apply it **inline by default**; `/humanizer` is optional when nested skill invocation works. Prefer local over `abatilo-core:humanizer`.
+2. **Humanizer** (`skills/humanizer` + `references/humanizer-patterns.md`) — required cleanup pass before publish/present for `pr-publish`, `pr-figure` comments, `code-review` findings and synthesis, `publish-review`, `pr-digest`, `write-spec` narrative, `handle-pr-feedback` replies, `audit-decisions` ledgers, and `interactive-review` graph prose and panel answers. Callers apply it **inline by default**; `/humanizer` is optional when nested skill invocation works. Prefer local over `abatilo-core:humanizer`.
 3. **Technical writing** (`skills/technical-writing`) — opt-in craft for runbooks, how-tos, READMEs, and reference pages a reader follows. Not required for ordinary PR summaries.
 
 Do not add numeric sentence word caps or long always-on style checklists; models clip meaning to satisfy them. Collision rules live in the humanizer skill.

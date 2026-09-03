@@ -1,6 +1,6 @@
 {
   "name": "djenriquez-core",
-  "version": "0.18.1",
+  "version": "0.18.2",
   "description": "Agent workflow plugin collection by @djenriquez: full spec-to-PR dev flow, planning interviews, human-first spec writing, humanizer for human-facing output, lean code review, silent-decision audit, spec review, issue-to-spec, PR feedback handling, reliable self-review loops, PR digest, PR publication, reviewer PR figures, interactive local PR review, and advisory Go code-health standards",
   "author": {
     "name": "djenriquez",

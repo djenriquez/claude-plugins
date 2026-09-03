@@ -108,4 +108,10 @@ Use debate to falsify or strengthen findings, not to generate a second full revi
 
 Deduplicate findings, normalize severity with `protocols/code-review-protocol.md`, and remove weak or speculative comments. Include coverage, triggered specialists, skipped specialists, and debate status when relevant.
 
+Before presenting, load `skills/humanizer/SKILL.md` and apply its
+`review-comment` Process inline to the findings and synthesis. Keep this
+review's sections, anchors, severity, and verdict; the GitHub comment wrapper
+belongs to `publish-review`. Edit wording without adding findings or removing
+the evidence and conditions that support them.
+
 End with `## Verdict: APPROVE` or `## Verdict: REQUEST CHANGES` as the final section.

@@ -57,7 +57,9 @@ fragments. A short message of whole sentences beats a shorter one of arrows
 and labels.
 
 Include a detail only when it changes what the reader understands or does
-next. Leave the rest out.
+next. Leave the rest out. Remove repeated explanations across sections; a
+summary names the outcome and the details explain it. Give enough context to
+follow the point without restating the prompt, comment, or visible diff.
 
 Do **not** enforce word-count caps mid-generation. Counting words while
 writing clips meaning to satisfy a number. Prefer one topic per sentence and
@@ -71,11 +73,11 @@ unverified. When work is unfinished, say what remains and why.
 
 ## Register
 
-For reported work and technical documents, prefer full contractions in formal
-docs when clarity helps (`do not`, `cannot`) — but **review comments and short
-PR replies may use natural teammate contractions**. Narrative prose meant to
-sound like a person talking is a different job: humanizer owns that voice and
-must not force blog personality onto PR bodies or digests.
+Use ordinary professional language. Natural contractions are fine; use full
+forms (`do not`, `cannot`) when emphasis or formal requirements call for them.
+Keep technical terms that carry meaning, but replace invented labels with the
+behavior they describe. Do not add banter, generic praise, or personal anecdotes
+to make engineering text sound human.
 
 ## Final skim (three checks, not a ritual checklist)
 

@@ -66,7 +66,8 @@ humanizer on the narrative layer only (inline by default). Used by
 
 ### /humanizer
 
-Surgical AI-slop cleanup for engineering text. Forked from
+Edits engineering text for a plain, concise voice: removes jargon, repeated
+ideas, and canned phrasing while preserving facts and uncertainty. Forked from
 [`abatilo-core:humanizer`](https://github.com/abatilo); prefer the local skill.
 
 ```
@@ -89,6 +90,7 @@ Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`,
 |--------|------|
 | `/pr-publish` | `pr-body` |
 | `/pr-figure` | `pr-reply` (comment body) |
+| `/code-review` | `review-comment` (findings and synthesis) |
 | `/publish-review` | `review-comment` |
 | `/pr-digest` | `digest` |
 | `/write-spec` | `spec-narrative` (narrative only) |
@@ -145,7 +147,8 @@ for high-risk escalation.
 - **L2**: bounded specialist set (cap four unless asked for heavy)
 
 Large diffs use file inventories and targeted local diffs, not full-diff paste
-into every sub-agent.
+into every sub-agent. Findings and synthesis get a required `review-comment`
+humanizer pass before presentation.
 
 ### /audit-decisions
 
@@ -239,10 +242,12 @@ force-push. Base-branch frame: describe the merged end state, not the commit
 journey. Prose paragraphs (especially Summary) stay as unbroken lines — no hard
 wraps for terminal width. The figure is an LLM diagram of the end-state change
 (not Mermaid); skip only when there is nothing to draw or no generator.
+Small changes can use just Summary and Test plan; optional sections must add
+information beyond the Summary.
 
 ### /publish-review
 
-Post already-written findings as one GitHub review. Qualitative main body +
+Post already-written findings as one GitHub review. Brief main assessment and
 inline `**Severity: label**` comments; required `review-comment` humanizer;
 backtick code/logic refs. Invoking the skill is consent to publish (still pauses
 for invalid anchors and closed/merged PR opt-in).

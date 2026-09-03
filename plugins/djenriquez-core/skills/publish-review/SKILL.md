@@ -36,9 +36,11 @@ Stop if the findings list is empty.
 
 ## Comment contracts
 
-**Main review `body` (required):** short qualitative skim — how close to
-approve, how much work remains, which themes matter. Details stay inline. No
-finding dump, no filler preamble, no `**Severity:**` wrapper.
+**Main review `body` (required):** a brief overall assessment supported by the
+supplied findings. Name the main concern without repeating the inline details.
+Do not infer merge readiness, remaining effort, or wider review coverage from
+a partial findings list. No generic praise, filler preamble, or
+`**Severity:**` wrapper.
 
 **Each inline comment:**
 
@@ -51,10 +53,11 @@ finding dump, no filler preamble, no `**Severity:**` wrapper.
 `Severity` is `Critical`|`High`|`Medium`|`Low`|`Nit` matching the finding.
 Bold only — never `#` headers. Backtick code/logic refs in the body.
 
-**Voice:** apply `djenriquez-core:humanizer` in `review-comment` mode to the
-main body and every inline body before posting (inline Process by default;
-nested `/humanizer` optional). Do not post raw drafts. Preserve claims and
-severity; do not add findings or invent evidence.
+**Voice:** load `skills/humanizer/SKILL.md` and its `review-comment` references
+from the plugin root. Apply the Process to the main body and each inline label
+and body before posting (inline by default; nested `/humanizer` optional).
+Read the assembled review once for repetition across the summary and comments.
+Preserve claims, uncertainty, evidence, and severity; do not add findings.
 
 ## Preflight
 
