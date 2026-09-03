@@ -57,6 +57,13 @@ Specialists should inspect relevant neighboring files and tests, but should not 
 
 ## Output
 
+Write findings as comments to the author. Name what fails and when, explain
+the concrete consequence, and suggest a correction when useful. Keep enough
+evidence to establish the issue; skip a recap of the diff and repeated impact
+statements. The review bar guides the analysis, not the vocabulary of the
+comment: name the actual check or function instead of an abstract "owning
+seam" or "contract gap". Use established technical terms where precise.
+
 Final review output:
 
 ```markdown

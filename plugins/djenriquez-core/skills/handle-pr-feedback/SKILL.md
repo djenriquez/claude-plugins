@@ -60,8 +60,10 @@ Target: `$ARGUMENTS`. Load from plugin root:
 6. **Commit/push** — One conventional commit of explicit paths when code
    changed; rebase-pull only when safe; normal push. No empty commit for
    all-`NO CHANGE`.
-7. **Reply/resolve** — Humanized one-to-two sentence replies on the first
-   comment. Resolve after verified fix or conclusive no-change. Do not
+7. **Reply/resolve** — Load `skills/humanizer/SKILL.md` and apply `pr-reply`
+   on the first comment. Answer with the change or reason for no change,
+   usually in one or two sentences; keep evidence needed to explain a
+   disagreement. Resolve after verified fix or conclusive no-change. Do not
    reply/resolve gated threads until the user decides.
 
 ## Report

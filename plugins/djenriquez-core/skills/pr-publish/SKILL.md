@@ -52,9 +52,10 @@ The PR body is for humans. If a busy reviewer cannot understand the change from 
 4. Draft title (<70 chars) and body via `pr-description-style.md` +
    `reporting-style.md`; rewrite journey-relative phrasing; join hard-wrapped
    prose into unbroken paragraphs.
-5. Humanize (`pr-body`); unwrap any remaining hard wraps in prose; re-check
-   base-branch frame. Optional `technical-writing` only for rare long procedure
-   sections.
+5. Load `skills/humanizer/SKILL.md` and its `pr-body` references; apply the
+   Process to the title and full body. Remove repeated ideas across sections,
+   unwrap any remaining hard wraps, and re-check the base-branch frame.
+   Optional `technical-writing` only for rare long procedure sections.
 6. Generate the reviewer figure from the humanized Summary plus the base-branch
    diff (`pr-figure`, placement `body`). Embed `![title](url)` after Summary.
    Preserve an existing figure on refresh when the outcome did not change.

@@ -174,7 +174,7 @@ Read-only: `Read`, `Grep`, `Glob`, `gh`/`git` inspect. No repo writes, no
 commit, no push, no PR comments from this loop.
 
 Grounding: if it is not in the gathered evidence or a file just read, say
-so. No approve/reject advice (`pr-digest` stance). Humanize `markdown` and
+so. Explain the change without approve/reject advice. Humanize `markdown` and
 `follow_ups` in `digest` mode before POST.
 
 If `graph.json` is rewritten after serve, `POST /agent/reload-graph` then

@@ -13,12 +13,14 @@ that make models clip meaning to satisfy a number.
 
 ## Core rule
 
-Fix contamination. Do not repaint clean text. Prefer concrete subjects and
-verbs. Prefer what a reviewer can verify from the diff.
+Keep clear text as it is. Prefer concrete subjects and verbs, and claims a
+reviewer can verify from the supplied evidence. Word replacement alone will
+not fix a comment that repeats itself or hides its point behind abstractions.
 
 **Meaning outranks plainness.** Plainer wording is only worth having when it
-still says the same thing. Preserve identifiers, sequence, and normative force
-(must / should / may).
+still says the same thing. Preserve identifiers, sequence, uncertainty, and
+normative force (must / should / may). Do not turn a possible failure into a
+confirmed one, or supply missing facts to make vague prose sound specific.
 
 **Brevity means fewer ideas**, not compressed notation. Expand
 `Fixed: timeout → retry path → green` into whole sentences; do not enforce
@@ -50,6 +52,33 @@ These show up constantly in agent-written engineering prose. Prefer the rewrite.
 | serves as a | is |
 | acts as a | is / does |
 | makes it easier to (journey) | state the end behavior unless base-branch contrast is real |
+| correctness gap / lifecycle concern / contract drift | name what fails and when |
+| owning seam / trust boundary / source of truth (when vague) | name the function, check, or stored value that matters |
+| retry-state lifecycle invariant | when a job is marked complete |
+
+These are cues to inspect meaning, not a banned-word filter. Keep established
+terms such as "race condition", "idempotency", or "trust boundary" when they
+identify the issue precisely. Do not replace one abstract label with another.
+
+**Parroting:** repeating the title, diff, review request, or previous sentence
+without adding information. In a review, include only enough code behavior to
+explain the failure. In a reply, answer the point without echoing the request.
+Across PR sections, put each detail where it helps most; omit an optional
+section that only retells the Summary. A summary can name the main concern
+without duplicating the inline comments. Repeating a component's name for
+clarity is fine; repeating the claim in new words is not.
+
+**Review ceremony:** "Great catch", "Overall this looks solid", "One small
+concern", "Could we perhaps consider", and "This would improve robustness"
+often add no information. State the issue or answer directly. Use a question
+when the answer could change the finding, not to disguise a required fix as a
+suggestion. Keep a real qualifier such as "if this endpoint accepts retries".
+Contractions are natural; forced friendliness, slang, and personal anecdotes
+are not required.
+
+**Repeated conclusion:** remove endings such as "This is important for
+correctness" after explaining the failure. Stop when the reader has the
+evidence and any useful next action. Do not add a moral or a second summary.
 
 **Heavy terminology trap:** dumping internal type names, package paths, and
 protocol jargon into the first paragraph. Summary/Intent layers need plain
@@ -60,15 +89,14 @@ in PR bodies (especially Summary). Join into one unbroken line per paragraph;
 keep blank lines between paragraphs. Lists and fenced code keep their newlines.
 
 **Before (PR summary):**
-> This PR introduces a comprehensive refactoring of the orchestration layer,
-> leveraging a robust middleware pipeline that streamlines request handling and
-> ensures seamless alignment with our resiliency best practices across the
-> `WorkflowExecutor` and `RetryPolicyResolver` subsystems.
+> This PR introduces a robust improvement to message handling: the worker previously acked messages before the handler finished, which could drop work if the worker crashed. It now acks only after the handler finishes and nacks on retryable failures, ensuring a more resilient processing lifecycle.
 
 **After:**
-> Retries were applied after the worker had already acked the message, so a
-> crash mid-handler could drop work. The worker now nacks on retryable failure
-> and only acks after the handler finishes.
+> The worker now acks messages after the handler finishes, preventing a crash mid-handler from dropping work that was already acked. It nacks on retryable failures.
+
+Every fact in the rewrite is present in the draft. If all the source says is
+"improves reliability", ask the caller for the behavior or evidence; do not
+invent the ack/nack explanation.
 
 ---
 
@@ -138,7 +166,9 @@ is / has / does.
 
 ### 9. Negative parallelisms
 
-"Not only… but…", "It's not just about… it's…". Flatten to one claim.
+"Not only… but…", "It's not just about… it's…", "This isn't X; it's Y".
+State the claim directly. Keep a before/after comparison when both states are
+supported and the difference helps explain the change.
 
 ### 10. Rule of three
 
@@ -204,8 +234,8 @@ reporting-style, not "make it longer."
 Watch: "tests pass", "fully verified", "production-ready" without tool or repo
 evidence in the draft or session.
 
-Demote to what was actually observed, or remove. Do not invent a green build
-while humanizing.
+Keep what was actually observed. Flag unsupported verification to the caller;
+do not silently turn it into a different result or invent a green build.
 
 ### 21. Normative force drift
 
@@ -219,56 +249,6 @@ Keep the original force of the claim. Cleanup is not policy change.
 Engineering form of synonym cycling: the same service called "the worker",
 then "the runner", then "the executor" in one PR body. Pick the repository
 term and repeat it.
-
----
-
-## Mode-specific checks
-
-Three skim checks for every reporting mode (not a long ritual checklist):
-
-1. First sentence gives the outcome.
-2. A cold reader would understand without the session.
-3. No invented verification, softened requirements, or same-thing-renamed-twice.
-
-### pr-body
-
-- [ ] Three skim checks above
-- [ ] Summary readable without opening the repo
-- [ ] No journey language relative to intermediate commits
-- [ ] No quality-advertising adverbs
-- [ ] Implementation symbols pushed out of Summary
-- [ ] Test plan items are runnable, not "monitor prod"
-- [ ] No arrow-chain shorthand
-
-### review-comment
-
-- [ ] Main body: qualitative skim only (no finding dump / severity wrapper)
-- [ ] Inline: `**Severity: short label**` then brief body; backticks on code
-- [ ] Opens on defect/risk/question, not a hunk paraphrase
-- [ ] Claim force preserved; no corporate openers
-
-### digest / spec-narrative
-
-- [ ] Three skim checks above
-- [ ] First section answers why/what in plain language
-- [ ] Neutral tone; no evaluation-as-praise
-- [ ] Spec: appendix untouched; prefer fewer ideas over growing length
-
-### pr-reply
-
-- [ ] One to two sentences
-- [ ] Starts with Fixed/Addressed/Skipped or equivalent fact
-- [ ] No gratitude padding
-- [ ] Fix claimed only when the change exists
-
-### ledger
-
-- [ ] Three skim checks on the identity block
-- [ ] Rank preserved (least-confident first)
-- [ ] Each entry keeps where / what / would-have-asked
-- [ ] No invented confidence or finer scores
-- [ ] No findings, verdicts, or approve advice
-- [ ] Silent decisions only; no defect language
 
 ---
 
@@ -288,35 +268,59 @@ Stripping slop must not produce sterile mush *or* forced personality.
 
 ---
 
-## Full engineering example
+## Review and reply examples
+
+These illustrate tone, not new findings to copy. Each rewrite uses only facts
+in its draft. Keep the caller's severity and location.
+
+### A finding with subtle jargon and repetition
 
 **Before:**
-> ## Summary
+> **High: Preserve the retry-state lifecycle invariant**
 >
-> This PR introduces a comprehensive enhancement to our authentication
-> middleware, leveraging a robust token-refresh pipeline that streamlines
-> session continuity and ensures seamless user experiences across the platform.
-> Additionally, it carefully aligns retry behavior with industry best practices,
-> underscoring our commitment to reliability in an evolving landscape.
->
-> ## What changed
->
-> - **Resiliency:** We refactored the flow, making it cleaner and more robust.
-> - **DX:** Improved developer experience by simplifying the mental model.
-> - **Observability:** Enhanced logging to better surface issues.
+> This change moves `markComplete()` ahead of `send()`. The concern here is that this creates a correctness gap at the retry boundary: if `send()` times out, the job remains marked complete and the retry loop skips it. That means failed jobs will not be retried. Move `markComplete()` after a successful send to ensure the lifecycle remains consistent.
 
 **After:**
-> ## Summary
+> **High: Timed-out jobs won't be retried**
 >
-> Access tokens were refreshed only on the next user request, so a tab left
-> open past expiry got a hard 401. The middleware now refreshes in the
-> background one minute before expiry and retries the original request once
-> after a successful refresh.
+> If `send()` times out, the job is already marked complete, so the retry loop skips it. Move `markComplete()` after a successful send.
+
+### A useful question that stays uncertain
+
+**Before:**
+> **Medium: Clarify the upstream duplicate-delivery contract**
 >
-> ## What changed
+> One potential concern is whether the sender can deliver the same event more than once. If so, `insert()` may create duplicate rows because it doesn't check `event_id`. Can you clarify whether the sender retries events?
+
+**After:**
+> **Medium: Can the sender deliver an event twice?**
 >
-> - `auth/middleware.ts` — schedule proactive refresh; on 401 from expiry,
->   refresh and retry the request once before failing.
-> - `auth/token_store.ts` — single-flight refresh so concurrent requests share
->   one token update.
-> - Tests for expiry-during-flight and double-request refresh races.
+> If the sender retries events, `insert()` may create duplicate rows because it doesn't check `event_id`.
+
+Humanizing preserves this conditional question; it does not qualify a new
+finding or establish that retries occur. Finding qualification belongs to the
+review workflow.
+
+### A reply to an addressed comment
+
+**Before:**
+> Great catch! You're right that the timeout needs to be configurable. I've addressed this feedback by wiring the existing `request_timeout` setting into the client, ensuring callers can now configure the timeout. The timeout test passes.
+
+**After:**
+> The client now uses `request_timeout`. The timeout test passes.
+
+### A reply that disagrees
+
+**Before:**
+> Thanks for raising this concern about potentially accepting negative limits. After carefully tracing the validation flow, I confirmed that `parseLimit()` rejects negative values before this function is called. As such, no additional guard is needed at this boundary.
+
+**After:**
+> `parseLimit()` rejects negative values before this function is called, so an additional guard isn't needed here.
+
+### Text that should stay as it is
+
+> **High: Cache entries survive a permissions change**
+>
+> If an admin revokes access, the cached response is still served until its TTL expires. Invalidate this entry when permissions change.
+
+This already names the condition, consequence, and correction. Leave it alone.
