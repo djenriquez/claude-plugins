@@ -33,22 +33,6 @@ Skills are invariant-focused orchestrators. Detailed mechanics live in plugin-ro
 `protocols/` and `references/` (siblings of `skills/`, never under a skill
 directory).
 
-### /full-dev-flow
-
-Session context → Ready spec → harness-native plan/drain → PR → self-review →
-`/assisted-review-heavy`.
-
-```
-/full-dev-flow
-/full-dev-flow build the workflow we discussed
-```
-
-Order: choose branch strategy (update current PR, stack, or branch from default)
-→ `/write-spec` → `/spec-review` → harness-native task plan (no bits unless
-asked) → drain → commit → `/pr-publish` → `/self-review-loop` → post heavy
-review only after self-review succeeds. Persists a `[workflow]` checklist so
-interrupted runs can resume. Wrong PR base or open product tasks stop the flow.
-
 ### /write-spec
 
 Human-first design spec: plain-language narrative plus an implementation
@@ -61,8 +45,7 @@ appendix. Also rewrites dense specs without dropping facts.
 ```
 
 Structure lives in `references/spec-style.md`. Required `spec-narrative`
-humanizer on the narrative layer only (inline by default). Used by
-`/full-dev-flow` and `/issue-to-spec`.
+humanizer on the narrative layer only (inline by default).
 
 ### /humanizer
 
@@ -92,7 +75,6 @@ Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`,
 | `/pr-figure` | `pr-reply` (comment body) |
 | `/code-review` | `review-comment` (findings and synthesis) |
 | `/publish-review` | `review-comment` |
-| `/pr-digest` | `digest` |
 | `/write-spec` | `spec-narrative` (narrative only) |
 | `/handle-pr-feedback` | `pr-reply` |
 | `/audit-decisions` | `ledger` |
@@ -120,16 +102,6 @@ anchors — not large pasted specs. Specialists load
 
 Specialists (add only when risk warrants): clarity, completeness, product,
 feasibility, api, operations, scope, complexity, structure.
-
-### /interview
-
-High-signal planning interview → decisions, assumptions, risks, acceptance
-seeds. Default interview path for `/issue-to-spec`.
-
-```
-/interview
-/interview probe this implementation plan
-```
 
 ### /code-review
 
@@ -165,17 +137,7 @@ Not a code review, not a PR body, and it cannot change code or block merge.
 
 Same work-target shapes as `/code-review`. Request sources are the spec
 path, PR body, linked issue, or notes in the argument — not the
-implementer's private session. Required `ledger` humanizer. Standalone;
-not a `full-dev-flow` phase.
-
-### /issue-to-spec
-
-Issue → explore → interview → `/write-spec` → complexity gate → conditional
-`/spec-review` → Ready spec.
-
-```
-/issue-to-spec #42
-```
+implementer's private session. Required `ledger` humanizer.
 
 ### /handle-pr-feedback
 
@@ -209,6 +171,9 @@ force-push. Prefers local `/code-review`; direct fallback keeps L0/L1/L2.
 One reviewer diagram of a PR's merged end state. Hosts as a GitHub
 user-attachment (no commit) and posts a comment, returns body markdown, or
 prints the URL. Works from any checkout when given a PR URL.
+Attachments use the PR repository's access rules. Before sharing a URL, the
+skill checks that public figures load anonymously and private/internal figures
+require authentication; it keeps the local file if verification fails.
 
 ```
 /pr-figure
@@ -251,12 +216,6 @@ Post already-written findings as one GitHub review. Brief main assessment and
 inline `**Severity: label**` comments; required `review-comment` humanizer;
 backtick code/logic refs. Invoking the skill is consent to publish (still pauses
 for invalid anchors and closed/merged PR opt-in).
-
-### /pr-digest
-
-Comprehension digest of a PR (not critique). Loads metadata, diff, issues,
-threads, CI, and key files; summarizes by logical concern; required `digest`
-humanizer; then Q&A on the loaded context.
 
 ## Acknowledgments
 

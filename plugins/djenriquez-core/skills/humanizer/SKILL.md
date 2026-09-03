@@ -38,7 +38,6 @@ Load from the `djenriquez-core` plugin root:
 | `pr-figure` | `pr-reply` | comment body when posting the figure |
 | `code-review` | `review-comment` | findings and synthesis before present |
 | `publish-review` | `review-comment` | before post (main + each inline) |
-| `pr-digest` | `digest` | before present |
 | `write-spec` | `spec-narrative` | narrative layer only |
 | `handle-pr-feedback` | `pr-reply` | each reply body |
 | `audit-decisions` | `ledger` | before present |

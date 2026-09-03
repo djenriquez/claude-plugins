@@ -48,8 +48,10 @@ different repository.
 ## Process
 
 1. Resolve the PR and its `OWNER/REPO` from the URL or `gh pr view --repo`.
-   Prefer the PR's repository over the current checkout. A local checkout of
-   that branch is optional for figure-only work.
+   Use the PR's base repository, including for fork PRs. A local checkout of
+   that branch is optional for figure-only work. Read its visibility before
+   hosting. If the user requires a non-public figure and the repository is
+   public, keep the figure local.
 2. Load title, body, changed files, and the base-branch diff (`gh pr diff`
    or `git diff <base>...HEAD` when that checkout is the PR head). Ground the
    prompt only in that evidence.
@@ -64,21 +66,20 @@ different repository.
    python3 skills/pr-figure/scripts/upload_github_asset.py "$FIGURE_PATH" --repo OWNER/REPO
    ```
 
-6. Privacy: attachments are scoped to `OWNER/REPO`. After upload, GET the
-   URL without credentials.
-   - `private` / `internal`: require a non-200 anonymous response. If the
-     file is anonymously readable, do not post; report the local path.
-   - `public`: posting is public. If the user asked to keep the figure
-     non-public, skip hosting and posting and say the repository is public.
-   Do not use imgur, secret gists, or other public CDNs. Do not scrape
-   `github.com` cookies.
+6. The uploader binds the attachment to that repository and verifies access
+   before printing a URL. Public figures must load anonymously; private and
+   internal figures must load with authentication and deny anonymous access.
+   An anonymous `404` alone does not mean the upload failed. On verification
+   failure, keep the local file and report the reason; do not post the URL or
+   widen permissions. Follow the reference's response to an exposed private
+   attachment. Do not use public hosting fallbacks or scrape GitHub cookies.
 7. Deliver:
    - `comment`: `gh pr comment --repo OWNER/REPO` with `![title](url)` and a
      one- or two-sentence `pr-reply` note. Not a commit.
    - `body`: return `![title](url)` for the caller to embed.
    - `url`: print the asset URL.
-8. Delete workspace copies after a successful upload (commit fallback in the
-   reference is the exception).
+8. Delete workspace copies after upload and access verification succeed
+   (commit fallback in the reference is the exception).
 
 ## Output
 

@@ -1,7 +1,7 @@
 {
   "name": "djenriquez-core",
-  "version": "0.18.2",
-  "description": "Agent workflow plugin collection by @djenriquez: full spec-to-PR dev flow, planning interviews, human-first spec writing, humanizer for human-facing output, lean code review, silent-decision audit, spec review, issue-to-spec, PR feedback handling, reliable self-review loops, PR digest, PR publication, reviewer PR figures, interactive local PR review, and advisory Go code-health standards",
+  "version": "0.19.0",
+  "description": "Agent workflow skills for spec writing and review, plain-language engineering text, code review, decision audits, PR feedback, self-review, PR publishing, and visual PR explanations.",
   "author": {
     "name": "djenriquez",
     "url": "https://github.com/djenriquez"
@@ -10,9 +10,6 @@
   "repository": "https://github.com/djenriquez/claude-plugins",
   "license": "MIT",
   "keywords": [
-    "full-dev-flow",
-    "spec-to-pr",
-    "interview",
     "humanizer",
     "code-review",
     "audit-decisions",
@@ -24,8 +21,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "djenriquez Core",
-    "shortDescription": "Full dev flow, planning interviews, humanizer, lean code review, silent-decision audit, spec review, PR feedback, PR digest, publishing, reviewer figures, interactive local review, and self-review workflows.",
-    "longDescription": "A collection of agent workflow skills for the full spec-to-PR development flow, planning interviews, human-first specs, humanizer passes on human-facing text, lean staged code review, silent-decision ledgers, spec review, issue-to-spec drafting, PR feedback handling, self-review loops, PR digestion, PR publication, reviewer PR figures, and interactive local PR review. Self-review keeps per-turn commits local, squashes before pushing once, prefers the local lean code-review path, and uses external debate only for high-risk escalation.",
+    "shortDescription": "Spec writing, humanizer, reviews, decision audits, PR feedback, publishing, and visual PR explanations.",
+    "longDescription": "Write and review specs, edit engineering prose, review code, audit implementation decisions, handle PR feedback, and publish pull requests. Visual review skills create reviewer diagrams or open a local interactive view. Self-review verifies fixes with fresh reviewers and publishes one squashed commit.",
     "developerName": "djenriquez",
     "category": "Productivity",
     "capabilities": [
@@ -34,12 +31,9 @@
     ],
     "websiteURL": "https://github.com/djenriquez/claude-plugins/tree/main/plugins/djenriquez-core",
     "defaultPrompt": [
-      "Run the full dev flow from this conversation",
-      "Interview me about this plan",
       "Review this code change",
       "Audit silent decisions on this PR",
       "Review this spec",
-      "Digest this pull request",
       "Add a reviewer figure to this PR",
       "Open an interactive review of this PR",
       "Publish this branch as a PR"

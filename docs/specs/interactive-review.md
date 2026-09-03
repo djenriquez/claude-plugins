@@ -9,7 +9,7 @@ A developer who needs to understand a pull request runs a new local skill, `/int
 
 ## Problem Statement
 
-Agent-generated pull requests are hard to interpret from a diff. `/pr-figure` already turns the merged end state into one picture, and `/pr-digest` already answers follow-ups, but only inside that chat. Someone who wants to inspect one box still has to reconstruct the architecture, then re-explain which part they mean. This skill is for the developer at their own machine, using their coding harness, not for a GitHub comment.
+Agent-generated pull requests are hard to interpret from a diff. `/pr-figure` turns the merged end state into one picture, but a static image cannot answer follow-up questions about a component. Someone who wants to inspect one box still has to reconstruct the architecture, then re-explain which part they mean. This skill is for the developer at their own machine, using their coding harness, not for a GitHub comment.
 
 ## Goals / Non-goals
 
@@ -17,7 +17,7 @@ Goals:
 
 - Point the skill at a pull request and get an interactable diagram of the merged end state.
 - Click a component (or ask about the whole change), then ask follow-ups in a panel on that page.
-- Stream those answers from the launching agent, with visible tool activity and file citations, in the same digest voice used for `/pr-digest`.
+- Stream those answers from the launching agent, with visible tool activity and file citations, using the humanizer's `digest` mode.
 - Keep `/pr-figure` as the GitHub PNG skill.
 
 Non-goals:
@@ -75,7 +75,7 @@ sequenceDiagram
 
 **grounding.** Every box, arrow, and claim has to appear in the gathered pull-request evidence or in a file the agent actually read for that ask. If it is not there, say so. Do not invent architecture. Citations use paths and lines the agent observed.
 
-**no-verdict.** Same stance as `/pr-digest`: explain, do not approve or reject.
+**no-verdict.** Explain the change without approve/reject advice.
 
 **human-voice.** Graph summary, roles, annotations, and every panel answer get the required `digest` humanizer pass before they reach the page. Outcome first, one name per thing, contractions allowed. The page is easier to read when it sounds like a person explaining the figure, not a model dumping types.
 
@@ -135,7 +135,6 @@ The appendix is normative. An implementer must read it in full. Inventory verifi
 |------|------|
 | `plugins/djenriquez-core/skills/pr-figure/SKILL.md` | GitHub PNG figure; skip rules and drawing intent reused |
 | `plugins/djenriquez-core/references/pr-figure.md` | What to draw, skip, prompt skeleton (actors / arrows / bands). Do not run the raster generator or upload steps |
-| `plugins/djenriquez-core/skills/pr-digest/SKILL.md` | Comprehension Q&A stance: no verdict |
 | `plugins/djenriquez-core/references/github-pr-workflow.md` | Parse `#N` / URL; current-branch `gh pr view`; do not guess a number; figure-only may use `gh --repo` without checkout |
 | `plugins/djenriquez-core/references/harness-adapters.md` | Task/plan tools differ by host; this skill should not need specialist spawn |
 | `plugins/djenriquez-core/skills/pr-figure/scripts/upload_github_asset.py` | Do not use. This skill does not host files |
@@ -167,7 +166,7 @@ Update the root `README.md` skills list and plugin descriptions when the skill e
 
 Reuse `references/github-pr-workflow.md`. Arguments: `#N`, `N`, or `https://github.com/OWNER/REPO/pull/N`. If omitted, `gh pr view` for the current branch; ask if none.
 
-Prefer the pull request’s `OWNER/REPO` over the checkout. Local checkout of that head is optional. Gather: title, body, files, `gh pr diff` or `git diff <base>...HEAD` when this checkout *is* the head, plus the most important changed files (same bias as `/pr-digest`: core over tests/config). Ground the graph only in that evidence.
+Prefer the pull request’s `OWNER/REPO` over the checkout. Local checkout of that head is optional. Gather: title, body, files, `gh pr diff` or `git diff <base>...HEAD` when this checkout *is* the head, plus the most important changed files, prioritizing core behavior over tests and config. Ground the graph only in that evidence.
 
 Skip without starting the sidecar when the diff has no behavior, flow, architecture, or user-visible outcome to draw.
 
