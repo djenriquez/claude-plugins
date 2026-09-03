@@ -1,7 +1,7 @@
 # Code Structure Standards
 
 Five patterns for how code is organized into packages and modules. Read by:
-- `/issue-to-spec` during spec authoring (Step 3b.5) — validates proposed package layout before code is written
+- `/write-spec` during spec authoring — validates proposed package layout before code is written
 - `/spec-review`'s `structure-reviewer` agent — challenges structural decisions in the spec
 - `/self-review-loop`'s structural pass — catches drift when a turn's edits move package boundaries
 

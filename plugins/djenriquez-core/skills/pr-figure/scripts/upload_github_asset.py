@@ -3,9 +3,9 @@
 
 Usage: upload_github_asset.py <file-path> [--repo owner/repo]
 
-Requires an authenticated GitHub CLI (`gh`) pointed at github.com. The
-uploads.github.com user-attachments endpoint is unofficial; treat a non-201
-as a hard failure and let the caller fall back.
+Requires an authenticated GitHub CLI (`gh`) pointed at github.com. Uploads
+are bound to the target repository; GitHub assigns access from that scope.
+Print a URL only after checking access with and without authentication.
 
 Pass --repo when the current checkout is not the PR's repository.
 """
@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import re
 import subprocess
 import sys
 import urllib.error
@@ -29,6 +30,105 @@ SUPPORTED = {
     ".gif": "image/gif",
     ".webp": "image/webp",
 }
+TIMEOUT = 30
+
+
+class AttachmentRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # Never redirect an upload or forward the GitHub token to a CDN.
+        if req.get_method() != "GET" or urlparse(newurl).scheme != "https":
+            return None
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if redirected is not None:
+            redirected.remove_header("Authorization")
+            redirected.remove_header("Cookie")
+        return redirected
+
+
+def resolve_repository(repo: str | None) -> tuple[int, str]:
+    if repo is None:
+        html_url = run_gh("repo", "view", "--json", "url", "--jq", ".url")
+        parsed = urlparse(html_url)
+        if parsed.scheme != "https" or parsed.netloc != "github.com":
+            raise SystemExit("upload_github_asset: user-attachments upload is github.com-only")
+        repo = parsed.path.strip("/")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
+        raise SystemExit("upload_github_asset: --repo must be OWNER/REPO on github.com")
+
+    metadata = json.loads(run_gh(
+        "api", "--hostname", "github.com", f"repos/{repo}",
+        "--jq", "{id, visibility} | @json",
+    ))
+    repo_id = metadata.get("id")
+    visibility = metadata.get("visibility")
+    if type(repo_id) is not int or repo_id <= 0:
+        raise SystemExit("upload_github_asset: cannot determine repository ID; nothing uploaded")
+    if visibility not in {"public", "private", "internal"}:
+        raise SystemExit("upload_github_asset: cannot determine repository visibility; nothing uploaded")
+    return repo_id, visibility
+
+
+def fetch_asset(opener, url: str, token: str | None = None) -> tuple[int, bool]:
+    headers = {"Accept": "image/*", "Cache-Control": "no-cache"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(url, headers=headers)
+    try:
+        with opener.open(request, timeout=TIMEOUT) as response:
+            is_image = response.headers.get_content_type() in SUPPORTED.values()
+            return response.status, is_image and bool(response.read(16))
+    except urllib.error.HTTPError as exc:
+        status = exc.code
+        exc.close()
+        return status, False
+    except (OSError, urllib.error.URLError) as exc:
+        raise SystemExit(
+            "upload_github_asset: attachment access check was inconclusive; "
+            "keep the local file and do not publish a URL"
+        ) from exc
+
+
+def verify_asset_access(asset_url: str, token: str, visibility: str) -> None:
+    # Publish the stable GitHub URL, never a signed redirect or a tokenized URL.
+    parsed = urlparse(asset_url)
+    if (
+        parsed.scheme != "https"
+        or parsed.netloc != "github.com"
+        or not re.fullmatch(r"/user-attachments/assets/[A-Za-z0-9-]+", parsed.path)
+        or parsed.query
+        or parsed.fragment
+        or parsed.params
+    ):
+        raise SystemExit("upload_github_asset: unexpected attachment URL; do not publish it")
+    if visibility not in {"public", "private", "internal"}:
+        raise SystemExit("upload_github_asset: cannot verify unknown repository visibility")
+
+    # A new opener has no cookie jar or cached authenticated session.
+    opener = urllib.request.build_opener(AttachmentRedirectHandler())
+    anonymous_status, anonymous_image = fetch_asset(opener, asset_url)
+    if visibility != "public" and 200 <= anonymous_status < 300:
+        raise SystemExit(
+            "upload_github_asset: private/internal attachment was anonymously accessible; "
+            f"do not publish it. The upload already exists at {asset_url}; "
+            "withholding the link does not remove it. Remove it in GitHub or contact GitHub support"
+        )
+    authenticated_status, authenticated_image = fetch_asset(opener, asset_url, token)
+    if authenticated_status != 200 or not authenticated_image:
+        raise SystemExit(
+            "upload_github_asset: authenticated attachment check did not return an image "
+            f"(HTTP {authenticated_status}); do not publish a URL"
+        )
+    if visibility == "public":
+        if anonymous_status != 200 or not anonymous_image:
+            raise SystemExit(
+                "upload_github_asset: upload exists, but public access did not return an image "
+                f"(HTTP {anonymous_status}); do not publish a URL"
+            )
+    elif anonymous_status not in {401, 403, 404}:
+        raise SystemExit(
+            "upload_github_asset: anonymous access check was inconclusive "
+            f"(HTTP {anonymous_status}); do not publish a URL"
+        )
 
 
 def run_gh(*args: str) -> str:
@@ -80,25 +180,8 @@ def main() -> None:
             "use png, jpg, jpeg, gif, or webp"
         )
 
-    if repo:
-        html_url = run_gh("api", f"repos/{repo}", "--jq", ".html_url")
-        host = urlparse(html_url).hostname or ""
-        owner_repo = repo
-    else:
-        html_url = run_gh("repo", "view", "--json", "url", "--jq", ".url")
-        host = urlparse(html_url).hostname or ""
-        owner_repo = run_gh(
-            "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"
-        )
-
-    if host != "github.com":
-        raise SystemExit(
-            f"upload_github_asset: host {host or '(unknown)'} is not github.com; "
-            "user-attachments upload is github.com-only"
-        )
-
-    repo_id = run_gh("api", f"repos/{owner_repo}", "--jq", ".id")
-    token = run_gh("auth", "token")
+    repo_id, visibility = resolve_repository(repo)
+    token = run_gh("auth", "token", "--hostname", "github.com")
 
     query = urllib.parse.urlencode(
         {
@@ -113,31 +196,34 @@ def main() -> None:
         data=path.read_bytes(),
         method="POST",
         headers={
-            "Accept": "application/json",
+            "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/octet-stream",
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
     try:
-        with urllib.request.urlopen(request) as response:
+        opener = urllib.request.build_opener(AttachmentRedirectHandler())
+        with opener.open(request, timeout=TIMEOUT) as response:
             body = json.loads(response.read().decode("utf-8"))
             status = response.status
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
         raise SystemExit(
-            f"upload_github_asset: upload failed with HTTP {exc.code}: {detail}"
+            f"upload_github_asset: upload failed with HTTP {exc.code}"
         ) from exc
+    except (OSError, urllib.error.URLError) as exc:
+        raise SystemExit("upload_github_asset: upload could not be confirmed; keep the local file") from exc
 
     if status != 201:
-        raise SystemExit(f"upload_github_asset: upload failed with HTTP {status}: {body}")
+        raise SystemExit(f"upload_github_asset: upload failed with HTTP {status}")
 
     asset_url = body.get("url") or body.get("href")
     if not asset_url and isinstance(body.get("asset"), dict):
         asset_url = body["asset"].get("href") or body["asset"].get("url")
-    if not asset_url:
-        raise SystemExit(f"upload_github_asset: no URL in response: {body}")
+    if not isinstance(asset_url, str) or not asset_url:
+        raise SystemExit("upload_github_asset: no URL in upload response")
 
+    verify_asset_access(asset_url, token, visibility)
     print(asset_url)
 
 
