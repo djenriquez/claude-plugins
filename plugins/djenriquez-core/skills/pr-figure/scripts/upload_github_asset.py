@@ -5,7 +5,7 @@ Usage: upload_github_asset.py <file-path> [--repo owner/repo]
 
 Requires an authenticated GitHub CLI (`gh`) pointed at github.com. Uploads
 are bound to the target repository; GitHub assigns access from that scope.
-Print a URL only after checking access with and without authentication.
+Print a URL only after checking anonymous access against that scope.
 
 Pass --repo when the current checkout is not the PR's repository.
 """
@@ -68,10 +68,8 @@ def resolve_repository(repo: str | None) -> tuple[int, str]:
     return repo_id, visibility
 
 
-def fetch_asset(opener, url: str, token: str | None = None) -> tuple[int, bool]:
+def fetch_asset(opener, url: str) -> tuple[int, bool]:
     headers = {"Accept": "image/*", "Cache-Control": "no-cache"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(url, headers=headers)
     try:
         with opener.open(request, timeout=TIMEOUT) as response:
@@ -88,7 +86,7 @@ def fetch_asset(opener, url: str, token: str | None = None) -> tuple[int, bool]:
         ) from exc
 
 
-def verify_asset_access(asset_url: str, token: str, visibility: str) -> None:
+def verify_asset_access(asset_url: str, visibility: str) -> None:
     # Publish the stable GitHub URL, never a signed redirect or a tokenized URL.
     parsed = urlparse(asset_url)
     if (
@@ -112,12 +110,11 @@ def verify_asset_access(asset_url: str, token: str, visibility: str) -> None:
             f"do not publish it. The upload already exists at {asset_url}; "
             "withholding the link does not remove it. Remove it in GitHub or contact GitHub support"
         )
-    authenticated_status, authenticated_image = fetch_asset(opener, asset_url, token)
-    if authenticated_status != 200 or not authenticated_image:
-        raise SystemExit(
-            "upload_github_asset: authenticated attachment check did not return an image "
-            f"(HTTP {authenticated_status}); do not publish a URL"
-        )
+    # The repository-scoped 201 confirms upload success. API tokens do not
+    # necessarily establish a browser SSO session: a token-authenticated GET
+    # can return an organization sign-in page for a valid private attachment.
+    # Check anonymous access here; do not claim authenticated rendering was
+    # verified or require browser cookies to post the protected stable URL.
     if visibility == "public":
         if anonymous_status != 200 or not anonymous_image:
             raise SystemExit(
@@ -223,7 +220,7 @@ def main() -> None:
     if not isinstance(asset_url, str) or not asset_url:
         raise SystemExit("upload_github_asset: no URL in upload response")
 
-    verify_asset_access(asset_url, token, visibility)
+    verify_asset_access(asset_url, visibility)
     print(asset_url)
 
 

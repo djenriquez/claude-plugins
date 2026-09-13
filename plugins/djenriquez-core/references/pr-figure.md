@@ -151,15 +151,19 @@ selects the destination repository. Unknown visibility stops the upload.
 [GitHub's attachment access rules](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/attaching-files)
 determine the checks:
 
-| Repository visibility | Authenticated GET | Anonymous GET |
+| Repository visibility | Upload | Anonymous GET |
 |---|---|---|
-| Public | `200` with image content | `200` with image content |
-| Private or internal | `200` with image content | `401`, `403`, or `404` |
+| Public | Repository-scoped `201` | `200` with image content |
+| Private or internal | Repository-scoped `201` | `401`, `403`, or `404` |
 
-A private attachment's anonymous `404` is expected only when authenticated
-retrieval succeeds. Timeouts, server errors, and login pages do not establish
-that the image is both readable and protected. The helper stops on a mismatch;
-do not widen repository access or retry through a public host to make it pass.
+A repository-scoped `201` confirms upload success. GitHub API authentication
+does not necessarily establish browser SSO: a token-authenticated GET can
+return an organization's sign-in page for a valid private attachment. Do not
+make that download a posting gate. Verify rendering in a signed-in browser
+when available, and otherwise report only upload and anonymous-access results.
+An anonymous `404` is expected for private attachments. Timeouts and server
+errors leave protection unverified; the helper stops on a mismatch. Do not
+widen repository access or retry through a public host to make it pass.
 Publish only the stable `github.com/user-attachments/assets/...` URL, never a
 signed download redirect, token, or session cookie.
 

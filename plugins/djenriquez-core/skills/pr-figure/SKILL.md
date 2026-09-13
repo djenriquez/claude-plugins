@@ -66,10 +66,11 @@ different repository.
    python3 skills/pr-figure/scripts/upload_github_asset.py "$FIGURE_PATH" --repo OWNER/REPO
    ```
 
-6. The uploader binds the attachment to that repository and verifies access
+6. The uploader confirms a repository-scoped upload and checks anonymous access
    before printing a URL. Public figures must load anonymously; private and
-   internal figures must load with authentication and deny anonymous access.
-   An anonymous `404` alone does not mean the upload failed. On verification
+   internal figures must deny anonymous access. An API token may receive a
+   browser SSO page for a valid protected attachment; do not make that download
+   a posting gate or claim authenticated rendering was verified. On verification
    failure, keep the local file and report the reason; do not post the URL or
    widen permissions. Follow the reference's response to an exposed private
    attachment. Do not use public hosting fallbacks or scrape GitHub cookies.
