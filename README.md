@@ -172,10 +172,11 @@ One reviewer diagram of a PR's merged end state. Hosts as a GitHub
 user-attachment (no commit) and posts a comment, returns body markdown, or
 prints the URL. Works from any checkout when given a PR URL.
 Attachments use the PR repository's access rules. Before sharing a URL, the
-skill confirms the upload and checks that public figures load anonymously and
-private/internal figures deny anonymous access. An API token's browser SSO
-response does not block posting; signed-in rendering is checked when a browser
-is available. The skill keeps the local file if upload or access checks fail.
+skill confirms the repository-scoped upload and checks private/internal figures
+for anonymous exposure. Raw download responses, including public URL `404`s and
+API-token SSO pages, do not establish whether a figure renders on the PR.
+Check rendering separately after posting when a browser is available; otherwise,
+report it as unverified. Keep the local file when upload or exposure checks fail.
 
 ```
 /pr-figure

@@ -5,7 +5,7 @@ Usage: upload_github_asset.py <file-path> [--repo owner/repo]
 
 Requires an authenticated GitHub CLI (`gh`) pointed at github.com. Uploads
 are bound to the target repository; GitHub assigns access from that scope.
-Print a URL only after checking anonymous access against that scope.
+Check private/internal uploads for anonymous exposure before printing a URL.
 
 Pass --repo when the current checkout is not the PR's repository.
 """
@@ -68,17 +68,16 @@ def resolve_repository(repo: str | None) -> tuple[int, str]:
     return repo_id, visibility
 
 
-def fetch_asset(opener, url: str) -> tuple[int, bool]:
+def fetch_asset(opener, url: str) -> int:
     headers = {"Accept": "image/*", "Cache-Control": "no-cache"}
     request = urllib.request.Request(url, headers=headers)
     try:
         with opener.open(request, timeout=TIMEOUT) as response:
-            is_image = response.headers.get_content_type() in SUPPORTED.values()
-            return response.status, is_image and bool(response.read(16))
+            return response.status
     except urllib.error.HTTPError as exc:
         status = exc.code
         exc.close()
-        return status, False
+        return status
     except (OSError, urllib.error.URLError) as exc:
         raise SystemExit(
             "upload_github_asset: attachment access check was inconclusive; "
@@ -101,27 +100,23 @@ def verify_asset_access(asset_url: str, visibility: str) -> None:
     if visibility not in {"public", "private", "internal"}:
         raise SystemExit("upload_github_asset: cannot verify unknown repository visibility")
 
+    # A repository-scoped 201 confirms upload success. Raw attachment GETs
+    # do not necessarily reflect rendering on a PR: public uploads can return
+    # 404, and API tokens can receive a browser SSO page for private uploads.
+    # Verify rendering separately; do not make either download a posting gate.
+    if visibility == "public":
+        return
+
     # A new opener has no cookie jar or cached authenticated session.
     opener = urllib.request.build_opener(AttachmentRedirectHandler())
-    anonymous_status, anonymous_image = fetch_asset(opener, asset_url)
-    if visibility != "public" and 200 <= anonymous_status < 300:
+    anonymous_status = fetch_asset(opener, asset_url)
+    if 200 <= anonymous_status < 300:
         raise SystemExit(
             "upload_github_asset: private/internal attachment was anonymously accessible; "
             f"do not publish it. The upload already exists at {asset_url}; "
             "withholding the link does not remove it. Remove it in GitHub or contact GitHub support"
         )
-    # The repository-scoped 201 confirms upload success. API tokens do not
-    # necessarily establish a browser SSO session: a token-authenticated GET
-    # can return an organization sign-in page for a valid private attachment.
-    # Check anonymous access here; do not claim authenticated rendering was
-    # verified or require browser cookies to post the protected stable URL.
-    if visibility == "public":
-        if anonymous_status != 200 or not anonymous_image:
-            raise SystemExit(
-                "upload_github_asset: upload exists, but public access did not return an image "
-                f"(HTTP {anonymous_status}); do not publish a URL"
-            )
-    elif anonymous_status not in {401, 403, 404}:
+    if anonymous_status not in {401, 403, 404}:
         raise SystemExit(
             "upload_github_asset: anonymous access check was inconclusive "
             f"(HTTP {anonymous_status}); do not publish a URL"
