@@ -1,7 +1,7 @@
 ---
 name: pr-figure
 description: >
-  Generates one LLM reviewer diagram for a GitHub pull request, hosts it as a
+  Creates one verified reviewer diagram for a GitHub pull request, hosts it as a
   GitHub user-attachment without committing, and posts it as a comment or
   returns markdown for a PR body. Use when the user asks for a PR figure,
   reviewer diagram, image on a PR, a picture of the change, or when
@@ -56,9 +56,12 @@ different repository.
    or `git diff <base>...HEAD` when that checkout is the PR head). Ground the
    prompt only in that evidence.
 3. Load `references/pr-figure.md`. Skip when that reference says to skip.
-4. Fill the prompt skeleton. Generate **once**. Read the image. Retry **once**
-   only for invented "Do not draw" items, dropped numbered actors, or
-   marketing art. Then stop.
+4. Record the required actors and directed edges from that evidence, then
+   fill the prompt skeleton. Generate once and verify every arrow's source,
+   destination, direction, and label against the recorded graph. Correct one
+   failed candidate at most. If it still fails, render the same graph with
+   code using the reference's deterministic fallback. Inspect the final PNG
+   before upload; fewer mistakes is not a passing result.
 5. Copy the file to `$TMPDIR` / `/tmp`. Upload from the `djenriquez-core`
    plugin root:
 
@@ -66,10 +69,11 @@ different repository.
    python3 skills/pr-figure/scripts/upload_github_asset.py "$FIGURE_PATH" --repo OWNER/REPO
    ```
 
-6. The uploader binds the attachment to that repository and verifies access
-   before printing a URL. Public figures must load anonymously; private and
-   internal figures must load with authentication and deny anonymous access.
-   An anonymous `404` alone does not mean the upload failed. On verification
+6. The uploader confirms a repository-scoped upload and checks private/internal
+   attachments for anonymous exposure before printing a URL. Raw downloads may
+   return `404` for public uploads or a browser SSO page when using an API token;
+   do not make those downloads a posting gate or claim rendering was verified.
+   Private/internal attachments must deny anonymous access. On verification
    failure, keep the local file and report the reason; do not post the URL or
    widen permissions. Follow the reference's response to an exposed private
    attachment. Do not use public hosting fallbacks or scrape GitHub cookies.
@@ -78,7 +82,10 @@ different repository.
      one- or two-sentence `pr-reply` note. Not a commit.
    - `body`: return `![title](url)` for the caller to embed.
    - `url`: print the asset URL.
-8. Delete workspace copies after upload and access verification succeed
+   After posting, check rendering on the PR when a browser is available
+   (signed in for a private/internal repository). Otherwise, report that the
+   upload and posting succeeded but rendering remains unverified.
+8. Delete workspace copies after upload and required exposure checks succeed
    (commit fallback in the reference is the exception).
 
 ## Output

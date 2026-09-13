@@ -35,9 +35,10 @@ The PR body is for humans. If a busy reviewer cannot understand the change from 
   Process by default). Summary must skim in plain language without internal
   type/function names. Do not invent test results.
 - Required reviewer figure after Summary (`pr-figure`, placement `body`): one
-  LLM-generated diagram of the end-state change. Skip only per that skill
-  (nothing to draw, no generator, or a picture that would mislead). Host via
-  user-attachments; do not auto-commit a binary onto a code PR.
+  verified diagram of the end-state change. Follow that skill's arrow checks
+  and deterministic fallback when image generation fails. Skip only per its
+  documented conditions. Host via user-attachments; do not auto-commit a binary
+  onto a code PR.
 - No hard-wrapped prose in the PR body: each prose paragraph (especially
   Summary) is one unbroken line. Blank lines between paragraphs/sections are
   fine; lists and fenced code keep structure. GitHub soft-wraps — do not insert
