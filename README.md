@@ -170,10 +170,15 @@ force-push. Prefers local `/code-review`; direct fallback keeps L0/L1/L2.
 
 One reviewer diagram of a PR's merged end state. Hosts as a GitHub
 user-attachment (no commit) and posts a comment, returns body markdown, or
-prints the URL. Works from any checkout when given a PR URL.
+prints the URL. Works from any checkout when given a PR URL. Verifies every
+arrow against an explicit graph and falls back to a code-rendered PNG if image
+generation cannot preserve the connections.
 Attachments use the PR repository's access rules. Before sharing a URL, the
-skill checks that public figures load anonymously and private/internal figures
-require authentication; it keeps the local file if verification fails.
+skill confirms the repository-scoped upload and checks private/internal figures
+for anonymous exposure. Raw download responses, including public URL `404`s and
+API-token SSO pages, do not establish whether a figure renders on the PR.
+Check rendering separately after posting when a browser is available; otherwise,
+report it as unverified. Keep the local file when upload or exposure checks fail.
 
 ```
 /pr-figure
@@ -183,7 +188,7 @@ require authentication; it keeps the local file if verification fails.
 
 Drawing rules live in `references/pr-figure.md`. Used by `/pr-publish`
 (placement `body`). Standalone default is a PR comment. Skip only when there
-is nothing to draw, no generator, or a picture that would mislead.
+is nothing to draw or neither rendering path can produce a verified figure.
 
 ### /interactive-review
 
@@ -205,8 +210,8 @@ Publish or refresh the branch PR. Draft via `pr-description-style.md`, required
 `pr-body` humanizer, required `/pr-figure` after Summary, push safely, never
 force-push. Base-branch frame: describe the merged end state, not the commit
 journey. Prose paragraphs (especially Summary) stay as unbroken lines — no hard
-wraps for terminal width. The figure is an LLM diagram of the end-state change
-(not Mermaid); skip only when there is nothing to draw or no generator.
+wraps for terminal width. The figure depicts the end-state change and must pass
+`/pr-figure` verification, including its deterministic fallback when needed.
 Small changes can use just Summary and Test plan; optional sections must add
 information beyond the Summary.
 
