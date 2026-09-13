@@ -19,12 +19,13 @@ Produce **one** figure by default. Skip only when:
 
 - The diff has no behavior, flow, architecture, or user-visible outcome to
   draw (lockfile, format-only, typo, generated-only).
-- This harness has no raster generator (see Harness).
-- Two generation attempts still invent a rejected design or omit a load-bearing
-  actor — a misleading picture is worse than none.
+- Neither image generation nor a local deterministic renderer is available.
+- The evidence cannot establish a correct graph, or the deterministic fallback
+  cannot produce a legible, verified figure. Report the concrete limitation.
 
-Say so in the publish output. Do not substitute Mermaid and call it the same
-artifact. Do not generate a second "hero" or marketing image.
+A failed image-generation attempt is a reason to use the deterministic
+fallback, not by itself a reason to skip. Deliver one verified PNG and say
+which rendering path produced it. Do not generate a second "hero" image.
 
 ## What to draw
 
@@ -37,6 +38,19 @@ Match the change, not a house style of boxes-for-everything:
 
 Frame it like the PR body: **merged end state relative to the base branch**.
 Do not draw the implementation journey, discarded designs, or future work.
+
+## Record the graph
+
+Before generating, write a small actor list and an edge table grounded in the
+PR evidence. Give actors stable IDs and record each required edge as
+`edge ID | source ID | destination ID | label`. Record meaningful boundaries
+and the actor or edge each callout describes. Keep this alongside the prompt
+in a temporary file; do not commit it by default.
+
+Choose a focused view with few actors and edges. Group nodes only when doing
+so preserves the behavior being explained. Once the graph is recorded, layout
+changes must not remove required edges, merge distinct endpoints, or invent
+intermediate hops. If the evidence changes, update the graph before rendering.
 
 ## Prompt (the load-bearing step)
 
@@ -64,16 +78,17 @@ invent. This list is mandatory whenever the change is easy to confuse with a
 sibling design.>
 
 Actors / boxes
-<Numbered. Nested bullets only for internals that affect the picture.>
+<Stable IDs and exact labels from the recorded graph. Include any boundaries
+that affect its meaning.>
 
-Control-plane arrows
-<Who invokes whom: publish → figure, figure → upload. Omit this band when
-there is no control flow in the change.>
+Directed edges
+<Copy the edge table. Each arrow must start at its source and end, with its
+arrowhead, at its destination. A line passing through another actor implies
+an extra hop: route around it. Label every edge unambiguously.>
 
-Data-plane arrows — two styles
-<Happy / granted path in one color. The other real path in a second color
-(not "unauthorized" unless that is the actual outcome). Dashed for a
-startup/probe/once path.>
+Arrow styles
+<Assign styles to existing edge IDs only. Use dashed lines for setup/probes
+when the evidence supports that distinction. Styling must not change endpoints.>
 
 Annotations (short callouts)
 <Invariants a reviewer would otherwise miss: cardinality, freeze rules,
@@ -92,11 +107,49 @@ Label discipline:
 - Ask for large unobscured text. Do not pack paragraphs into the figure.
 - Component names belong here; function and type names do not.
 
-Generate **once**. Read the image. Retry **once** if it invented a "Do not
-draw" item, dropped a numbered actor, or came out as marketing art. Prefer the
-attempt with fewer invented boxes. Then stop.
+## Verify and recover
 
-## Harness (raster generator)
+Inspect the actual pixels before uploading or embedding any candidate. Trace
+**every required edge** from its source to its arrowhead and compare it with
+the edge table. Check labels, actor membership in boundaries, and callout
+attachment points. Also look for extra arrows or implied hops absent from the
+graph. An ambiguous crossing or hidden arrowhead fails verification; visual
+polish and correct box labels cannot compensate for wrong connections.
+
+Generate once. If it fails verification, make one targeted correction that
+names the mismatched edge IDs and their required endpoints. Keep the recorded
+graph fixed and recheck the entire corrected image: editing one arrow can move
+another. If neither candidate passes, stop image generation and use the
+fallback below. Never select the candidate merely because it has fewer errors.
+
+For example, if the graph says `e1 | client | api | request` and
+`e2 | api | store | read`, a drawing with `client → store` fails even when all
+three boxes and both labels are present. Reversing `e2`, assigning a callout to
+the wrong actor, or joining both edges into an unlabeled junction also fails.
+
+## Deterministic fallback
+
+Render the recorded graph with code when the correction fails, or when there
+is no image generator. Use an available local renderer: Graphviz or Mermaid
+for explicit directed edges, or SVG with explicitly positioned boxes, paths,
+and arrowheads. Convert the result to PNG with an available local renderer or
+browser screenshot. Use the renderer's source IDs to preserve endpoints; do
+not send the failed bitmap through image generation again to redraw its arrows.
+
+Keep the presentation simple: readable labels, generous spacing, no decorative
+connections. Inspect the final PNG using the same verification above. Code
+rendering preserves specified connections but does not prove the source graph
+matches the diff or that the layout is legible. Fix source/layout mistakes
+before uploading. Keep source and PNG in temporary storage. Deliver the PNG
+through the existing attachment workflow, and identify it as code-rendered;
+a Mermaid code fence alone is not the hosted figure.
+
+Use tools already available in the harness. Do not install plugins, send the
+graph to a public rendering service, or weaken attachment access checks to
+make the fallback work. If no local renderer can produce a verified PNG,
+report the limitation and retain the graph source for the user.
+
+## Harness (image generation)
 
 Inspect available tools and use the generator for **this** harness (do not
 reach for another product's image tool when the session already has one):
@@ -107,7 +160,8 @@ reach for another product's image tool when the session already has one):
 | **Codex** | Installed `imagegen` skill / built-in `image_gen`. Put landscape and white background in the prompt. Copy the chosen file out of `$CODEX_HOME/generated_images/` to a temp path before upload. Do not switch to that skill's CLI fallback unless the user asked. |
 | **Claude Code** | No native raster generator. Use a native image tool if the session has one. Else Codex `imagegen` / `codex` CLI if already available. Do not install plugins to unblock publish. |
 
-If none of those exist, skip the figure and report it. Do not block the PR.
+If none of those exist, use the deterministic fallback. Do not block the PR
+when neither rendering path is available.
 
 Write the file under `$TMPDIR` / `/tmp` when you control the path so it does
 not show up as an untracked repo binary. Delete a workspace copy after a

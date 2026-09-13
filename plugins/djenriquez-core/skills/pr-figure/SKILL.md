@@ -1,7 +1,7 @@
 ---
 name: pr-figure
 description: >
-  Generates one LLM reviewer diagram for a GitHub pull request, hosts it as a
+  Creates one verified reviewer diagram for a GitHub pull request, hosts it as a
   GitHub user-attachment without committing, and posts it as a comment or
   returns markdown for a PR body. Use when the user asks for a PR figure,
   reviewer diagram, image on a PR, a picture of the change, or when
@@ -56,9 +56,12 @@ different repository.
    or `git diff <base>...HEAD` when that checkout is the PR head). Ground the
    prompt only in that evidence.
 3. Load `references/pr-figure.md`. Skip when that reference says to skip.
-4. Fill the prompt skeleton. Generate **once**. Read the image. Retry **once**
-   only for invented "Do not draw" items, dropped numbered actors, or
-   marketing art. Then stop.
+4. Record the required actors and directed edges from that evidence, then
+   fill the prompt skeleton. Generate once and verify every arrow's source,
+   destination, direction, and label against the recorded graph. Correct one
+   failed candidate at most. If it still fails, render the same graph with
+   code using the reference's deterministic fallback. Inspect the final PNG
+   before upload; fewer mistakes is not a passing result.
 5. Copy the file to `$TMPDIR` / `/tmp`. Upload from the `djenriquez-core`
    plugin root:
 

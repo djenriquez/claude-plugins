@@ -4,7 +4,7 @@
   "plugins": [
     {
       "name": "djenriquez-core",
-      "version": "0.19.0",
+      "version": "0.19.1",
       "source": "./plugins/djenriquez-core",
       "description": "Agent workflow skills for spec writing and review, plain-language engineering text, code review, decision audits, PR feedback, self-review, PR publishing, and visual PR explanations."
     }
