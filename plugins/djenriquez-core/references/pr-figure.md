@@ -185,7 +185,8 @@ when the current checkout is not the PR's repository:
 python3 skills/pr-figure/scripts/upload_github_asset.py "$FIGURE_PATH" --repo OWNER/REPO
 ```
 
-The script prints the asset URL on stdout only after access checks pass.
+The script prints the asset URL on stdout after the repository-scoped upload
+succeeds and any private/internal exposure checks pass.
 Delivery (`comment` / `body` / `url`) is owned by `skills/pr-figure/SKILL.md`.
 For a PR body, embed after
 the Summary paragraphs, before `## What changed`:
@@ -205,24 +206,32 @@ selects the destination repository. Unknown visibility stops the upload.
 [GitHub's attachment access rules](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/attaching-files)
 determine the checks:
 
-| Repository visibility | Authenticated GET | Anonymous GET |
+| Repository visibility | Upload | Before posting |
 |---|---|---|
-| Public | `200` with image content | `200` with image content |
-| Private or internal | `200` with image content | `401`, `403`, or `404` |
+| Public | Repository-scoped `201` | No download prerequisite |
+| Private or internal | Repository-scoped `201` | `401`, `403`, or `404` |
 
-A private attachment's anonymous `404` is expected only when authenticated
-retrieval succeeds. Timeouts, server errors, and login pages do not establish
-that the image is both readable and protected. The helper stops on a mismatch;
-do not widen repository access or retry through a public host to make it pass.
+A repository-scoped `201` confirms upload success. Raw attachment downloads
+do not necessarily reflect rendering on a PR: public uploads can return `404`,
+and an API token can receive an organization's browser SSO page for a valid
+private attachment. Do not make either download a posting gate. After posting,
+verify rendering on the PR when a browser is available, signed in for a
+private/internal repository. Otherwise, report upload and posting success
+without claiming rendering was verified.
+
+Private/internal attachments must deny anonymous access. An anonymous `404`
+is expected; timeouts and server errors leave protection unverified, so the
+helper stops. Do not widen repository access or retry through a public host
+to make it pass.
 Publish only the stable `github.com/user-attachments/assets/...` URL, never a
 signed download redirect, token, or session cookie.
 
 If a private/internal upload is anonymously readable, stop and report the
 possible exposure and attachment URL to the user so it can be removed in
 GitHub or through GitHub support. Withholding the PR link does not undo an
-upload. Do not retry hosting after this failure. These checks confirm access
-at upload time; they cannot guarantee future repository visibility or test
-every other user's permissions.
+upload. Do not retry hosting after this failure. These checks detect anonymous
+exposure at upload time; they cannot establish rendering, guarantee future
+repository visibility, or test every reader's permissions.
 
 If the user requires a non-public figure and the repository is public, skip
 uploading. If the helper is missing, keep the file local rather than bypassing

@@ -57,27 +57,24 @@ class UploadTests(unittest.TestCase):
             return TOKEN
         self.fail(f"unexpected gh call: {args}")
 
-    def prepare(self, anonymous, authenticated=None):
+    def prepare(self, anonymous):
         self.opener.open.side_effect = [
             response(201, "application/json", json.dumps({"url": ASSET}).encode()),
             anonymous,
-            authenticated if authenticated is not None else response(),
         ]
 
-    def test_public_upload_uses_target_repository_and_checks_both_access_modes(self):
+    def test_public_upload_uses_target_repository_without_download_checks(self):
         self.prepare(response())
         uploader.main()
         self.assertEqual(self.stdout.getvalue(), ASSET + "\n")
-        upload, anonymous, authenticated = [call.args[0] for call in self.opener.open.call_args_list]
+        self.assertEqual(self.opener.open.call_count, 1)
+        upload = self.opener.open.call_args.args[0]
         self.assertEqual(upload.get_method(), "POST")
         self.assertEqual(parse_qs(urlparse(upload.full_url).query)["repository_id"], ["42"])
         self.assertEqual(upload.data, PNG)
-        self.assertIsNone(anonymous.get_header("Authorization"))
-        self.assertIsNone(anonymous.get_header("Cookie"))
-        self.assertEqual(authenticated.get_header("Authorization"), f"Bearer {TOKEN}")
-        self.assertEqual(anonymous.full_url, authenticated.full_url)
+        self.assertEqual(upload.get_header("Authorization"), f"Bearer {TOKEN}")
 
-    def test_private_and_internal_uploads_accept_denial_with_authenticated_image(self):
+    def test_private_and_internal_uploads_accept_anonymous_denial(self):
         for visibility in ("private", "internal"):
             for status in (401, 403, 404):
                 with self.subTest(visibility=visibility, status=status):
@@ -87,6 +84,10 @@ class UploadTests(unittest.TestCase):
                     self.prepare(denied(status))
                     uploader.main()
                     self.assertEqual(self.stdout.getvalue(), ASSET + "\n")
+                    anonymous = self.opener.open.call_args.args[0]
+                    self.assertEqual(anonymous.full_url, ASSET)
+                    self.assertIsNone(anonymous.get_header("Authorization"))
+                    self.assertIsNone(anonymous.get_header("Cookie"))
 
     def test_private_anonymous_success_reports_existing_exposure_without_publishing(self):
         for visibility in ("private", "internal"):
@@ -99,20 +100,35 @@ class UploadTests(unittest.TestCase):
                     self.assertIn(ASSET, str(error.exception))
                     self.assertEqual(self.stdout.getvalue(), "")
 
-    def test_public_authenticated_only_image_is_not_reported_as_failed_upload(self):
-        self.prepare(denied(404))
-        with self.assertRaisesRegex(SystemExit, "upload exists, but public access"):
+    def test_public_raw_url_404_does_not_block_confirmed_upload(self):
+        self.opener.open.side_effect = [
+            response(201, "application/json", json.dumps({"url": ASSET}).encode()),
+            denied(404),
+            response(),
+        ]
+        uploader.main()
+        self.assertEqual(self.stdout.getvalue(), ASSET + "\n")
+        self.assertEqual(self.opener.open.call_count, 1)
+
+    def test_internal_upload_does_not_require_api_token_to_establish_browser_sso(self):
+        self.metadata["visibility"] = "internal"
+        # An API token can receive a browser SSO page after a successful
+        # repository-scoped upload. Publishing must not depend on that GET.
+        self.opener.open.side_effect = [
+            response(201, "application/json", json.dumps({"url": ASSET}).encode()),
+            denied(404),
+            response(content_type="text/html", body=b"<title>Sign in to Example Organization</title>"),
+        ]
+        uploader.main()
+        self.assertEqual(self.stdout.getvalue(), ASSET + "\n")
+        self.assertEqual(self.opener.open.call_count, 2)
+
+    def test_upload_failure_does_not_return_an_asset_url(self):
+        self.opener.open.side_effect = [denied(403)]
+        with self.assertRaisesRegex(SystemExit, "upload failed with HTTP 403"):
             uploader.main()
         self.assertEqual(self.stdout.getvalue(), "")
-
-    def test_anonymous_denial_alone_does_not_prove_private_image_works(self):
-        self.metadata["visibility"] = "private"
-        for authenticated in (denied(404), response(content_type="text/html"), response(body=b"")):
-            with self.subTest(authenticated=authenticated):
-                self.prepare(denied(404), authenticated)
-                with self.assertRaisesRegex(SystemExit, "authenticated attachment check"):
-                    uploader.main()
-                self.assertEqual(self.stdout.getvalue(), "")
+        self.assertEqual(self.opener.open.call_count, 1)
 
     def test_inconclusive_anonymous_checks_do_not_pass_for_private_uploads(self):
         self.metadata["visibility"] = "private"
@@ -123,11 +139,12 @@ class UploadTests(unittest.TestCase):
                     uploader.main()
                 self.assertEqual(self.stdout.getvalue(), "")
 
-    def test_public_login_page_does_not_count_as_an_image(self):
-        self.prepare(response(content_type="text/html"))
-        with self.assertRaisesRegex(SystemExit, "public access did not return an image"):
+    def test_non_created_upload_response_does_not_return_a_url(self):
+        self.opener.open.side_effect = [response(200, "application/json", json.dumps({"url": ASSET}).encode())]
+        with self.assertRaisesRegex(SystemExit, "upload failed with HTTP 200"):
             uploader.main()
         self.assertEqual(self.stdout.getvalue(), "")
+        self.assertEqual(self.opener.open.call_count, 1)
 
     def test_unknown_repository_scope_stops_before_upload(self):
         for metadata in ({"id": 42}, {"id": 42, "visibility": "unknown"}, {"id": None, "visibility": "private"}):
@@ -142,7 +159,7 @@ class UploadTests(unittest.TestCase):
         for url in (ASSET + "?token=secret", ASSET + "#fragment", ASSET.replace("https:", "http:"), ASSET.replace("github.com", "example.com")):
             with self.subTest(url=url):
                 with self.assertRaisesRegex(SystemExit, "unexpected attachment URL"):
-                    uploader.verify_asset_access(url, TOKEN, "private")
+                    uploader.verify_asset_access(url, "private")
                 self.opener.open.assert_not_called()
 
 

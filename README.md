@@ -174,8 +174,11 @@ prints the URL. Works from any checkout when given a PR URL. Verifies every
 arrow against an explicit graph and falls back to a code-rendered PNG if image
 generation cannot preserve the connections.
 Attachments use the PR repository's access rules. Before sharing a URL, the
-skill checks that public figures load anonymously and private/internal figures
-require authentication; it keeps the local file if verification fails.
+skill confirms the repository-scoped upload and checks private/internal figures
+for anonymous exposure. Raw download responses, including public URL `404`s and
+API-token SSO pages, do not establish whether a figure renders on the PR.
+Check rendering separately after posting when a browser is available; otherwise,
+report it as unverified. Keep the local file when upload or exposure checks fail.
 
 ```
 /pr-figure
