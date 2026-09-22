@@ -29,7 +29,7 @@ Load `protocols/code-review-protocol.md` before writing findings. Load `referenc
 - Add specialists only when the diff or generalist findings show a concrete risk signal.
 - Do not paste large full diffs into every sub-agent prompt.
 - Do not run external-model debate as a default phase.
-- Produce fewer, stronger findings.
+- Reviewers report every finding that meets the evidence bar, at any severity. Selectivity comes from the evidence bar and synthesis, not from reviewers holding back lower-severity issues.
 
 ## Gather Target
 

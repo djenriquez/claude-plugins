@@ -44,9 +44,9 @@ For each finding:
 - describe the concrete alternative shape
 - mark as blocking only when the change introduces a new package/module shape that would be expensive to unwind; otherwise treat as advisory unless the lead's protocol says otherwise
 
-KEY QUESTION: "Does each package have one nameable responsibility, with a minimal public surface, that a new engineer could understand in one sentence?"
+Key question: "Does each package have one nameable responsibility, with a minimal public surface, that a new engineer could understand in one sentence?"
 
-DO NOT: impose personal layout preferences, recommend speculative future-proofing, or demand reshaping established code without concrete consumer harm.
+Do not (these are common false positives): impose personal layout preferences, recommend speculative future-proofing, or demand reshaping established code without concrete consumer harm.
 
 ## Self-Critique Questions
 
