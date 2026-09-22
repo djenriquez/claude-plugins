@@ -1,6 +1,6 @@
 {
   "name": "djenriquez-core",
-  "version": "0.19.1",
+  "version": "0.20.0",
   "description": "Agent workflow skills for spec writing and review, plain-language engineering text, code review, decision audits, PR feedback, self-review, PR publishing, and visual PR explanations.",
   "author": {
     "name": "djenriquez",

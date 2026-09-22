@@ -92,6 +92,11 @@ Each turn:
    report and ask. Local commit; update `fixed_seams` and
    `fix_mutation_turns`.
 
+A turn's account is a progress note, not a stopping point. Start the next
+turn in the same response unless the run reached success, a blocked state, or
+a decision only the user can make. Ending on a summary that announces the next
+turn, or pausing because a turn felt long, leaves the loop half-run.
+
 Retry a failed review path once; then fall back to direct fresh review; two
 direct failures → blocked. After turn 2, stop on oscillation (undoing prior
 fixes or growing mechanisms on the same seams).

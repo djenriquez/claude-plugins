@@ -13,7 +13,9 @@ Only report a finding when all are true:
 5. It is actionable by the author.
 6. It does not depend on guessing the author's intent.
 
-Prefer zero findings over weak findings.
+Report every issue that meets this bar, whatever its severity; synthesis
+normalizes and deduplicates. The bar filters on evidence, not importance, so
+zero findings is the right result when nothing meets it.
 
 Severity describes impact if the finding is true, not confidence in the evidence.
 Do not raise severity to compensate for weak evidence.

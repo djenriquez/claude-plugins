@@ -1,6 +1,7 @@
 # Review Protocol
 
-This protocol governs all specialist reviewers. Follow it exactly.
+This protocol governs all specialist reviewers. It sets the shared output
+contract; your agent file supplies the domain judgment.
 
 This file lives at `<djenriquez-core-plugin-root>/protocols/review-protocol.md`
 (sibling of `skills/` and `agents/`). Specialists load it themselves; do not
@@ -9,7 +10,7 @@ depend on the lead pasting a full copy.
 ## Review Phases
 
 **Phase 1 — Specialist Review + Self-Critique**
-Conduct your domain-specific review. Then rigorously self-critique your findings (L1/L2 only — skip for L0). Return Phase 1 findings as your final response body (see Output).
+Conduct your domain-specific review, calibrating each finding as you go (L1/L2; see Self-Critique). Return Phase 1 findings as your final response body (see Output).
 
 **Phase 2 — Cross-Review**
 Harness-dependent:
@@ -50,10 +51,13 @@ Format: `[taxonomy-label/P0-P3] Section/file:line — Description`. For blockers
 
 ## Comment Framing
 
-- Questions over statements: "What happens when X?" NOT "This is wrong"
-- Personal perspective: "I find this unclear because..." NOT "This is unclear"
-- Focus on the content, not the author: "This section does X" NOT "You forgot X"
-- No diminishing language: never "simply," "just," "obviously," "clearly"
+- State a demonstrated gap directly: "The spec does not say what happens when
+  X times out." Use a question only when you are genuinely unsure whether the
+  gap is real or intentional.
+- Focus on the content, not the author: "This section does X" rather than
+  "You forgot X"
+- Skip diminishing words such as "simply," "just," "obviously," and "clearly";
+  they make a real gap sound like the author's oversight.
 - Brief: at most 1 paragraph body per finding
 - Clearly state the scenario or condition where the issue matters
 - Communicate severity honestly — don't overclaim
@@ -61,7 +65,7 @@ Format: `[taxonomy-label/P0-P3] Section/file:line — Description`. For blockers
 
 ## Finding Qualification
 
-Only flag an issue if ALL of these hold:
+Flag an issue only when all of these hold:
 
 1. Is this a real gap, or is it intentionally left to implementation?
 2. Would addressing this change the meaning or scope?
@@ -74,30 +78,18 @@ Additionally:
 7. The author would likely address it if made aware
 
 Quantity guidance:
-- Output ALL qualifying findings — don't stop at the first
-- If nothing qualifies, output zero findings
+- Report every qualifying finding at every priority. The lead deduplicates,
+  normalizes, and filters during synthesis, so do not hold back lower-priority
+  findings to look selective.
+- If nothing qualifies, report zero findings.
 
 ## Self-Critique (L1/L2 only — skip entirely for L0)
 
-After your specialist review, stress-test your own findings before sending them.
-
-### Process
-
-For each finding, ask yourself:
-1. **Am I certain this is actually wrong/missing?** Could the author have intentionally made this choice? Is it covered elsewhere?
-2. **Is this the right level of concern?** Am I asking for something that belongs in a different artifact (implementation, testing, operational docs)?
-3. **Would a reasonable senior engineer agree this matters?** Or am I being pedantic?
-4. **Is my severity calibrated?** Am I calling something a blocker that's really a suggestion?
-5. **Do I have a concrete suggestion?** If not, can I at least frame a specific question?
-
-### Self-Critique Anti-Patterns
-
-- Don't weaken valid findings through excessive self-doubt
-- Don't add findings just to seem thorough
-- Don't upgrade severity to seem rigorous
-- Don't keep a finding you can't defend — withdraw it
-
-After self-critique, note which findings were strengthened, modified, or withdrawn.
+Calibrate as part of the review, not as a separate re-check pass. Use your
+agent file's self-critique questions to catch the failure modes specific to
+your domain. Withdraw a finding you cannot defend with evidence from the
+content; keep a valid finding at its honest priority rather than softening it
+out of self-doubt or inflating it to seem rigorous.
 
 ## Cross-Review
 
@@ -123,7 +115,6 @@ Structure:
    - Section or `file:line` reference
    - Description (concrete gap/issue, suggested fix or rewrite)
    - Agent stance: "must fix" or "can defer", with 1-sentence rationale
-   - Self-critique status (L1/L2 only): "confirmed" / "modified" / "withdrawn" with brief note
 2. **Overall assessment** — "ready" or "needs revision". Ready = clear enough and complete enough to proceed without significant risk of rework.
 
 After Phase 1 in a one-shot harness, exit normally. In a persistent team harness,
