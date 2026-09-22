@@ -9,6 +9,15 @@ Load this only when a workflow needs to translate between Claude Code style tool
 
 Do not reimplement a sub-skill when it is available and compatible.
 
+## Instruction Precedence
+
+The user's explicit instructions take precedence over workflow defaults in
+these skills. Safety invariants (no force-push, no unrequested publishing, no
+mutation from read-only skills) still hold unless the user overrides that
+specific rule by name. When a skill rule stops you from doing what the user
+asked, name the `SKILL.md`, protocol, or reference file and quote the rule
+rather than silently skipping the request or silently breaking the rule.
+
 ## Plugin Resource Paths
 
 Unqualified `references/...` and `protocols/...` resolve from the installed

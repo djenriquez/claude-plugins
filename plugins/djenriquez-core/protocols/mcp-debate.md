@@ -63,7 +63,7 @@ Always pass the `model` parameter explicitly on every MCP call below when the pr
 Current pinned models:
 
 - **Claude**: use the model exposed by the discovered Claude MCP tool; when the tool supports a `model` parameter, pass that model explicitly rather than relying on an implicit default
-- **Codex**: `gpt-5.5`
+- **Codex**: `gpt-6-astra`
 
 If a pinned model is rejected by the MCP server (not configured, not yet available, access error), treat that provider as failed under the execution failure policy and surface the failure in the invoking skill's final output so the user knows to update this protocol or their MCP config. Do **not** silently omit the `model` parameter to work around the error — that is the exact failure mode this section exists to prevent.
 
@@ -86,7 +86,7 @@ Use the verified Claude MCP prompt tool recorded during discovery. Tool names va
 
 Always pass these parameters on every opening Codex debate call:
 
-- `model`: the pinned Codex model (currently `gpt-5.5`)
+- `model`: the pinned Codex model (currently `gpt-6-astra`)
 - `approval-policy: "never"`: prevent Codex from blocking on shell command approval prompts
 - `sandbox: "read-only"`: force the session to fail fast if it tries to write
 - `base-instructions`: constrain Codex to read-only review behavior and stop it from iterating internally (template below)
@@ -95,7 +95,7 @@ Always pass these parameters on every opening Codex debate call:
 
    ```
    mcp__codex__codex(
-     model: "gpt-5.5",
+     model: "gpt-6-astra",
      approval-policy: "never",
      sandbox: "read-only",
      base-instructions: "You are a read-only code reviewer. Inspect only the content embedded in the user prompt and the diff it references. Do not run shell commands beyond what is strictly required to read referenced files, and do not edit, write, or push anything. Return findings as your final response for each turn (Critical/High/Medium/Low with file/line references, plus a verdict). Do not start internal follow-up rounds — return after producing findings and wait for explicit follow-up messages from the orchestrator.",

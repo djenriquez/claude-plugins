@@ -66,6 +66,11 @@ Target: `$ARGUMENTS`. Load from plugin root:
    disagreement. Resolve after verified fix or conclusive no-change. Do not
    reply/resolve gated threads until the user decides.
 
+Work through every step for every independent cluster before reporting. A
+triage table or a fixed first cluster is progress, not the end of the run;
+stop early only for a safety condition or when every remaining cluster waits on
+a user decision.
+
 ## Report
 
 PR identity; counts and thread→cluster map by disposition; verification;

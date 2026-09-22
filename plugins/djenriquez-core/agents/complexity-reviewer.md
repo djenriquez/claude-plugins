@@ -39,9 +39,9 @@ Examine:
 - **Big-bang delivery**: large designs that can be split into smaller independently useful changes.
 - **Coordination overhead**: lockstep changes across teams or systems that a simpler shape would avoid.
 
-KEY QUESTION: "What is the simplest thing that could work here, and what would that simpler version lose?"
+Key question: "What is the simplest thing that could work here, and what would that simpler version lose?"
 
-DO NOT: confuse unfamiliarity with unnecessary complexity, remove robustness that protects real boundaries, demand simplification of inherently hard problems, or suggest "simplify this" without a concrete alternative.
+Do not (these are common false positives): confuse unfamiliarity with unnecessary complexity, remove robustness that protects real boundaries, demand simplification of inherently hard problems, or suggest "simplify this" without a concrete alternative.
 
 ## Self-Critique Questions
 

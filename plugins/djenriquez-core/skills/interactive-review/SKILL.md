@@ -101,6 +101,9 @@ Unqualified `references/` is the plugin root.
    - `shutdown` → kill `serve`, stop.
    - `ask` → answer that turn (below), then wait again.
 
+   Posting an answer does not end the session. Call `wait` again right away
+   instead of ending the turn with a recap; only `shutdown` ends the loop.
+
 ## Answer a turn
 
 `node_id` is the scope; `null` is the whole change. Use `Read` / `Grep` /
