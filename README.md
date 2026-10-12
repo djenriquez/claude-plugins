@@ -204,6 +204,25 @@ surface; questions are answered by the same agent session in digest voice
 /interactive-review https://github.com/djenriquez/claude-plugins/pull/34
 ```
 
+### /lecture-video
+
+Turns a source document (PDF, markdown spec, design doc) into an animated,
+narrated lecture video. Motion graphics are timed to each spoken sentence and
+explain the ideas: requests flow between components, failures happen, states
+change. Not a slide deck read aloud.
+
+```
+/lecture-video docs/specs/interactive-review.md
+/lecture-video ~/Downloads/design-review.pdf
+```
+
+Narration uses Kokoro TTS locally, so confidential documents stay on the
+machine. Cloud voices are opt-in. The skill asks before installing Kokoro
+(about 1 GB with PyTorch) and Remotion, works in a scratch directory, checks
+every scene with rendered stills before the full MP4 render, and reports what
+it verified. Mechanics live in `references/lecture-video.md`; the Remotion
+and TTS template lives in the skill's `template/` directory.
+
 ### /pr-publish
 
 Publish or refresh the branch PR. Draft via `pr-description-style.md`, required

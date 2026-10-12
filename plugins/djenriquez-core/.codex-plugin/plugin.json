@@ -1,7 +1,7 @@
 {
   "name": "djenriquez-core",
-  "version": "0.20.0",
-  "description": "Agent workflow skills for spec writing and review, plain-language engineering text, code review, decision audits, PR feedback, self-review, PR publishing, and visual PR explanations.",
+  "version": "0.21.0",
+  "description": "Agent workflow skills for spec writing and review, plain-language engineering text, code review, decision audits, PR feedback, self-review, PR publishing, visual PR explanations, and narrated lecture videos.",
   "author": {
     "name": "djenriquez",
     "url": "https://github.com/djenriquez"
@@ -16,13 +16,14 @@
     "spec-review",
     "pull-requests",
     "github",
-    "workflow"
+    "workflow",
+    "video"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "djenriquez Core",
-    "shortDescription": "Spec writing, humanizer, reviews, decision audits, PR feedback, publishing, and visual PR explanations.",
-    "longDescription": "Write and review specs, edit engineering prose, review code, audit implementation decisions, handle PR feedback, and publish pull requests. Visual review skills create reviewer diagrams or open a local interactive view. Self-review verifies fixes with fresh reviewers and publishes one squashed commit.",
+    "shortDescription": "Spec writing, humanizer, reviews, decision audits, PR feedback, publishing, visual PR explanations, and lecture videos.",
+    "longDescription": "Write and review specs, edit engineering prose, review code, audit implementation decisions, handle PR feedback, and publish pull requests. Visual review skills create reviewer diagrams or open a local interactive view. Self-review verifies fixes with fresh reviewers and publishes one squashed commit. Lecture video turns a document into an animated, locally narrated MP4.",
     "developerName": "djenriquez",
     "category": "Productivity",
     "capabilities": [
@@ -36,6 +37,7 @@
       "Review this spec",
       "Add a reviewer figure to this PR",
       "Open an interactive review of this PR",
+      "Make a narrated lecture video from this doc",
       "Publish this branch as a PR"
     ],
     "brandColor": "#2563EB"

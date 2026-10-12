@@ -1,0 +1,64 @@
+{
+  "_comment": "Example narration for the bundled example scenes. One scene per concept; one beat per spoken sentence; each beat is one visual cue. Spell for the ear here (A P I, Q one); on-screen text keeps the real spelling. Replace this with the real lecture.",
+  "scenes": [
+    {
+      "id": "intro",
+      "beats": [
+        "Hey there, and welcome!",
+        "Today we're going to follow a single order through the Acme checkout system, from the click all the way to the database.",
+        "We'll see how a request flows, what happens when parts of the system fail, and where the project goes next.",
+        "By the end, you'll have a clear picture of how the pieces fit together."
+      ]
+    },
+    {
+      "id": "flow",
+      "beats": [
+        "Let's start with the path a request takes.",
+        "It begins at the A P I gateway, which checks who you are and how fast you're calling.",
+        "Next, the order service validates the cart and reserves the stock.",
+        "Then the database records the order, exactly once.",
+        "Now watch one request travel all the way down, and the confirmation come back up."
+      ]
+    },
+    {
+      "id": "failure",
+      "beats": [
+        "So let's break some things.",
+        "If the cache goes down, reads get slower, but every order still goes through.",
+        "If a database replica fails, the primary keeps taking writes.",
+        "And if the payment provider times out, the charge waits in a queue and retries, instead of failing the order."
+      ]
+    },
+    {
+      "id": "commit",
+      "beats": [
+        "Placing an order touches three services, so they have to agree.",
+        "First, the coordinator asks every service to prepare.",
+        "Each one holds what it needs, but doesn't commit anything yet.",
+        "Once all three say they're ready, the coordinator tells them to commit, all together.",
+        "And if any one of them says no, everyone aborts, so nothing is ever half done."
+      ]
+    },
+    {
+      "id": "states",
+      "beats": [
+        "Every order moves through a small set of states.",
+        "It starts as pending, and becomes paid once the charge clears.",
+        "From paid, it ships, and finally it's delivered.",
+        "At any point before shipping, it can be cancelled instead.",
+        "Delivered and cancelled are final. Once an order lands in one, it never moves again."
+      ]
+    },
+    {
+      "id": "roadmap",
+      "beats": [
+        "Finally, where is this headed?",
+        "In the first quarter, payments moves into its own service.",
+        "In the second, checkout runs in a second region.",
+        "In the third, customers can edit an order after placing it.",
+        "And by the end of the year, the old monolith is retired.",
+        "That's it for today. Thanks for watching!"
+      ]
+    }
+  ]
+}
