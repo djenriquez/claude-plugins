@@ -218,15 +218,19 @@ source tag on every scene.
 /lecture-video docs/specs/interactive-review.md
 /lecture-video ~/Downloads/design-review.pdf
 /lecture-video https://github.com/djenriquez/claude-plugins/pull/34
+/lecture-video #42 --review
 ```
 
 Narration uses Kokoro TTS locally, so confidential documents stay on the
-machine. Cloud voices are opt-in. The skill asks who the video is for and how
-long it should be, asks before installing Kokoro (about 1 GB with PyTorch)
-and Remotion (check Remotion's license for company use), and gets the script
-and voice approved. It shows a short preview clip before building every
-scene, checks each scene with stills and filmstrips, and delivers the MP4
-with WebVTT captions and a chapter list to the location you choose.
+machine. Cloud voices are opt-in. The skill runs end to end on defaults: a
+video of about five minutes for the people reviewing the work, voice
+`af_heart`, saved to `~/Movies/<slug>/`. Override any of them in the
+arguments. It asks only on first use, before installing Kokoro (about 1 GB
+with PyTorch) and Remotion (check Remotion's license for company use) into a
+reusable `~/.cache/lecture-video/`. It checks each scene with stills and
+filmstrips and delivers the MP4 with WebVTT captions, a chapter list, and the
+script and scene files for later revisions. Pass `--review` to approve the
+outline, script, voice, and a style preview clip along the way.
 Mechanics live in `references/lecture-video.md`; the Remotion and TTS
 template lives in the skill's `template/` directory.
 
