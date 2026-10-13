@@ -3,7 +3,7 @@
 // single PNG shows whether each animation happens during its own sentence.
 // Rendered by `node stills.mjs --strip <id>`.
 import React from "react";
-import { AbsoluteFill, Freeze } from "remotion";
+import { AbsoluteFill, Freeze } from "./engine";
 import { sceneComponent, SceneHost, timeline, TimedScene } from "./Lecture";
 import { Background, C, FONT, MONO } from "./lib";
 
@@ -21,11 +21,8 @@ const find = (id: string): TimedScene => {
   return s;
 };
 
-/** Strip size; its duration spans the scene because Remotion clamps frozen frames to the composition length. */
-export const stripMetadata = (id: string) => {
-  const s = find(id);
-  return { height: HEADER + s.beatFrames.length * ROW + 24, durationInFrames: s.dur };
-};
+/** Strip height in pixels; the width is the usual 1920. */
+export const stripHeight = (id: string) => HEADER + find(id).beatFrames.length * ROW + 24;
 
 /** Frames sampled for beat i: just after it starts, its middle, and just before the next beat (or the fade-out). */
 const samples = (s: TimedScene, i: number) => {

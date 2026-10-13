@@ -1,4 +1,4 @@
-"""Synthesize lecture narration with Kokoro and write beat timings for Remotion.
+"""Synthesize lecture narration with Kokoro and write beat timings for the video.
 
 Usage:
   python -I tts.py NARRATION VIDEO_DIR [--voice af_heart] [--speed 1.0] [--only ID ...]
