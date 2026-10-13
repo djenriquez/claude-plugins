@@ -6,12 +6,12 @@
   "plugins": [
     {
       "name": "djenriquez-core",
-      "version": "0.20.0",
+      "version": "0.21.0",
       "source": {
         "source": "local",
         "path": "./plugins/djenriquez-core"
       },
-      "description": "Agent workflow skills for spec writing and review, plain-language engineering text, code review, decision audits, PR feedback, self-review, PR publishing, and visual PR explanations.",
+      "description": "Agent workflow skills for spec writing and review, plain-language engineering text, code review, decision audits, PR feedback, self-review, PR publishing, visual PR explanations, and narrated lecture videos.",
       "policy": {
         "installation": "AVAILABLE",
         "authentication": "ON_INSTALL"
