@@ -1,10 +1,8 @@
 import React from "react";
-import { AbsoluteFill, Audio, Sequence, staticFile, useCurrentFrame } from "remotion";
+import { AbsoluteFill, FPS, Sequence, useCurrentFrame } from "./engine";
 import { Background, C, SceneCtx } from "./lib";
 import manifest from "./manifest.json";
 import { SCENES } from "./scenes";
-
-export const FPS = 30;
 
 type Scene = {
   id: string;
@@ -23,7 +21,7 @@ export const VOICE = m.voice;
 export type TimedScene = Scene & { from: number; dur: number; beatFrames: number[] };
 
 // manifest.json is written by tts.py. Frame math here is repeated in timeline.mjs
-// (stills, previews) and tts.py (captions, chapters): scene length =
+// (rendering and the audio track) and tts.py (captions, chapters): scene length =
 // ceil(duration * FPS), beat frame = round(start * FPS).
 export const timeline = m.scenes.reduce<TimedScene[]>((acc, s) => {
   const from = acc.length ? acc[acc.length - 1].from + acc[acc.length - 1].dur : 0;
@@ -67,15 +65,15 @@ const ProgressBar: React.FC = () => {
   );
 };
 
+// Video only: render.mjs lays each scene's public/audio/<id>.wav at its start frame.
 export const Lecture: React.FC = () => (
   <AbsoluteFill>
     <Background />
     {timeline.map((s) => {
       const Comp = sceneComponent(s);
       return (
-        <Sequence key={s.id} from={s.from} durationInFrames={s.dur} name={s.id}>
+        <Sequence key={s.id} from={s.from} durationInFrames={s.dur}>
           <SceneHost scene={s}>
-            <Audio src={staticFile(`audio/${s.id}.wav`)} />
             <Comp />
           </SceneHost>
         </Sequence>

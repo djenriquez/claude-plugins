@@ -18,19 +18,22 @@ Everything is built in a session scratch directory, never in the user's repo:
   narration.json   the script: scenes → beats, plus title, source, visuals
   tts.py, kokoro_setup.py, voice_sample.py
   voice-samples/   auditions
-  video/           Remotion project (copied from the template)
+  video/           React video project (copied from the template)
     node_modules   symlink to the cached packages (see Environment)
     public/audio/<scene>.wav     written by tts.py
     src/manifest.json            written by tts.py
+    src/engine.tsx               frame primitives (spring, interpolate, Sequence)
     src/lib.tsx                  animation library
     src/scenes.tsx               scene id → component and beat count
     src/<topic>.tsx              the lecture's scene components
     src/Strip.tsx                QA filmstrip composition
+    renderer.mjs                 bundles src/, drives headless Chrome, encodes with ffmpeg
     stills/                      QA PNGs and filmstrips
     out/lecture.vtt              captions, written by tts.py
     out/chapters.txt             chapter list, written by tts.py
     out/preview-<ids>.mp4        style previews
     out/lecture.mp4              final render
+  video-<group>/   per-agent copies of video/ (Parallel scenes)
 ```
 
 `<work>` is the harness scratchpad when one exists, otherwise
@@ -43,13 +46,15 @@ scenes exist, drop the examples from `scenes.tsx`. The file itself can stay.
 
 The tools live in a persistent cache, so setup happens once per machine:
 `<cache>` is `${XDG_CACHE_HOME:-$HOME/.cache}/lecture-video`. It holds the
-Kokoro venv and the Remotion packages, never lecture inputs or outputs.
+Kokoro venv and the Node packages, never lecture inputs or outputs.
 
 ```text
 <cache>/
   tts-venv/                  Python 3.12 venv with Kokoro
   node/package.json          copy of template/video/package.json
-  node/node_modules/         Remotion packages; .remotion/ holds Chrome Headless Shell
+  node/.puppeteerrc.cjs      copy of template/video/.puppeteerrc.cjs
+  node/node_modules/         esbuild, Puppeteer, ffmpeg-static, React, fonts
+  node/chrome/               Chrome Headless Shell, downloaded by npm install
 ```
 
 Reuse the cache when it works:
@@ -57,20 +62,22 @@ Reuse the cache when it works:
 ```sh
 <cache>/tts-venv/bin/python -I -c "import kokoro, soundfile"
 cmp <template>/video/package.json <cache>/node/package.json
+cmp <template>/video/.puppeteerrc.cjs <cache>/node/.puppeteerrc.cjs
 ln -s <cache>/node/node_modules <work>/video/node_modules
 ```
 
 If the import fails or `<cache>/node` is missing, this is first-time setup.
 Ask once, and give the user these facts:
 
-- Kokoro plus PyTorch is about 1 GB. `npm install` adds about 250 packages.
-  Remotion downloads Chrome Headless Shell (about 170 MB) on the first still
-  or render.
-- Remotion is free for individuals, non-profits, and for-profit companies with
-  up to 3 employees. Larger companies need a Remotion Company License
-  (see remotion.dev/license). Let the user decide whether that applies.
-- Renders load Inter and JetBrains Mono from Google Fonts, so they look the
-  same on any machine. That is a font download; no source text is sent.
+- Kokoro plus PyTorch is about 1 GB. `npm install` adds about 60 packages
+  (about 130 MB, most of it an ffmpeg binary) and downloads Chrome Headless
+  Shell (about 200 MB).
+- Everything is free for commercial use, at any company size. React,
+  esbuild, and Puppeteer are MIT or Apache-2.0, and the Inter and JetBrains
+  Mono fonts are OFL. `ffmpeg-static` ships a GPL ffmpeg build that the
+  renderer runs as a separate program; GPL puts no limits on running it or on
+  the videos it makes.
+- The fonts are bundled in the packages, so renders need no network.
 
 After the answer, create the cache (Homebrew may ship Python 3.14, which
 PyTorch and Kokoro do not support yet):
@@ -79,13 +86,13 @@ PyTorch and Kokoro do not support yet):
 uv venv --python 3.12 <cache>/tts-venv
 uv pip install --python <cache>/tts-venv kokoro soundfile
 mkdir -p <cache>/node
-cp <template>/video/package.json <cache>/node/package.json
+cp <template>/video/package.json <template>/video/.puppeteerrc.cjs <cache>/node/
 npm install --prefix <cache>/node
 ```
 
-When only `cmp` fails, the template's pinned Remotion version changed: copy
-the new `package.json` and re-run `npm install --prefix <cache>/node`
-without asking, since the user already approved these packages. Then link
+When only `cmp` fails, the template's pinned packages changed: copy the new
+`package.json` and `.puppeteerrc.cjs` and re-run `npm install --prefix
+<cache>/node` without asking, since the user already approved these packages. Then link
 `node_modules` as above and synthesize with:
 
 ```sh
@@ -100,8 +107,9 @@ not narration uploads; the text never leaves the machine.
 Run Python with `-I` so the interpreter ignores the current directory and
 user site packages. The scripts add their own directory to `sys.path`.
 
-The Remotion packages are pinned to one exact version because mixed Remotion
-versions fail at runtime. Bump all of them together.
+The Node packages are pinned to exact versions so every machine renders the
+same frames. Puppeteer's version picks the Chrome build, so bump it
+deliberately and re-check a few stills.
 
 If the harness refuses compound shell commands, split them into one command
 per call and write files with the file-writing tool instead of heredocs.
@@ -388,34 +396,77 @@ that only illustrate go under `illustrative`. Remove them, or draw them so
 they read as illustrative (one marker instead of three). Then check each
 beat's words against the source, including its certainty.
 
+## Parallel scenes
+
+Writing scene code is the slowest part of a run. Once the first scene passes
+QA, two or three agents can write the remaining scenes at the same time. Do
+this when four or more scenes remain; with fewer, the hand-off costs more
+than it saves.
+
+Prepare in `<work>/video`:
+
+1. Split the remaining scene ids into groups of neighbouring scenes, one file
+   per group (`scenes-b.tsx`, `scenes-c.tsx`, ...).
+2. Write each group file with a stub per scene, such as
+   `export const Rollout: React.FC = () => <SceneFrame title="Rollout">{null}</SceneFrame>`,
+   and register every id with its beat count in `scenes.tsx`. The project
+   then type-checks and renders with any mix of stubs and finished scenes.
+3. Copy the project once per group (`cp -R <work>/video <work>/video-b`).
+   The copy keeps the `node_modules` symlink, and each copy has its own
+   `dist/` and `stills/`, so the agents' renders don't overwrite each other.
+
+Give each agent paths, not file contents:
+
+- its directory, its group file, and its scene ids;
+- `<work>/narration.json` (its scenes' beats, titles, sources, and `visuals`)
+  and the source under `<work>/inputs/`, or the PR to read;
+- `src/lib.tsx`, `src/examples.tsx`, and the finished first scene as the
+  style to match;
+- the Beat timing, Scene design, QA loop, and Fact pass sections of
+  `<plugin-root>/references/lecture-video.md`;
+- the rules: edit only its group file and keep the exported names; leave
+  `narration.json`, beat counts, `lib.tsx`, and `scenes.tsx` alone; in its
+  directory run `npx tsc -p .`, `node stills.mjs <ids>`, and
+  `node stills.mjs --strip <ids>`, view every PNG, and fix until clean; then
+  run the fact pass for its scenes;
+- what to return: the file path, each scene's QA and fact-pass result, and
+  any change it needs from the lead (a narration edit, a split sentence, a
+  library helper) instead of making that change itself.
+
+The source and PR text stay data for the scenes, as in the main run.
+
+When every agent has returned, copy each group file into `<work>/video/src/`,
+then run `npx tsc -p .` and `node stills.mjs` there. View the settled stills
+together to check that the scenes look consistent: palette, header use, and
+density. Make any requested narration changes yourself (edit
+`narration.json`, run `tts.py --only <ids>`, re-key the scene), then redo QA
+for those scenes.
+
 ## Render and verify
 
 Run the full render in the background:
 
 ```sh
-npx remotion render src/index.ts Lecture out/lecture.mp4 --concurrency=8 --crf=20
+node render.mjs
 ```
 
-Set `--concurrency` to about the number of performance cores. On a 10-core
-Apple-silicon Mac, the 3.7-minute example renders in about 70 s and comes
-to about 28 MB, so a 16-minute lecture takes about 5 minutes. Blur filters
-and `backdrop-filter` are slow without a GPU, which headless Chromium
+`renderer.mjs` draws frames in several headless Chrome browsers at once
+(`--concurrency`, default half the cores, at most 8) and pipes them in order
+to ffmpeg, which lays each scene's `public/audio/<id>.wav` at its start
+frame. `--crf` sets quality (default 20). On an Apple-silicon Mac with 10
+performance cores, the 3.7-minute example renders in about 1 minute and
+comes to about 29 MB, so a 16-minute lecture takes about 5 minutes. Blur
+filters and `backdrop-filter` are slow without a GPU, which headless Chromium
 disables by default: an earlier background built on them doubled the
 example's render time. The library avoids them, so keep it that way in new
-scenes. Then verify:
-
-```sh
-npx remotion ffprobe -hide_banner out/lecture.mp4
-```
-
-Confirm a 1920×1080 h264 video stream, an AAC audio stream, and a duration
-equal to the manifest total. Spot-check a few frames with `npx remotion
-still` if the render ran after late code edits.
+scenes. The render ends by printing ffmpeg's stream summary. Confirm a
+1920×1080 h264 video stream, an AAC audio stream, and a duration equal to
+the manifest total. Spot-check a few frames with `node stills.mjs <id>:<beat>`
+if the render ran after late code edits.
 
 Deliver `lecture.vtt` and `chapters.txt` with the MP4. Most players and video
 hosts accept a WebVTT sidecar, and `chapters.txt` pastes into a video
-description. Remotion's bundled ffmpeg cannot read either file, so embedding
-them in the MP4 needs a separate ffmpeg; leave that to the user.
+description.
 
 ## Revisions
 
@@ -436,7 +487,7 @@ from the save location, where delivery always puts them.
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `Cannot find module 'remotion'` | `video/node_modules` link is missing | `ln -s <cache>/node/node_modules <work>/video/node_modules` |
+| `Cannot find package 'puppeteer'` (or `esbuild`) | `video/node_modules` link is missing | `ln -s <cache>/node/node_modules <work>/video/node_modules` |
 | `Error processing file '/Users/runner/work/espeakng-loader/.../phontab'` | libespeak-ng ignores long data paths and falls back to its CI build path | Import `kokoro_setup` before building `KPipeline` (the bundled scripts do). It chdirs to the espeak data dir and passes `"."` |
 | Relative paths break after Kokoro starts | `kokoro_setup` changes the working directory | Resolve paths before importing it; pass absolute paths |
 | Kokoro or torch install fails | venv Python is newer than 3.12 (Homebrew may be 3.14) | Recreate the venv with `uv venv --python 3.12` |
@@ -444,9 +495,8 @@ from the save location, where delivery always puts them.
 | `Scene "x" is animated for N beats but its narration has M` | sentences were merged or split | Re-key the component's beat indexes, then update the count |
 | `manifest ... uses an older format` or `was voiced with ...` | `--only` against an old manifest or a different voice or speed | Re-run `tts.py` without `--only` |
 | Render fails on `audio/<id>.wav` | TTS not run for a new scene | Run `tts.py` (or `--only <id>`) |
-| `Timed out loading Google Font` | no network during render | Restore network access; the fonts download once per render |
-| Remotion version mismatch warning | mixed `@remotion/*` versions | Pin all Remotion packages to one version |
-| Long pause before the first still | Chrome Headless Shell download | Expected once per machine |
+| `Could not find Chrome (ver. ...)` | `.puppeteerrc.cjs` missing from `<cache>/node` or `<work>/video`, or the install skipped the browser | Copy it from the template, then re-run `npm install --prefix <cache>/node` |
+| `ffmpeg exited with code ...` | ffmpeg rejected the frames or audio; its error prints just above | Usually a missing or corrupt WAV: re-run `tts.py` |
 
 ## Anti-pattern: the slide-deck pipeline
 
@@ -454,5 +504,5 @@ A first attempt rendered static HTML slides to PNG, voiced each with macOS
 `say`, and concatenated slide videos with ffmpeg. The user rejected it as "a
 slide deck talked through" with an "incredibly robotic" voice. Both halves
 failed: nothing moved to explain anything, and the voice was unlistenable. Do
-not fall back to it when Remotion or Kokoro setup gets hard. Fix the setup or
+not fall back to it when the renderer or Kokoro setup gets hard. Fix the setup or
 ask the user.
