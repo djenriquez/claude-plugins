@@ -5,7 +5,7 @@ description: |
   jargon, repetition, and canned phrasing from PR descriptions, reviews, replies,
   digests, specs, and decision ledgers. Preserve technical facts, uncertainty,
   and required structure; leave already-clear text alone.
-argument-hint: "[mode] — pr-body | review-comment | digest | spec-narrative | pr-reply | ledger | general"
+argument-hint: "[mode] — pr-body | review-comment | digest | spec-narrative | pr-reply | ledger | narration | general"
 disable-model-invocation: false
 allowed-tools:
   - Read
@@ -28,6 +28,7 @@ Load from the `djenriquez-core` plugin root:
   `references/reporting-style.md` then `references/humanizer-patterns.md`
 - `review-comment`: `references/humanizer-patterns.md`, including the review
   examples; preserve meaning and evidence without imposing a formal register
+- `narration`: `references/humanizer-patterns.md`, including its voice note
 - `general`: patterns; keep real human voice when present
 
 ## Callers (required pass)
@@ -42,6 +43,7 @@ Load from the `djenriquez-core` plugin root:
 | `handle-pr-feedback` | `pr-reply` | each reply body |
 | `audit-decisions` | `ledger` | before present |
 | `interactive-review` | `digest` | graph summary, roles, and annotations before serve; each panel answer before POST |
+| `lecture-video` | `narration` | spoken beats and on-screen text before the script checkpoint |
 
 Callers run the Process **inline** by default. Nested `/humanizer` is optional.
 Never ship the unhumanized draft when the caller requires the pass.
@@ -55,6 +57,7 @@ substitute for applying it. Recheck the final text after later edits.
 | PR body / digest / reported summary | reporting-style + this mode; no blog voice |
 | Interactive review answers / graph summary and roles | reporting-style + `digest`; contractions OK |
 | Decision ledger | reporting-style + `ledger`; keep rank; no findings |
+| Video narration | `narration`; spoken and warm, not reporting register |
 | Review comment / short reply | this mode; contractions OK |
 | Procedure / reference | technical-writing structure; this skill only cleans slop |
 | Narrative / person-sounding | `general`; do not invent personality for eng docs |
@@ -89,6 +92,13 @@ Mode rules override when they conflict.
 - **`ledger`** — Keep ranked order and the where / what / would-have-asked
   fields. Neutral; one name per thing. Do not invent confidence, add
   findings, or turn the list into a digest narrative.
+- **`narration`** — Spoken script for a video viewer. Contractions and warmth
+  are fine; each sentence carries one idea. Cut stock openers, transitions, and
+  sign-offs ("Hey there, and welcome!", "Let's dive in"), hype, and filler
+  questions; open on the problem. Keep ear-spellings ("A P I", "engine X") in
+  spoken text and real spelling on screen. Keep the source's certainty and
+  every open question; do not merge or split sentences without saying so,
+  because each sentence is a timed beat.
 - **`general`** — Full pattern catalog, surgical. Prefer a reporting mode for
   eng reported work.
 

@@ -60,7 +60,7 @@ ideas, and canned phrasing while preserving facts and uncertainty. Forked from
 ```
 
 Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`,
-`ledger`, `general`. Callers apply the Process inline by default; nested
+`ledger`, `narration`, `general`. Callers apply the Process inline by default; nested
 `/humanizer` is optional.
 
 | Layer | Resource | When |
@@ -78,6 +78,7 @@ Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`,
 | `/write-spec` | `spec-narrative` (narrative only) |
 | `/handle-pr-feedback` | `pr-reply` |
 | `/audit-decisions` | `ledger` |
+| `/lecture-video` | `narration` |
 
 ### /technical-writing
 
@@ -206,22 +207,28 @@ surface; questions are answered by the same agent session in digest voice
 
 ### /lecture-video
 
-Turns a source document (PDF, markdown spec, design doc) into an animated,
-narrated lecture video. Motion graphics are timed to each spoken sentence and
-explain the ideas: requests flow between components, failures happen, states
-change. Not a slide deck read aloud.
+Turns a document, spec, or pull request into an animated, narrated explainer
+video. Motion graphics are timed to each spoken sentence and explain the
+ideas: requests flow between components, failures happen, states change. Not
+a slide deck read aloud. For AI-generated work, the video also shows the
+decisions made, what was verified and what wasn't, the open questions, and a
+source tag on every scene.
 
 ```
 /lecture-video docs/specs/interactive-review.md
 /lecture-video ~/Downloads/design-review.pdf
+/lecture-video https://github.com/djenriquez/claude-plugins/pull/34
 ```
 
 Narration uses Kokoro TTS locally, so confidential documents stay on the
-machine. Cloud voices are opt-in. The skill asks before installing Kokoro
-(about 1 GB with PyTorch) and Remotion, works in a scratch directory, checks
-every scene with rendered stills before the full MP4 render, and reports what
-it verified. Mechanics live in `references/lecture-video.md`; the Remotion
-and TTS template lives in the skill's `template/` directory.
+machine. Cloud voices are opt-in. The skill asks who the video is for and how
+long it should be, asks before installing Kokoro (about 1 GB with PyTorch)
+and Remotion (check Remotion's license for company use), and gets the script
+and voice approved. It shows a short preview clip before building every
+scene, checks each scene with stills and filmstrips, and delivers the MP4
+with WebVTT captions and a chapter list to the location you choose.
+Mechanics live in `references/lecture-video.md`; the Remotion and TTS
+template lives in the skill's `template/` directory.
 
 ### /pr-publish
 

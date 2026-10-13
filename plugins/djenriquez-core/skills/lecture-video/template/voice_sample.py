@@ -15,8 +15,8 @@ import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 DEFAULT_TEXT = (
-    "Hey there, and welcome! Today we're going to walk through how this system works, "
-    "one piece at a time. So let's break some things."
+    "A request enters at the A P I gateway, which checks who you are. "
+    "If the cache goes down, reads get slower, but every order still goes through."
 )
 
 

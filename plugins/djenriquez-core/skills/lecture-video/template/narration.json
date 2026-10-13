@@ -1,36 +1,81 @@
 {
-  "_comment": "Example narration for the bundled example scenes. One scene per concept; one beat per spoken sentence; each beat is one visual cue. Spell for the ear here (A P I, Q one); on-screen text keeps the real spelling. Replace this with the real lecture.",
+  "_comment": "Example narration for the bundled example scenes, explaining a fictional Acme checkout design doc. One scene per concept; one beat per spoken sentence and visual cue. A beat is a string or {say, show, hold}: say is spelled for the ear, show is the caption in real spelling (defaults to say with spelled letters rejoined), hold is extra silence in seconds. title names the chapter, source is the on-screen source tag, visuals lists every box, arrow, and count the scene draws so the fact pass can check pictures as well as words. Replace this with the real lecture.",
   "scenes": [
     {
       "id": "intro",
+      "title": "Two taps, one order?",
+      "source": "Acme checkout design doc, §1",
+      "visuals": {
+        "boxes": ["two Pay taps", "question: charged twice?", "topic pills: request path, the change, failures, open questions"],
+        "arrows": [],
+        "illustrative": []
+      },
       "beats": [
-        "Hey there, and welcome!",
-        "Today we're going to follow a single order through the Acme checkout system, from the click all the way to the database.",
-        "We'll see how a request flows, what happens when parts of the system fail, and where the project goes next.",
-        "By the end, you'll have a clear picture of how the pieces fit together."
+        "A customer taps Pay, the page hangs, and they tap it again.",
+        { "say": "Do they get charged twice?", "hold": 0.6 },
+        "This walkthrough follows one order through the Acme checkout design to answer that.",
+        "We'll trace the request, look at the change that makes retries safe, break a few dependencies, and finish with what's still open."
       ]
     },
     {
       "id": "flow",
+      "title": "The path of a request",
+      "source": "§2 Request path",
+      "visuals": {
+        "boxes": ["Client", "API gateway (auth, rate limit)", "Order service (validate cart, reserve stock)", "Database (orders table, idempotency key)"],
+        "arrows": ["Client -> API gateway -> Order service -> Database: request", "Database -> Order service -> API gateway -> Client: confirmation"],
+        "illustrative": []
+      },
       "beats": [
         "Let's start with the path a request takes.",
-        "It begins at the A P I gateway, which checks who you are and how fast you're calling.",
+        "It enters at the A P I gateway, which checks who you are and how fast you're calling.",
         "Next, the order service validates the cart and reserves the stock.",
         "Then the database records the order, exactly once.",
-        "Now watch one request travel all the way down, and the confirmation come back up."
+        { "say": "Now watch one request travel all the way down, and the confirmation come back up.", "hold": 1.5 }
+      ]
+    },
+    {
+      "id": "change",
+      "title": "The change that makes retries safe",
+      "source": "§3 Idempotent writes",
+      "visuals": {
+        "boxes": ["place_order diff", "orders table with one row per tap"],
+        "arrows": ["tap 2 -> existing order: returned"],
+        "illustrative": ["two taps (the scenario from the intro, not a measured count)"]
+      },
+      "beats": [
+        "Here's the part of the design that answers our question.",
+        "Before, every retry inserted a brand new order.",
+        "Now each request carries an idempotency key, created once by the client.",
+        { "say": "If that key was already used, the service returns the original order instead of writing a second one.", "hold": 1.0 },
+        "So two taps make one order, and one charge."
       ]
     },
     {
       "id": "failure",
+      "title": "Failures stay contained",
+      "source": "§4 Failure modes",
+      "visuals": {
+        "boxes": ["Order service", "Cache", "DB replica", "Payment provider", "retry queue"],
+        "arrows": ["Order service -> Cache", "Order service -> DB replica", "Order service -> Payment provider"],
+        "illustrative": ["packet dots show traffic, not a rate"]
+      },
       "beats": [
-        "So let's break some things.",
+        "What happens when a dependency breaks?",
         "If the cache goes down, reads get slower, but every order still goes through.",
         "If a database replica fails, the primary keeps taking writes.",
-        "And if the payment provider times out, the charge waits in a queue and retries, instead of failing the order."
+        { "say": "And if the payment provider times out, the charge waits in a queue and retries, instead of failing the order.", "hold": 1.0 }
       ]
     },
     {
       "id": "commit",
+      "title": "Agreeing across services",
+      "source": "§5 Two-phase commit",
+      "visuals": {
+        "boxes": ["Coordinator", "Inventory", "Payments", "Shipping"],
+        "arrows": ["Coordinator -> each service: Prepare", "each service -> Coordinator: Ready", "Coordinator -> each service: Commit"],
+        "illustrative": []
+      },
       "beats": [
         "Placing an order touches three services, so they have to agree.",
         "First, the coordinator asks every service to prepare.",
@@ -41,6 +86,13 @@
     },
     {
       "id": "states",
+      "title": "The life of an order",
+      "source": "§6 Order states",
+      "visuals": {
+        "boxes": ["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCELLED"],
+        "arrows": ["PENDING -> PAID -> SHIPPED -> DELIVERED", "PENDING -> CANCELLED", "PAID -> CANCELLED"],
+        "illustrative": []
+      },
       "beats": [
         "Every order moves through a small set of states.",
         "It starts as pending, and becomes paid once the charge clears.",
@@ -51,13 +103,53 @@
     },
     {
       "id": "roadmap",
+      "title": "Where this is headed",
+      "source": "§8 Roadmap",
+      "visuals": {
+        "boxes": ["Q1 2027 Payments service", "Q2 2027 Second region", "Q3 2027 Order edits", "Q4 2027 Monolith retired"],
+        "arrows": [],
+        "illustrative": []
+      },
       "beats": [
-        "Finally, where is this headed?",
-        "In the first quarter, payments moves into its own service.",
+        "So where is this headed?",
+        { "say": "In the first quarter of twenty twenty-seven, payments moves into its own service.", "show": "In Q1 2027, payments moves into its own service." },
         "In the second, checkout runs in a second region.",
         "In the third, customers can edit an order after placing it.",
-        "And by the end of the year, the old monolith is retired.",
-        "That's it for today. Thanks for watching!"
+        "And by the end of the year, the old monolith is retired."
+      ]
+    },
+    {
+      "id": "review",
+      "title": "What to check",
+      "source": "§7 Open questions",
+      "visuals": {
+        "boxes": ["decision: client creates the key", "verified: double-tap test", "not verified: taps in two regions", "open: how long keys are kept"],
+        "arrows": [],
+        "illustrative": []
+      },
+      "beats": [
+        "Before you sign off, here's what the design settles, and what it leaves open.",
+        "One decision: the client creates the idempotency key, not the server.",
+        "The double tap has a test. Two requests with one key make exactly one order.",
+        "What isn't covered yet is two taps landing in different regions.",
+        "And the doc doesn't say how long a key is remembered. That's an open question.",
+        { "say": "Those last two are where your review time is best spent.", "hold": 0.8 }
+      ]
+    },
+    {
+      "id": "outro",
+      "title": "Recap",
+      "source": "Acme checkout design doc",
+      "visuals": {
+        "boxes": ["takeaways: one key per order, failures degrade, two open questions", "end card: source, revision, date, voice"],
+        "arrows": [],
+        "illustrative": []
+      },
+      "beats": [
+        "So, two taps, one order.",
+        "Every request carries a key, failures slow things down instead of failing the order, and two questions are still open.",
+        { "say": "Everything in this video comes from the Acme checkout design doc, revision four.", "hold": 1.0 },
+        "Thanks for watching."
       ]
     }
   ]

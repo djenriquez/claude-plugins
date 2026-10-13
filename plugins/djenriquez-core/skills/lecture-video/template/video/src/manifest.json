@@ -1,67 +1,243 @@
-[
-  {
-    "id": "intro",
-    "duration": 22.7,
-    "beats": [
-      0.6,
-      2.95,
-      10.45,
-      17.35
-    ]
-  },
-  {
-    "id": "flow",
-    "duration": 24.95,
-    "beats": [
-      0.6,
-      3.75,
-      9.35,
-      14.325,
-      18.45
-    ]
-  },
-  {
-    "id": "failure",
-    "duration": 21.15,
-    "beats": [
-      0.6,
-      3.1,
-      8.65,
-      13.425
-    ]
-  },
-  {
-    "id": "commit",
-    "duration": 25.725,
-    "beats": [
-      0.6,
-      5.15,
-      9.35,
-      13.75,
-      19.425
-    ]
-  },
-  {
-    "id": "states",
-    "duration": 23.65,
-    "beats": [
-      0.6,
-      4.175,
-      8.65,
-      12.375,
-      16.625
-    ]
-  },
-  {
-    "id": "roadmap",
-    "duration": 24.075,
-    "beats": [
-      0.6,
-      3.35,
-      7.65,
-      11.4,
-      15.825,
-      20.125
-    ]
-  }
-]
+{
+  "voice": "af_heart",
+  "speed": 1.0,
+  "scenes": [
+    {
+      "id": "intro",
+      "title": "Two taps, one order?",
+      "source": "Acme checkout design doc, \u00a71",
+      "duration": 22.275,
+      "beats": [
+        0.6,
+        5.15,
+        8.125,
+        13.6
+      ],
+      "ends": [
+        4.7,
+        7.075,
+        13.15,
+        21.175
+      ],
+      "text": [
+        "A customer taps Pay, the page hangs, and they tap it again.",
+        "Do they get charged twice?",
+        "This walkthrough follows one order through the Acme checkout design to answer that.",
+        "We'll trace the request, look at the change that makes retries safe, break a few dependencies, and finish with what's still open."
+      ]
+    },
+    {
+      "id": "flow",
+      "title": "The path of a request",
+      "source": "\u00a72 Request path",
+      "duration": 26.4,
+      "beats": [
+        0.6,
+        3.75,
+        9.3,
+        14.275,
+        18.4
+      ],
+      "ends": [
+        3.3,
+        8.85,
+        13.825,
+        17.95,
+        23.8
+      ],
+      "text": [
+        "Let's start with the path a request takes.",
+        "It enters at the API gateway, which checks who you are and how fast you're calling.",
+        "Next, the order service validates the cart and reserves the stock.",
+        "Then the database records the order, exactly once.",
+        "Now watch one request travel all the way down, and the confirmation come back up."
+      ]
+    },
+    {
+      "id": "change",
+      "title": "The change that makes retries safe",
+      "source": "\u00a73 Idempotent writes",
+      "duration": 26.3,
+      "beats": [
+        0.6,
+        4.6,
+        8.625,
+        14.05,
+        22.125
+      ],
+      "ends": [
+        4.15,
+        8.175,
+        13.6,
+        20.675,
+        25.2
+      ],
+      "text": [
+        "Here's the part of the design that answers our question.",
+        "Before, every retry inserted a brand new order.",
+        "Now each request carries an idempotency key, created once by the client.",
+        "If that key was already used, the service returns the original order instead of writing a second one.",
+        "So two taps make one order, and one charge."
+      ]
+    },
+    {
+      "id": "failure",
+      "title": "Failures stay contained",
+      "source": "\u00a74 Failure modes",
+      "duration": 22.75,
+      "beats": [
+        0.6,
+        3.7,
+        9.25,
+        14.025
+      ],
+      "ends": [
+        3.25,
+        8.8,
+        13.575,
+        20.65
+      ],
+      "text": [
+        "What happens when a dependency breaks?",
+        "If the cache goes down, reads get slower, but every order still goes through.",
+        "If a database replica fails, the primary keeps taking writes.",
+        "And if the payment provider times out, the charge waits in a queue and retries, instead of failing the order."
+      ]
+    },
+    {
+      "id": "commit",
+      "title": "Agreeing across services",
+      "source": "\u00a75 Two-phase commit",
+      "duration": 25.725,
+      "beats": [
+        0.6,
+        5.15,
+        9.35,
+        13.75,
+        19.425
+      ],
+      "ends": [
+        4.7,
+        8.9,
+        13.3,
+        18.975,
+        24.625
+      ],
+      "text": [
+        "Placing an order touches three services, so they have to agree.",
+        "First, the coordinator asks every service to prepare.",
+        "Each one holds what it needs, but doesn't commit anything yet.",
+        "Once all three say they're ready, the coordinator tells them to commit, all together.",
+        "And if any one of them says no, everyone aborts, so nothing is ever half done."
+      ]
+    },
+    {
+      "id": "states",
+      "title": "The life of an order",
+      "source": "\u00a76 Order states",
+      "duration": 23.65,
+      "beats": [
+        0.6,
+        4.175,
+        8.65,
+        12.375,
+        16.625
+      ],
+      "ends": [
+        3.725,
+        8.2,
+        11.925,
+        16.175,
+        22.55
+      ],
+      "text": [
+        "Every order moves through a small set of states.",
+        "It starts as pending, and becomes paid once the charge clears.",
+        "From paid, it ships, and finally it's delivered.",
+        "At any point before shipping, it can be cancelled instead.",
+        "Delivered and cancelled are final. Once an order lands in one, it never moves again."
+      ]
+    },
+    {
+      "id": "roadmap",
+      "title": "Where this is headed",
+      "source": "\u00a78 Roadmap",
+      "duration": 21.725,
+      "beats": [
+        0.6,
+        2.975,
+        8.6,
+        12.35,
+        16.775
+      ],
+      "ends": [
+        2.525,
+        8.15,
+        11.9,
+        16.325,
+        20.625
+      ],
+      "text": [
+        "So where is this headed?",
+        "In Q1 2027, payments moves into its own service.",
+        "In the second, checkout runs in a second region.",
+        "In the third, customers can edit an order after placing it.",
+        "And by the end of the year, the old monolith is retired."
+      ]
+    },
+    {
+      "id": "review",
+      "title": "What to check",
+      "source": "\u00a77 Open questions",
+      "duration": 32.35,
+      "beats": [
+        0.6,
+        5.5,
+        10.875,
+        16.85,
+        21.425,
+        26.825
+      ],
+      "ends": [
+        5.05,
+        10.425,
+        16.4,
+        20.975,
+        26.375,
+        30.45
+      ],
+      "text": [
+        "Before you sign off, here's what the design settles, and what it leaves open.",
+        "One decision: the client creates the idempotency key, not the server.",
+        "The double tap has a test. Two requests with one key make exactly one order.",
+        "What isn't covered yet is two taps landing in different regions.",
+        "And the doc doesn't say how long a key is remembered. That's an open question.",
+        "Those last two are where your review time is best spent."
+      ]
+    },
+    {
+      "id": "outro",
+      "title": "Recap",
+      "source": "Acme checkout design doc",
+      "duration": 20.725,
+      "beats": [
+        0.6,
+        3.125,
+        11.275,
+        17.85
+      ],
+      "ends": [
+        2.675,
+        10.825,
+        16.4,
+        19.625
+      ],
+      "text": [
+        "So, two taps, one order.",
+        "Every request carries a key, failures slow things down instead of failing the order, and two questions are still open.",
+        "Everything in this video comes from the Acme checkout design doc, revision four.",
+        "Thanks for watching."
+      ]
+    }
+  ]
+}

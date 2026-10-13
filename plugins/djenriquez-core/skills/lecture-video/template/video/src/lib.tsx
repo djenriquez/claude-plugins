@@ -2,12 +2,15 @@
 //
 // Canvas is 1920x1080. Scenes position elements absolutely in canvas pixels.
 // SceneFrame's title occupies roughly y 70-200; keep content inside x 110-1810,
-// y 240-1000, and above y 920 when the scene uses a Caption.
+// y 240-1000, and above y 920 when the scene uses a Caption. The source tag sits
+// bottom-left at about y 1030-1060.
 //
 // Every visual change keys off a beat index through useScene(), never off
 // hard-coded seconds, so re-running tts.py re-times the whole video.
 import React, { createContext, useContext } from "react";
 import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { loadFont as loadInter } from "@remotion/google-fonts/Inter";
+import { loadFont as loadMono } from "@remotion/google-fonts/JetBrainsMono";
 
 export const C = {
   bg: "#0a0f1e",
@@ -23,26 +26,30 @@ export const C = {
   cyan: "#22d3ee",
 };
 
-export const FONT = '-apple-system, "SF Pro Display", "Helvetica Neue", sans-serif';
-export const MONO = '"SF Mono", Menlo, monospace';
+// Bundled web fonts, so layout is the same on macOS, Linux, and CI. Use only
+// these weights; others fall back to the nearest one.
+const inter = loadInter("normal", { weights: ["400", "500", "600", "700", "800", "900"], subsets: ["latin"] });
+const mono = loadMono("normal", { weights: ["400", "700"], subsets: ["latin"] });
+export const FONT = `${inter.fontFamily}, sans-serif`;
+export const MONO = `${mono.fontFamily}, monospace`;
 
 // ---------- scene timing context ----------
 
-type SceneInfo = { beats: number[]; dur: number };
+type SceneInfo = { beats: number[]; dur: number; source?: string | null; voice?: string };
 export const SceneCtx = createContext<SceneInfo>({ beats: [], dur: 1 });
 
 export const useScene = () => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const { beats, dur } = useContext(SceneCtx);
-  /** Frame (scene-relative) where beat i starts; clamps to the last beat. */
+  const { beats, dur, source, voice } = useContext(SceneCtx);
+  /** Frame (scene-relative) where beat i starts. Lecture.tsx checks each scene's beat count. */
   const B = (i: number) => beats[Math.min(i, beats.length - 1)] ?? 0;
   /** Smooth spring 0→1 starting at beat i (+ delay frames). */
   const at = (i: number, delay = 0, damping = 200) =>
     spring({ frame: f - B(i) - delay, fps, config: { damping, mass: 0.7 } });
-  /** Bouncy spring that overshoots; use for scale-in pops. */
+  /** Bouncy spring that overshoots; use for scale-ins. */
   const pop = (i: number, delay = 0) => spring({ frame: f - B(i) - delay, fps, config: { damping: 12, mass: 0.6 } });
-  /** Eased progress 0→1 over `len` frames from beat i (+ delay). Drives arrows and packets. */
+  /** Eased progress 0→1 over `len` frames from beat i (+ delay). Drives arrows, packets, and camera moves. */
   const lin = (i: number, len: number, delay = 0) =>
     interpolate(f, [B(i) + delay, B(i) + delay + len], [0, 1], {
       extrapolateLeft: "clamp",
@@ -55,11 +62,23 @@ export const useScene = () => {
   const beat = () => beats.reduce((cur, b, i) => (f >= b ? i : cur), 0);
   /** Horizontal shake in px while `on`, decaying over ~18 frames after beat i. */
   const shake = (on: boolean, i: number, px = 6) => (on ? Math.sin(f * 1.6) * px * (1 - at(i, 18)) : 0);
-  return { f, fps, B, at, pop, lin, after, beat, shake, dur };
+  /**
+   * Opacity that dims an element while another one is the focus. `isOn(b)` says
+   * whether the element is in focus during beat b; the change eases in at each beat.
+   */
+  const focus = (isOn: (b: number) => boolean, dim = 0.3) => {
+    const c = beat();
+    const level = (b: number) => (b < 0 || isOn(b) ? 1 : dim);
+    return level(c - 1) + (level(c) - level(c - 1)) * at(c);
+  };
+  return { f, fps, B, at, pop, lin, after, beat, shake, focus, dur, source, voice };
 };
 
 // ---------- global background ----------
 
+// Soft colour fields that drift slowly, plus a static dot grid. Radial gradients
+// instead of blur filters, and no per-frame grid motion: both keep renders fast
+// and the file small.
 export const Background: React.FC = () => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -72,23 +91,19 @@ export const Background: React.FC = () => {
         top: y + Math.cos(t * 0.11 + phase) * 100,
         width: r,
         height: r,
-        borderRadius: "50%",
-        background: color,
-        filter: "blur(120px)",
-        opacity: 0.32,
+        background: `radial-gradient(circle, ${color}5c 0%, ${color}24 40%, transparent 70%)`,
       }}
     />
   );
   return (
     <AbsoluteFill style={{ background: C.bg, overflow: "hidden" }}>
-      {blob(-200, -250, 900, "#1d4ed8", 0)}
-      {blob(1250, 450, 850, "#7c3aed", 2)}
-      {blob(500, 750, 700, "#0e7490", 4)}
+      {blob(-450, -500, 1400, "#1d4ed8", 0)}
+      {blob(1000, 200, 1350, "#7c3aed", 2)}
+      {blob(250, 500, 1200, "#0e7490", 4)}
       <AbsoluteFill
         style={{
           backgroundImage: "radial-gradient(rgba(140,170,230,0.16) 1.5px, transparent 1.5px)",
           backgroundSize: "44px 44px",
-          backgroundPosition: `${(t * 6) % 44}px ${(t * 3) % 44}px`,
           maskImage: "radial-gradient(ellipse at center, black 30%, transparent 85%)",
         }}
       />
@@ -98,13 +113,16 @@ export const Background: React.FC = () => {
 
 // ---------- scene chrome ----------
 
-/** Fades the scene in and out and draws the optional kicker + title. */
+/**
+ * Fades the scene in and out, draws the optional kicker + title, and shows the
+ * scene's source tag (from narration.json "source") bottom-left.
+ */
 export const SceneFrame: React.FC<{
   kicker?: string;
   title?: string;
   children: React.ReactNode;
 }> = ({ kicker, title, children }) => {
-  const { f, fps, dur } = useScene();
+  const { f, fps, dur, source } = useScene();
   const fadeIn = interpolate(f, [0, 14], [0, 1], { extrapolateRight: "clamp" });
   const fadeOut = interpolate(f, [dur - 14, dur], [1, 0], { extrapolateLeft: "clamp" });
   const tIn = spring({ frame: f - 2, fps, config: { damping: 200 } });
@@ -120,6 +138,39 @@ export const SceneFrame: React.FC<{
           <div style={{ fontSize: 64, fontWeight: 800, letterSpacing: -1 }}>{title}</div>
         </div>
       )}
+      {children}
+      {source && (
+        <div style={{ position: "absolute", left: 40, bottom: 20, fontFamily: MONO, fontSize: 20, color: C.dim, opacity: 0.85 * tIn }}>
+          source · {source}
+        </div>
+      )}
+    </AbsoluteFill>
+  );
+};
+
+type Shot = { beat: number; x?: number; y?: number; zoom?: number; delay?: number; frames?: number };
+
+/**
+ * Eases the view toward a point and zoom at each shot's beat. (x, y) is the
+ * canvas point placed at the centre of the frame; omitted fields return to the
+ * full view (960, 540, zoom 1). Wrap only the scene content: keep SceneFrame's
+ * header and any Caption outside so they stay fixed. A canvas point lands on
+ * screen at 960 + zoom × (px − x), 540 + zoom × (py − y); keep zoomed content
+ * between y 240 and 920 so it clears the header and caption.
+ */
+export const Camera: React.FC<{ shots: Shot[]; children: React.ReactNode }> = ({ shots, children }) => {
+  const { lin } = useScene();
+  let x = 960;
+  let y = 540;
+  let z = 1;
+  for (const s of shots) {
+    const p = lin(s.beat, s.frames ?? 36, s.delay ?? 0);
+    x += ((s.x ?? 960) - x) * p;
+    y += ((s.y ?? 540) - y) * p;
+    z += ((s.zoom ?? 1) - z) * p;
+  }
+  return (
+    <AbsoluteFill style={{ transformOrigin: "0 0", transform: `translate(960px, 540px) scale(${z}) translate(${-x}px, ${-y}px)` }}>
       {children}
     </AbsoluteFill>
   );
@@ -168,7 +219,7 @@ export const Card: React.FC<{
       height: "100%",
       borderRadius: 22,
       border: `2px solid ${color}`,
-      background: `linear-gradient(160deg, ${color}26, ${color}0d)`,
+      background: `linear-gradient(160deg, ${color}26, ${color}0d), ${C.bg}cc`,
       boxShadow: `0 0 ${20 + glow * 50}px ${color}${glow > 0 ? "77" : "22"}`,
       padding: "22px 26px",
       display: "flex",
@@ -177,12 +228,11 @@ export const Card: React.FC<{
       alignItems: center ? "center" : "flex-start",
       textAlign: center ? "center" : "left",
       gap: 8,
-      backdropFilter: "blur(6px)",
       ...style,
     }}
   >
     {icon}
-    {title && <div style={{ fontSize: 34, fontWeight: 750, color: "#fff", lineHeight: 1.15 }}>{title}</div>}
+    {title && <div style={{ fontSize: 34, fontWeight: 700, color: "#fff", lineHeight: 1.15 }}>{title}</div>}
     {sub && <div style={{ fontSize: 24, color: C.dim, lineHeight: 1.35 }}>{sub}</div>}
     {children}
   </div>
@@ -197,14 +247,16 @@ export const Pill: React.FC<{ color?: string; children: React.ReactNode; size?: 
 }) => (
   <span
     style={{
-      display: "inline-block",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: size * 0.3,
       padding: `${size * 0.25}px ${size * 0.7}px`,
       borderRadius: 999,
       background: `${color}22`,
       border: `2px solid ${color}`,
       color: "#fff",
       fontSize: size,
-      fontWeight: 650,
+      fontWeight: 600,
       fontFamily: FONT,
       whiteSpace: "nowrap",
       ...style,
@@ -260,7 +312,7 @@ export const Arrow: React.FC<{
         markerEnd={p > 0.97 ? `url(#head-${colorKey(color)})` : undefined}
       />
       {label && labelAt && (
-        <text x={labelAt[0]} y={labelAt[1]} fill={color} fontSize={24} fontWeight={650} fontFamily={FONT} textAnchor="middle" opacity={Math.max(0, p * 2 - 1)}>
+        <text x={labelAt[0]} y={labelAt[1]} fill={color} fontSize={24} fontWeight={600} fontFamily={FONT} textAnchor="middle" opacity={Math.max(0, p * 2 - 1)}>
           {label}
         </text>
       )}
@@ -284,11 +336,17 @@ export const along = (pts: Pt[], t: number): Pt => {
 };
 
 /** Glowing dot travelling along a polyline; hidden at t <= 0 and t >= 1. Must be inside <Svg>. */
-export const Packet: React.FC<{ pts: Pt[]; t: number; color?: string; r?: number }> = ({ pts, t, color = C.amber, r = 13 }) => {
+export const Packet: React.FC<{ pts: Pt[]; t: number; color?: string; r?: number; opacity?: number }> = ({
+  pts,
+  t,
+  color = C.amber,
+  r = 13,
+  opacity = 1,
+}) => {
   if (t <= 0 || t >= 1) return null;
   const [x, y] = along(pts, t);
   return (
-    <g>
+    <g opacity={opacity}>
       <circle cx={x} cy={y} r={r * 2.4} fill={color} opacity={0.18} />
       <circle cx={x} cy={y} r={r} fill={color} />
     </g>
@@ -312,7 +370,7 @@ export const Caption: React.FC<{ p: number; children: React.ReactNode; color?: s
     <div
       style={{
         fontSize: 36,
-        fontWeight: 650,
+        fontWeight: 600,
         padding: "16px 40px",
         borderRadius: 18,
         background: "rgba(10,15,30,0.75)",
@@ -324,6 +382,127 @@ export const Caption: React.FC<{ p: number; children: React.ReactNode; color?: s
     </div>
   </div>
 );
+
+// ---------- honesty markers ----------
+
+const NOTE = {
+  verified: { label: "Verified", color: C.green, icon: "check" },
+  unverified: { label: "Not verified", color: C.amber, icon: "alert" },
+  open: { label: "Open question", color: C.amber, icon: "question" },
+  decision: { label: "Decision", color: C.violet, icon: "fork" },
+} as const;
+
+/**
+ * One labelled line for verified claims, unverified claims, open questions, and
+ * decisions. Text wraps to the parent's width. Use "open" wherever the source is
+ * ambiguous or silent, instead of filling the gap.
+ */
+export const Note: React.FC<{ kind: keyof typeof NOTE; children: React.ReactNode; size?: number }> = ({ kind, children, size = 30 }) => {
+  const n = NOTE[kind];
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: size * 0.55, fontFamily: FONT }}>
+      <div
+        style={{
+          flex: "none",
+          width: size * 1.5,
+          height: size * 1.5,
+          borderRadius: "50%",
+          border: `2px solid ${n.color}`,
+          background: `${n.color}22`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Icon name={n.icon} color={n.color} size={size * 0.95} />
+      </div>
+      <div style={{ lineHeight: 1.3 }}>
+        <div style={{ fontSize: size * 0.62, letterSpacing: 2, textTransform: "uppercase", fontWeight: 700, color: n.color }}>{n.label}</div>
+        <div style={{ fontSize: size, fontWeight: 500, color: C.text }}>{children}</div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Closing card: where the video came from and how it was made. Pass p = at(beat).
+ * Take source and revision (commit, version, or date) from the source document;
+ * `made` is the date the video was generated.
+ */
+export const EndCard: React.FC<{ p: number; source: string; revision?: string; made?: string }> = ({ p, source, revision, made }) => {
+  const { voice } = useScene();
+  const row = (k: string, v?: string) =>
+    v ? (
+      <div style={{ display: "flex", gap: 24 }}>
+        <span style={{ width: 170, color: C.dim }}>{k}</span>
+        <span style={{ fontFamily: MONO }}>{v}</span>
+      </div>
+    ) : null;
+  return (
+    <div style={{ position: "absolute", left: 360, top: 600, width: 1200, opacity: p, transform: `translateY(${(1 - p) * 20}px)` }}>
+      <div style={{ padding: "28px 40px", borderRadius: 22, border: `2px solid ${C.faint}`, background: "#0a0f1ecc", fontSize: 28, lineHeight: 1.6 }}>
+        {row("Source", source)}
+        {row("Revision", revision)}
+        {row("Made", made)}
+        {row("Voice", voice ? `synthetic (Kokoro ${voice})` : "synthetic")}
+      </div>
+    </div>
+  );
+};
+
+// ---------- code ----------
+
+export type CodeLine = { text: string; kind?: "add" | "del"; beat?: number };
+
+/**
+ * Code or diff panel. Fills its parent. Each line appears at its `beat`
+ * (default 0). `hl` lists highlight steps: from each step's beat on, its lines
+ * are in focus and the rest dim. Lines never wrap; keep them short.
+ */
+export const Code: React.FC<{ lines: CodeLine[]; file?: string; hl?: { beat: number; lines: number[] }[]; size?: number }> = ({
+  lines,
+  file,
+  hl = [],
+  size = 28,
+}) => {
+  const { at, focus, beat } = useScene();
+  const stepAt = (b: number) => [...hl].reverse().find((h) => h.beat <= b);
+  const current = stepAt(beat());
+  return (
+    <div style={{ width: "100%", height: "100%", borderRadius: 18, border: `2px solid ${C.faint}`, background: "#070b16f2", overflow: "hidden", fontFamily: MONO }}>
+      {file && <div style={{ padding: "12px 24px", fontSize: size * 0.75, color: C.dim, borderBottom: `2px solid ${C.faint}` }}>{file}</div>}
+      <div style={{ padding: "16px 0" }}>
+        {lines.map((l, i) => {
+          const tint = l.kind === "add" ? C.green : l.kind === "del" ? C.red : null;
+          const p = at(l.beat ?? 0, i * 2);
+          const o = focus((b) => {
+            const step = stepAt(b);
+            return !step || step.lines.includes(i);
+          });
+          const lit = !!current && current.lines.includes(i);
+          return (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                fontSize: size,
+                lineHeight: 1.55,
+                whiteSpace: "pre",
+                opacity: p * o,
+                transform: `translateX(${(1 - p) * -20}px)`,
+                background: tint ? `${tint}1f` : "transparent",
+                borderLeft: `6px solid ${lit ? (tint ?? C.blue) : "transparent"}`,
+              }}
+            >
+              <span style={{ width: size * 1.6, textAlign: "center", color: tint ?? C.faint }}>{l.kind === "add" ? "+" : l.kind === "del" ? "-" : " "}</span>
+              <span style={{ color: l.kind === "del" ? C.dim : C.text, textDecoration: l.kind === "del" ? "line-through" : undefined, textDecorationColor: `${C.red}99` }}>{l.text}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 // ---------- icons (24x24 stroke icons) ----------
 
@@ -352,6 +531,12 @@ export const Icon: React.FC<{ name: string; size?: number; color?: string }> = (
       return <svg viewBox="0 0 24 24" {...s}><path d="M5 12l5 5L20 7" /></svg>;
     case "x":
       return <svg viewBox="0 0 24 24" {...s}><path d="M6 6l12 12M18 6L6 18" /></svg>;
+    case "alert":
+      return <svg viewBox="0 0 24 24" {...s}><path d="M12 3l10 18H2z" /><path d="M12 10v5M12 18h.01" /></svg>;
+    case "question":
+      return <svg viewBox="0 0 24 24" {...s}><path d="M9 9a3 3 0 115 2.2c-1.2.8-2 1.5-2 2.8M12 18h.01" /></svg>;
+    case "fork":
+      return <svg viewBox="0 0 24 24" {...s}><circle cx="6" cy="5" r="2" /><circle cx="18" cy="5" r="2" /><circle cx="12" cy="19" r="2" /><path d="M6 7v2a4 4 0 004 4h4a4 4 0 004-4V7M12 13v4" /></svg>;
     case "gpu":
       return <svg viewBox="0 0 24 24" {...s}><rect x="3" y="6" width="18" height="12" rx="2" /><rect x="7" y="9" width="10" height="6" rx="1" /><path d="M6 3v3M10 3v3M14 3v3M18 3v3M6 18v3M10 18v3M14 18v3M18 18v3" /></svg>;
     case "cloud":

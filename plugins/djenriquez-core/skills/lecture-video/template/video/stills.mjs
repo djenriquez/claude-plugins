@@ -1,50 +1,60 @@
-// Render QA stills at half scale into stills/.
+// Render QA images into stills/.
 //
-//   node stills.mjs                 every scene, just before its fade-out (settled layout)
-//   node stills.mjs flow failure    only these scenes
-//   node stills.mjs failure:2       2 s after beat 2 starts (an intermediate state)
-//
-// Frame math must match Lecture.tsx: scene length = ceil(duration * FPS),
-// beat frame = round(start * FPS).
+//   node stills.mjs                    every scene at half scale, just before its fade-out (settled layout)
+//   node stills.mjs flow failure       only these scenes
+//   node stills.mjs failure:2          2 s after beat 2 starts (an intermediate state)
+//   node stills.mjs --strip            a filmstrip per scene: each beat's caption text beside three
+//   node stills.mjs --strip flow       frames from that sentence, to check that motion lands on its sentence
 import { bundle } from "@remotion/bundler";
 import { renderStill, selectComposition } from "@remotion/renderer";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { checkIds, FPS, here, loadTimeline } from "./timeline.mjs";
 
-const FPS = 30;
-const here = path.dirname(fileURLToPath(import.meta.url));
-const manifest = JSON.parse(fs.readFileSync(path.join(here, "src/manifest.json"), "utf8"));
-
-const wanted = process.argv.slice(2).map((arg) => {
-  const [id, beat] = arg.split(":");
-  return { id, beat: beat === undefined ? null : Number(beat) };
-});
-const unknown = wanted.filter((w) => !manifest.some((s) => s.id === w.id));
-if (unknown.length) throw new Error(`unknown scene ids: ${unknown.map((w) => w.id).join(", ")}`);
-
-const targets = [];
-let from = 0;
-for (const s of manifest) {
-  const dur = Math.ceil(s.duration * FPS);
-  const end = from + dur - 20;
-  const beatFrame = (i) => from + Math.round(s.beats[Math.min(i, s.beats.length - 1)] * FPS);
-  const requests = wanted.length ? wanted.filter((w) => w.id === s.id) : [{ id: s.id, beat: null }];
-  for (const w of requests) {
-    targets.push(
-      w.beat === null
-        ? { name: s.id, frame: end }
-        : { name: `${s.id}-b${w.beat}`, frame: Math.min(end, beatFrame(w.beat) + 2 * FPS) },
-    );
-  }
-  from += dur;
-}
+const args = process.argv.slice(2);
+const strip = args.includes("--strip");
+const wanted = args
+  .filter((a) => a !== "--strip")
+  .map((arg) => {
+    const [id, beat] = arg.split(":");
+    return { id, beat: beat === undefined ? null : Number(beat) };
+  });
+const timeline = loadTimeline();
+checkIds(
+  timeline,
+  wanted.map((w) => w.id),
+);
 
 const serveUrl = await bundle({ entryPoint: path.join(here, "src/index.ts") });
-const composition = await selectComposition({ serveUrl, id: "Lecture" });
 fs.mkdirSync(path.join(here, "stills"), { recursive: true });
-for (const t of targets) {
-  const output = path.join(here, "stills", `${t.name}.png`);
-  await renderStill({ serveUrl, composition, frame: t.frame, output, scale: 0.5 });
-  console.log("still", output, "frame", t.frame);
+
+if (strip) {
+  const ids = wanted.length ? [...new Set(wanted.map((w) => w.id))] : timeline.map((s) => s.id);
+  for (const id of ids) {
+    const inputProps = { id };
+    const composition = await selectComposition({ serveUrl, id: "Strip", inputProps });
+    const output = path.join(here, "stills", `${id}-strip.png`);
+    await renderStill({ serveUrl, composition, inputProps, frame: 0, output });
+    console.log("strip", output);
+  }
+} else {
+  const targets = [];
+  for (const s of timeline) {
+    const end = s.from + s.dur - 20;
+    const beatFrame = (i) => s.from + s.beatFrames[Math.min(i, s.beatFrames.length - 1)];
+    const requests = wanted.length ? wanted.filter((w) => w.id === s.id) : [{ id: s.id, beat: null }];
+    for (const w of requests) {
+      targets.push(
+        w.beat === null
+          ? { name: s.id, frame: end }
+          : { name: `${s.id}-b${w.beat}`, frame: Math.min(end, beatFrame(w.beat) + 2 * FPS) },
+      );
+    }
+  }
+  const composition = await selectComposition({ serveUrl, id: "Lecture" });
+  for (const t of targets) {
+    const output = path.join(here, "stills", `${t.name}.png`);
+    await renderStill({ serveUrl, composition, frame: t.frame, output, scale: 0.5 });
+    console.log("still", output, "frame", t.frame);
+  }
 }

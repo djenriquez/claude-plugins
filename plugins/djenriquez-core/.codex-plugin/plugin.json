@@ -23,7 +23,7 @@
   "interface": {
     "displayName": "djenriquez Core",
     "shortDescription": "Spec writing, humanizer, reviews, decision audits, PR feedback, publishing, visual PR explanations, and lecture videos.",
-    "longDescription": "Write and review specs, edit engineering prose, review code, audit implementation decisions, handle PR feedback, and publish pull requests. Visual review skills create reviewer diagrams or open a local interactive view. Self-review verifies fixes with fresh reviewers and publishes one squashed commit. Lecture video turns a document into an animated, locally narrated MP4.",
+    "longDescription": "Write and review specs, edit engineering prose, review code, audit implementation decisions, handle PR feedback, and publish pull requests. Visual review skills create reviewer diagrams or open a local interactive view. Self-review verifies fixes with fresh reviewers and publishes one squashed commit. Lecture video turns a document or PR into an animated, locally narrated MP4 with captions.",
     "developerName": "djenriquez",
     "category": "Productivity",
     "capabilities": [
