@@ -133,12 +133,24 @@ per call and write files with the file-writing tool instead of heredocs.
 
 ## Story arc
 
-By default the video is for the people reviewing or relying on the work and
-runs about five minutes; arguments or the `--review` outline checkpoint
-change that. Cut to fit. A 3–5 minute briefing covers the problem, the
-change, and what to check; a full walkthrough adds the mechanics scene by
-scene. For reference, 23 scenes came to about
-16.5 minutes, which is long for "help me understand this."
+The video is for developers: people who read code and will review,
+maintain, or build on the work. Assume they know the language and common
+infrastructure, spend the time on this change, and show the code and diffs
+that carry each idea.
+
+Length follows the work's complexity, not a fixed target. Count the distinct
+flows, states, failure cases, and decisions in the step-1 inventory; each is
+worth about one scene.
+
+| Work | Length | Covers |
+|------|--------|--------|
+| Small change: one concern, a few files | 1–3 min, about 3–5 scenes | the problem, the change, what to check |
+| Moderate: several components or one new flow | 5–10 min | adds how it works and what can go wrong |
+| Complex: a new subsystem, protocol, or migration, or many interacting parts | 15–20 min, about 20–25 scenes | each mechanism scene by scene, failures, decisions, and verification |
+
+Don't pad a small change to fill time, and don't cut mechanics a developer
+needs to stay under a shorter length. Arguments or the `--review` outline
+checkpoint override the length.
 
 For AI-generated work (a PR, an agent-written spec, a design an agent
 produced), use this order and drop the parts the source does not support:
@@ -399,14 +411,15 @@ beat's words against the source, including its certainty.
 ## Parallel scenes
 
 Writing scene code is the slowest part of a run. Once the first scene passes
-QA, two or three agents can write the remaining scenes at the same time. Do
+QA, several agents can write the remaining scenes at the same time. Do
 this when four or more scenes remain; with fewer, the hand-off costs more
 than it saves.
 
 Prepare in `<work>/video`:
 
-1. Split the remaining scene ids into groups of neighbouring scenes, one file
-   per group (`scenes-b.tsx`, `scenes-c.tsx`, ...).
+1. Split the remaining scene ids into groups of four to six neighbouring
+   scenes, at most five groups, one file per group (`scenes-b.tsx`,
+   `scenes-c.tsx`, ...).
 2. Write each group file with a stub per scene, such as
    `export const Rollout: React.FC = () => <SceneFrame title="Rollout">{null}</SceneFrame>`,
    and register every id with its beat count in `scenes.tsx`. The project

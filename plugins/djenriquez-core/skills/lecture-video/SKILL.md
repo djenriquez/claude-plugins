@@ -54,13 +54,14 @@ is missing, ask for it.
 ## Defaults
 
 The run is autonomous: it uses these defaults instead of asking. State them in
-one line at the start (`Defaults: reviewers · ~5 min · af_heart ·
-~/Movies/<slug>/`) and keep going. Arguments or a reply override any of them.
+one line at the start (`Defaults: developers · length by complexity ·
+af_heart · ~/Movies/<slug>/`) and keep going. Arguments or a reply override
+any of them.
 
 | Setting | Default |
 |---------|---------|
-| Audience | people reviewing or relying on the work |
-| Length | about 5 minutes; cut the outline to fit |
+| Audience | developers who will review, maintain, or build on the work |
+| Length | sized to the work's complexity: 1–3 minutes for a small change, up to 15–20 for a complex one (reference, Story arc) |
 | Voice | Kokoro `af_heart` at speed 1.0, no auditions |
 | Save location | `~/Movies/<slug>/`, including the files needed for revisions |
 | Decision ledger | use one when given; don't offer to run `/audit-decisions` |
@@ -108,8 +109,8 @@ voice, and a style preview (Process, With `--review`).
    decisions, verified and unverified claims, and open questions, each with
    its source location.
 2. **Outline** scenes along the story arc (reference, Story arc): one concept
-   per scene, 20–75 s each, each with a title and source location, cut to the
-   target length at about 150 words per minute.
+   per scene, 20–75 s each, each with a title and source location, sized
+   to the work at about 150 words per minute. State the estimated length.
 3. **Set up** `<work>`: copy `template/` there and reuse the environment cache
    (reference, Environment). If the cache is missing or broken, this is the
    one setup question: state the sizes and licenses, and create the cache
@@ -126,10 +127,9 @@ voice, and a style preview (Process, With `--review`).
    beat count in `video/src/scenes.tsx`. Start from `src/examples.tsx` and
    the reference's pattern table. Build the first one or two scenes and run
    QA (step 7) on them before designing the rest, so a layout problem is
-   fixed once. When four or more scenes remain, hand them to two or three
-   parallel scene agents, each running steps 7 and 8 for its own scenes,
-   then merge their files and check the scenes look consistent (reference,
-   Parallel scenes). Otherwise design the rest yourself.
+   fixed once. When four or more scenes remain, hand them to parallel scene
+   agents, each running steps 7 and 8 for its own scenes, then merge their
+   files and check the scenes look consistent (reference, Parallel scenes). Otherwise design the rest yourself.
 7. **QA**: `npx tsc -p .`, then `node stills.mjs` and
    `node stills.mjs --strip`, and view every PNG. Fix overflow, overlap,
    unfinished animations, and motion that lands on the wrong sentence.
