@@ -263,6 +263,8 @@ Stripping slop must not produce sterile mush *or* forced personality.
   voice as explaining the figure to a coworker.
 - **Procedures/references:** technical-writing craft; humanizer only cleans AI
   tells.
+- **Video narration:** a colleague talking a viewer through the work. Spoken
+  rhythm and warmth, no announcer voice, no stock opener or sign-off.
 - **General prose:** keep genuine voice that was already present; do not invent
   first-person confessional style for engineering docs.
 
