@@ -1,7 +1,7 @@
 # Lecture Video Reference
 
-Load this from `/lecture-video` only. The skill owns the workflow and
-checkpoints. This file covers the workspace, environment, story arc,
+Load this from `/lecture-video` only. The skill owns the workflow, defaults,
+and opt-in checkpoints. This file covers the workspace, environment, story arc,
 narration, beats, scene design, QA, the fact pass, rendering, revisions, and
 troubleshooting.
 
@@ -15,11 +15,11 @@ Everything is built in a session scratch directory, never in the user's repo:
 ```text
 <work>/
   inputs/          downloaded or copied sources (own directory, untrusted)
-  tts-venv/        Python 3.12 venv with Kokoro
   narration.json   the script: scenes → beats, plus title, source, visuals
   tts.py, kokoro_setup.py, voice_sample.py
   voice-samples/   auditions
   video/           Remotion project (copied from the template)
+    node_modules   symlink to the cached packages (see Environment)
     public/audio/<scene>.wav     written by tts.py
     src/manifest.json            written by tts.py
     src/lib.tsx                  animation library
@@ -35,14 +35,33 @@ Everything is built in a session scratch directory, never in the user's repo:
 
 `<work>` is the harness scratchpad when one exists, otherwise
 `$TMPDIR/lecture-<slug>`. Both get cleaned up, so the finished files are
-copied to the save location the user picked at the first checkpoint (for
-example `~/Movies/<slug>/`). Copy the whole `template/` directory into
-`<work>`. Keep `src/examples.tsx` as the pattern catalog; once the real
+copied to the save location (default `~/Movies/<slug>/`). Copy the whole
+`template/` directory into `<work>`. Keep `src/examples.tsx` as the pattern catalog; once the real
 scenes exist, drop the examples from `scenes.tsx`. The file itself can stay.
 
 ## Environment
 
-Ask before installing, and give the user these facts:
+The tools live in a persistent cache, so setup happens once per machine:
+`<cache>` is `${XDG_CACHE_HOME:-$HOME/.cache}/lecture-video`. It holds the
+Kokoro venv and the Remotion packages, never lecture inputs or outputs.
+
+```text
+<cache>/
+  tts-venv/                  Python 3.12 venv with Kokoro
+  node/package.json          copy of template/video/package.json
+  node/node_modules/         Remotion packages; .remotion/ holds Chrome Headless Shell
+```
+
+Reuse the cache when it works:
+
+```sh
+<cache>/tts-venv/bin/python -I -c "import kokoro, soundfile"
+cmp <template>/video/package.json <cache>/node/package.json
+ln -s <cache>/node/node_modules <work>/video/node_modules
+```
+
+If the import fails or `<cache>/node` is missing, this is first-time setup.
+Ask once, and give the user these facts:
 
 - Kokoro plus PyTorch is about 1 GB. `npm install` adds about 250 packages.
   Remotion downloads Chrome Headless Shell (about 170 MB) on the first still
@@ -53,12 +72,24 @@ Ask before installing, and give the user these facts:
 - Renders load Inter and JetBrains Mono from Google Fonts, so they look the
   same on any machine. That is a font download; no source text is sent.
 
-Python (Homebrew may ship 3.14, which PyTorch and Kokoro do not support yet):
+After the answer, create the cache (Homebrew may ship Python 3.14, which
+PyTorch and Kokoro do not support yet):
 
 ```sh
-uv venv --python 3.12 <work>/tts-venv
-uv pip install --python <work>/tts-venv kokoro soundfile
-uv run --no-project --python <work>/tts-venv python -I <work>/tts.py <work>/narration.json <work>/video
+uv venv --python 3.12 <cache>/tts-venv
+uv pip install --python <cache>/tts-venv kokoro soundfile
+mkdir -p <cache>/node
+cp <template>/video/package.json <cache>/node/package.json
+npm install --prefix <cache>/node
+```
+
+When only `cmp` fails, the template's pinned Remotion version changed: copy
+the new `package.json` and re-run `npm install --prefix <cache>/node`
+without asking, since the user already approved these packages. Then link
+`node_modules` as above and synthesize with:
+
+```sh
+uv run --no-project --python <cache>/tts-venv python -I <work>/tts.py <work>/narration.json <work>/video
 ```
 
 Without `uv`, use `python3.12 -m venv` and that venv's `bin/python`. The
@@ -69,9 +100,8 @@ not narration uploads; the text never leaves the machine.
 Run Python with `-I` so the interpreter ignores the current directory and
 user site packages. The scripts add their own directory to `sys.path`.
 
-Node: `npm install` inside `video/`. The Remotion packages are pinned to one
-exact version because mixed Remotion versions fail at runtime. Bump all of
-them together.
+The Remotion packages are pinned to one exact version because mixed Remotion
+versions fail at runtime. Bump all of them together.
 
 If the harness refuses compound shell commands, split them into one command
 per call and write files with the file-writing tool instead of heredocs.
@@ -82,11 +112,11 @@ per call and write files with the file-writing tool instead of heredocs.
 - Default: Kokoro `af_heart` (American English, female). Male option:
   `am_michael`. British: `bf_emma`, `bm_george`. The first letter of the voice
   is its language code; `tts.py` derives it.
-- Audition with a real sentence from the narration, ideally one with the
-  hardest terms:
+- Auditions are opt-in (`--review`, or when the user asks). Use a real
+  sentence from the narration, ideally one with the hardest terms:
 
   ```sh
-  uv run --no-project --python <work>/tts-venv python -I <work>/voice_sample.py <work>/voice-samples af_heart am_michael --text "..."
+  uv run --no-project --python <cache>/tts-venv python -I <work>/voice_sample.py <work>/voice-samples af_heart am_michael --text "..."
   ```
 - Cloud TTS (ElevenLabs, OpenAI) sends the narration text to a third party.
   Offer it only as an option the user must approve, and never for
@@ -95,10 +125,11 @@ per call and write files with the file-writing tool instead of heredocs.
 
 ## Story arc
 
-Ask who will watch and how long they have, then cut to fit. A 3–5 minute
-briefing covers the problem, the change, and what to check; a full
-walkthrough adds the mechanics scene by scene. When the length is not
-stated, aim for about five minutes. For reference, 23 scenes came to about
+By default the video is for the people reviewing or relying on the work and
+runs about five minutes; arguments or the `--review` outline checkpoint
+change that. Cut to fit. A 3–5 minute briefing covers the problem, the
+change, and what to check; a full walkthrough adds the mechanics scene by
+scene. For reference, 23 scenes came to about
 16.5 minutes, which is long for "help me understand this."
 
 For AI-generated work (a PR, an agent-written spec, a design an agent
@@ -318,8 +349,9 @@ Group scenes into a few files by part of the lecture (for example
 6. Re-render only changed scenes (`node stills.mjs flow failure`,
    `node stills.mjs --strip flow`) and view them again. Repeat until clean.
 
-For the style preview, `node preview.mjs intro flow` renders those scenes
-(and any between them) with audio to `out/preview-intro-flow.mp4`.
+For the `--review` style preview, `node preview.mjs intro flow` renders
+those scenes (and any between them) with audio to
+`out/preview-intro-flow.mp4`.
 
 Common defects:
 
@@ -396,14 +428,15 @@ Feedback after delivery usually touches a few scenes:
    any changed claims.
 4. Re-render the full MP4 and copy the new files to the save location.
 
-If `<work>` is gone, start from the copy of `narration.json` and
-`src/<topic>.tsx` files in the save location; offer to save them there at
-delivery.
+If `<work>` is gone, copy `template/` into a new `<work>`, link the cached
+`node_modules`, and restore `narration.json` and the `src/*.tsx` scene files
+from the save location, where delivery always puts them.
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
+| `Cannot find module 'remotion'` | `video/node_modules` link is missing | `ln -s <cache>/node/node_modules <work>/video/node_modules` |
 | `Error processing file '/Users/runner/work/espeakng-loader/.../phontab'` | libespeak-ng ignores long data paths and falls back to its CI build path | Import `kokoro_setup` before building `KPipeline` (the bundled scripts do). It chdirs to the espeak data dir and passes `"."` |
 | Relative paths break after Kokoro starts | `kokoro_setup` changes the working directory | Resolve paths before importing it; pass absolute paths |
 | Kokoro or torch install fails | venv Python is newer than 3.12 (Homebrew may be 3.14) | Recreate the venv with `uv venv --python 3.12` |
