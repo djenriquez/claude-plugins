@@ -223,15 +223,18 @@ source tag on every scene.
 
 Narration uses Kokoro TTS locally, so confidential documents stay on the
 machine. Cloud voices are opt-in. The skill runs end to end on defaults: a
-video of about five minutes for the people reviewing the work, voice
-`af_heart`, saved to `~/Movies/<slug>/`. Override any of them in the
-arguments. It asks only on first use, before installing Kokoro (about 1 GB
-with PyTorch) and Remotion (check Remotion's license for company use) into a
-reusable `~/.cache/lecture-video/`. It checks each scene with stills and
-filmstrips and delivers the MP4 with WebVTT captions, a chapter list, and the
-script and scene files for later revisions. Pass `--review` to approve the
+video for developers whose length matches the work (one to three minutes for
+a small PR, up to 15–20 for a complex one), voice `af_heart`, saved to
+`~/Movies/<slug>/`. Override any of them in the arguments. It asks only on
+first use, before installing Kokoro (about 1 GB
+with PyTorch) and the renderer (Puppeteer, esbuild, and ffmpeg, all free for
+company use) into a reusable `~/.cache/lecture-video/`. After the first scene
+sets the style, parallel agents write the remaining scenes.
+It checks each scene with stills and filmstrips and delivers the MP4 with
+WebVTT captions, a chapter list, and the script and scene files for later
+revisions. Pass `--review` to approve the
 outline, script, voice, and a style preview clip along the way.
-Mechanics live in `references/lecture-video.md`; the Remotion and TTS
+Mechanics live in `references/lecture-video.md`; the renderer and TTS
 template lives in the skill's `template/` directory.
 
 ### /pr-publish

@@ -8,9 +8,7 @@
 // Every visual change keys off a beat index through useScene(), never off
 // hard-coded seconds, so re-running tts.py re-times the whole video.
 import React, { createContext, useContext } from "react";
-import { AbsoluteFill, Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import { loadFont as loadInter } from "@remotion/google-fonts/Inter";
-import { loadFont as loadMono } from "@remotion/google-fonts/JetBrainsMono";
+import { AbsoluteFill, easeInOutCubic, FPS, interpolate, spring, useCurrentFrame } from "./engine";
 
 export const C = {
   bg: "#0a0f1e",
@@ -26,12 +24,14 @@ export const C = {
   cyan: "#22d3ee",
 };
 
-// Bundled web fonts, so layout is the same on macOS, Linux, and CI. Use only
-// these weights; others fall back to the nearest one.
-const inter = loadInter("normal", { weights: ["400", "500", "600", "700", "800", "900"], subsets: ["latin"] });
-const mono = loadMono("normal", { weights: ["400", "700"], subsets: ["latin"] });
-export const FONT = `${inter.fontFamily}, sans-serif`;
-export const MONO = `${mono.fontFamily}, monospace`;
+// Fonts are bundled from @fontsource (Latin subset), so layout is the same on
+// macOS, Linux, and CI. Use only these weights; others fall back to the nearest
+// one. index.tsx loads every face before the first frame.
+const INTER_WEIGHTS = [400, 500, 600, 700, 800, 900];
+const MONO_WEIGHTS = [400, 700];
+export const FONT = "Inter, sans-serif";
+export const MONO = "'JetBrains Mono', monospace";
+export const FONT_FACES = [...INTER_WEIGHTS.map((w) => `${w} 16px Inter`), ...MONO_WEIGHTS.map((w) => `${w} 16px 'JetBrains Mono'`)];
 
 // ---------- scene timing context ----------
 
@@ -40,21 +40,21 @@ export const SceneCtx = createContext<SceneInfo>({ beats: [], dur: 1 });
 
 export const useScene = () => {
   const f = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const fps = FPS;
   const { beats, dur, source, voice } = useContext(SceneCtx);
   /** Frame (scene-relative) where beat i starts. Lecture.tsx checks each scene's beat count. */
   const B = (i: number) => beats[Math.min(i, beats.length - 1)] ?? 0;
   /** Smooth spring 0→1 starting at beat i (+ delay frames). */
   const at = (i: number, delay = 0, damping = 200) =>
-    spring({ frame: f - B(i) - delay, fps, config: { damping, mass: 0.7 } });
+    spring(f - B(i) - delay, { damping, mass: 0.7 });
   /** Bouncy spring that overshoots; use for scale-ins. */
-  const pop = (i: number, delay = 0) => spring({ frame: f - B(i) - delay, fps, config: { damping: 12, mass: 0.6 } });
+  const pop = (i: number, delay = 0) => spring(f - B(i) - delay, { damping: 12, mass: 0.6 });
   /** Eased progress 0→1 over `len` frames from beat i (+ delay). Drives arrows, packets, and camera moves. */
   const lin = (i: number, len: number, delay = 0) =>
     interpolate(f, [B(i) + delay, B(i) + delay + len], [0, 1], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
-      easing: Easing.inOut(Easing.cubic),
+      easing: easeInOutCubic,
     });
   /** True once beat i (+ delay) has started. */
   const after = (i: number, delay = 0) => f >= B(i) + delay;
@@ -80,9 +80,7 @@ export const useScene = () => {
 // instead of blur filters, and no per-frame grid motion: both keep renders fast
 // and the file small.
 export const Background: React.FC = () => {
-  const f = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const t = f / fps;
+  const t = useCurrentFrame() / FPS;
   const blob = (x: number, y: number, r: number, color: string, phase: number) => (
     <div
       style={{
@@ -122,10 +120,10 @@ export const SceneFrame: React.FC<{
   title?: string;
   children: React.ReactNode;
 }> = ({ kicker, title, children }) => {
-  const { f, fps, dur, source } = useScene();
+  const { f, dur, source } = useScene();
   const fadeIn = interpolate(f, [0, 14], [0, 1], { extrapolateRight: "clamp" });
   const fadeOut = interpolate(f, [dur - 14, dur], [1, 0], { extrapolateLeft: "clamp" });
-  const tIn = spring({ frame: f - 2, fps, config: { damping: 200 } });
+  const tIn = spring(f - 2, { damping: 200 });
   return (
     <AbsoluteFill style={{ opacity: Math.min(fadeIn, fadeOut), fontFamily: FONT, color: C.text }}>
       {title && (
