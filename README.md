@@ -187,8 +187,8 @@ report it as unverified. Keep the local file when upload or exposure checks fail
 /pr-figure #42 comment
 ```
 
-Drawing rules live in `references/pr-figure.md`. Used by `/pr-publish`
-(placement `body`). Standalone default is a PR comment. Skip only when there
+Drawing rules live in `references/pr-figure.md`. Default placement is a PR
+comment. Skip only when there
 is nothing to draw or neither rendering path can produce a verified figure.
 
 ### /interactive-review
@@ -240,11 +240,12 @@ template lives in the skill's `template/` directory.
 ### /pr-publish
 
 Publish or refresh the branch PR. Draft via `pr-description-style.md`, required
-`pr-body` humanizer, required `/pr-figure` after Summary, push safely, never
+`pr-body` humanizer, push safely, never
 force-push. Base-branch frame: describe the merged end state, not the commit
 journey. Prose paragraphs (especially Summary) stay as unbroken lines — no hard
-wraps for terminal width. The figure depicts the end-state change and must pass
-`/pr-figure` verification, including its deterministic fallback when needed.
+wraps for terminal width. No figure in the body: private-repo image URLs
+carry a signed token that Slack unfurls expose. Run `/pr-figure` separately
+for a diagram.
 Small changes can use just Summary and Test plan; optional sections must add
 information beyond the Summary.
 
