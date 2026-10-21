@@ -1,6 +1,6 @@
 ---
 name: pr-publish
-description: "Publishes finished work as a GitHub pull request: discovers branch state, drafts or refreshes a layered human-readable PR description (with required humanizer pass and a reviewer figure), pushes safely, and creates or updates the PR."
+description: "Publishes finished work as a GitHub pull request: discovers branch state, drafts or refreshes a layered human-readable PR description (with required humanizer pass), pushes safely, and creates or updates the PR."
 argument-hint: "(optional) freeform notes, linked issue, or observability evidence to incorporate"
 disable-model-invocation: false
 allowed-tools:
@@ -19,9 +19,9 @@ allowed-tools:
 
 Publish completed branch work as a PR, or refresh the current branch's existing PR. Treat `$ARGUMENTS` as extra drafting context such as linked issues, incident notes, or validation evidence.
 
-Load `references/github-pr-workflow.md` before making branch or PR decisions. Load `references/pr-description-style.md` when drafting the body. Load `references/reporting-style.md` for tone while drafting (outcome first, meaning before plainness, fewer ideas, claim only verified results). Invoke `pr-figure` with placement `body` for the reviewer figure (load `skills/pr-figure/SKILL.md` and `references/pr-figure.md`).
+Load `references/github-pr-workflow.md` before making branch or PR decisions. Load `references/pr-description-style.md` when drafting the body. Load `references/reporting-style.md` for tone while drafting (outcome first, meaning before plainness, fewer ideas, claim only verified results).
 
-The PR body is for humans. If a busy reviewer cannot understand the change from the Summary and figure, the body is not done.
+The PR body is for humans. If a busy reviewer cannot understand the change from the Summary, the body is not done.
 
 ## Invariants
 
@@ -34,11 +34,10 @@ The PR body is for humans. If a busy reviewer cannot understand the change from 
 - Required `pr-body` humanizer on title and body before print/publish (inline
   Process by default). Summary must skim in plain language without internal
   type/function names. Do not invent test results.
-- Required reviewer figure after Summary (`pr-figure`, placement `body`): one
-  verified diagram of the end-state change. Follow that skill's arrow checks
-  and deterministic fallback when image generation fails. Skip only per its
-  documented conditions. Host via user-attachments; do not auto-commit a binary
-  onto a code PR.
+- No figure in the PR body. On private repositories GitHub renders embedded
+  images with a short-lived signed token in the URL, and Slack unfurls of the
+  PR expose it to secret scanners. Drop a figure embed left in an existing body
+  on refresh. Users who want a diagram can run `/pr-figure` separately.
 - No hard-wrapped prose in the PR body: each prose paragraph (especially
   Summary) is one unbroken line. Blank lines between paragraphs/sections are
   fine; lists and fenced code keep structure. GitHub soft-wraps — do not insert
@@ -57,12 +56,9 @@ The PR body is for humans. If a busy reviewer cannot understand the change from 
    Process to the title and full body. Remove repeated ideas across sections,
    unwrap any remaining hard wraps, and re-check the base-branch frame.
    Optional `technical-writing` only for rare long procedure sections.
-6. Generate the reviewer figure from the humanized Summary plus the base-branch
-   diff (`pr-figure`, placement `body`). Embed `![title](url)` after Summary.
-   Preserve an existing figure on refresh when the outcome did not change.
-7. Push if needed; create or update the PR (`gh pr create` / edit body; retitle
+6. Push if needed; create or update the PR (`gh pr create` / edit body; retitle
    only if generated, non-conventional, or over 70 chars).
-8. Print the PR URL.
+7. Print the PR URL.
 
 ## Output
 
@@ -71,7 +67,6 @@ End with:
 ```text
 PR published: <url>
 Title: <title>
-Figure: <asset-url | skipped: <reason>>
 ```
 
 If stopped for safety, report the exact condition and the next safe command or decision needed from the user.

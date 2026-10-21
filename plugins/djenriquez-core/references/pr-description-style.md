@@ -7,10 +7,9 @@ Load this when drafting or revising a pull request body. The `pr-publish` skill 
 Use this order, omitting optional sections that add no new information:
 
 1. `## Summary`
-2. Reviewer figure (`![title](url)` — not a heading; produced by `pr-figure`)
-3. `## What changed` (optional)
-4. `## Details` (optional)
-5. `## Test plan`
+2. `## What changed` (optional)
+3. `## Details` (optional)
+4. `## Test plan`
 
 For a small change, Summary and Test plan may be enough. Preserve any sections
 required by the repository's PR template. Each section should add information
@@ -26,7 +25,7 @@ Good summaries are understandable to someone who has not opened the repository. 
 
 Write each Summary paragraph as a **single unbroken line**. Do not hard-wrap prose for terminal width — GitHub soft-wraps. Blank lines between paragraphs are fine; lists and fenced code keep their structure.
 
-After the Summary paragraphs, embed the reviewer figure when `pr-figure` produced one (`![title](url)`). See `skills/pr-figure/SKILL.md` and `references/pr-figure.md`. A reviewer who reads only Summary plus the figure should understand the change.
+Do not embed images in the body. See `skills/pr-publish/SKILL.md` for why.
 
 ## What Changed
 

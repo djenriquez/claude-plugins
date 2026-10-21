@@ -4,8 +4,7 @@ description: >
   Creates one verified reviewer diagram for a GitHub pull request, hosts it as a
   GitHub user-attachment without committing, and posts it as a comment or
   returns markdown for a PR body. Use when the user asks for a PR figure,
-  reviewer diagram, image on a PR, a picture of the change, or when
-  pr-publish needs the figure. Works from any checkout; pass a PR URL such as
+  reviewer diagram, image on a PR, or a picture of the change. Works from any checkout; pass a PR URL such as
   https://github.com/djenriquez/claude-plugins/pull/34 or OWNER/REPO#N.
 argument-hint: "[PR URL|#N] [comment|body|url]"
 disable-model-invocation: false
@@ -31,7 +30,6 @@ before generating.
 
 | Caller | Placement |
 |--------|-----------|
-| `pr-publish` | `body` (embed after Summary) |
 | Standalone | `comment` unless the user asks for body or URL-only |
 
 Callers run this Process inline by default. Nested `/pr-figure` is optional.

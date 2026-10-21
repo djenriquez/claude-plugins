@@ -1,6 +1,6 @@
 # PR Figure Reference
 
-Load this from `pr-figure` (standalone or via `pr-publish`) when producing a
+Load this from `pr-figure` when producing a
 reviewer diagram. The figure is for a busy reviewer: Summary plus picture
 should explain the change before they open the diff.
 
@@ -171,8 +171,7 @@ successful upload unless the commit fallback below applies.
 
 The figure is hosted as a GitHub user-attachment, not in the merge, unless
 the change already adds a doc/spec asset (then save it next to that doc).
-`pr-publish` embeds it in the PR body; standalone `/pr-figure` posts a
-comment unless asked otherwise. #34 hosted the figure as an attachment and
+`/pr-figure` posts a comment unless asked otherwise. #34 hosted the figure as an attachment and
 did not commit a PNG.
 
 Preferred: GitHub user-attachments, which do not require a git commit.
