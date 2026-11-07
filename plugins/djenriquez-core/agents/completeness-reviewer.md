@@ -29,7 +29,7 @@ Examine:
 
 - **Error paths**: What happens when each operation fails? Is error behavior specified for all operations, or only the happy path?
 - **Edge cases**: Empty inputs, maximum values, zero values, concurrent operations, timeouts, partial failures, duplicate requests.
-- **State transitions**: Are all valid state transitions defined? What about invalid transitions — are they rejected or ignored? Is there a state diagram, or can one be inferred?
+- **State transitions**: Are all valid state transitions defined? What about invalid transitions — are they rejected or ignored? Is there a state diagram, or can one be inferred? Load `<plugin-root>/references/state-machines.md` when the spec carries a lifecycle: check that states and terminal states are enumerated, that persisted state names how it is restored after a crash or restart, that transitions happening with time alone are stated and made observable, and that any field or flag whose meaning changes over time names its machine or is split. Do not demand a formal machine for a lifecycle that meets the reference's acceptable case — flag the ones that meet a hard trigger and stay implicit anyway.
 - **Non-functional requirements**: Performance targets, latency budgets, throughput expectations, availability, durability guarantees. Are these stated or implied?
 - **Dependencies**: Are all external dependencies identified? What happens when each dependency is unavailable, slow, or returns unexpected data?
 - **Data lifecycle**: Creation, update, deletion, archival, migration of data. What about orphaned data? TTLs? Cleanup?

@@ -140,6 +140,28 @@ Same work-target shapes as `/code-review`. Request sources are the spec
 path, PR body, linked issue, or notes in the argument — not the
 implementer's private session. Required `ledger` humanizer.
 
+### /audit-state-machines
+
+Finds the implicit state machines in a codebase or subsystem — lifecycles
+encoded in flag clusters, string values, nil-ness, counters, or scattered
+mutations — and gives each one a disposition instead of a flat list:
+`ACT` (make it explicit; the entry is spec-ready), `CONTAIN` (keep the
+shape, add a named cheap guard), `ACCEPT` (leave it implicit, on the record
+with a revisit trigger a later diff can be checked against), or `DELETE`
+(it dies with code already scheduled for removal). Read-only; not a code
+review, and it blocks nothing.
+
+```
+/audit-state-machines
+/audit-state-machines internal/orchestrator
+```
+
+Definitions, acceptable cases, and hard triggers live in
+`references/state-machines.md`, which is also the probe behind the
+state-machine checks in `/write-spec`, `/spec-review`, `/code-review`,
+`/self-review-loop`, and `/handle-pr-feedback`. A saved audit is what
+`/code-review` checks `ACCEPT` revisit triggers against.
+
 ### /handle-pr-feedback
 
 Unresolved PR threads → cluster by seam → disposition → ranked fixes → reply.

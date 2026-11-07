@@ -86,6 +86,14 @@ If (1) or (2) would cross the complexity gate or reopen the PR's approach, use
 A `FIX NOW` edit that only adds defensive branches, duplicated validation, or
 adapters around a wrong design is a failed ranking. Stop and reclassify.
 
+For a state-machine finding, the ranked remedy follows the same order:
+remove or simplify means collapsing the flag cluster, counter, or string
+values into a named state at the owning seam; a seam fix routes the
+transitions through one guarded mutator there. Guard branches at each call
+site are a local patch — the defensive-sediment failure above — and are in
+bounds only when the seam options cross the complexity gate, with that
+stated.
+
 ## Apply The Complexity Gate
 
 Apply this gate only after the concern meets the evidence bar or an authorized
@@ -102,6 +110,9 @@ mechanisms:
 - retries, background work, recovery protocols, caches, or persistent state
 - dynamic query or batching machinery
 - control flow spanning multiple components
+- a new state lifecycle, or an existing lifecycle encoded as additional
+  flags, counters, or string values instead of at its owning seam (see
+  `references/state-machines.md`)
 
 Size alone does not force `NEEDS DECISION`. If a remedy stays inside the
 mechanism list above but looks large — roughly more than 50 non-test lines or
