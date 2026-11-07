@@ -78,6 +78,7 @@ Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`,
 | `/write-spec` | `spec-narrative` (narrative only) |
 | `/handle-pr-feedback` | `pr-reply` |
 | `/audit-decisions` | `ledger` |
+| `/audit-state-machines` | `digest` |
 | `/lecture-video` | `narration` |
 
 ### /technical-writing
@@ -149,7 +150,8 @@ mutations — and gives each one a disposition instead of a flat list:
 shape, add a named cheap guard), `ACCEPT` (leave it implicit, on the record
 with a revisit trigger a later diff can be checked against), or `DELETE`
 (it dies with code already scheduled for removal). Read-only; not a code
-review, and it blocks nothing.
+review, and it blocks nothing. Required `digest` humanizer before
+presenting.
 
 ```
 /audit-state-machines
@@ -159,7 +161,8 @@ review, and it blocks nothing.
 Definitions, acceptable cases, and hard triggers live in
 `references/state-machines.md`, which is also the probe behind the
 state-machine checks in `/write-spec`, `/spec-review`, `/code-review`,
-`/self-review-loop`, and `/handle-pr-feedback`. A saved audit is what
+`/self-review-loop`, and `/handle-pr-feedback`. A saved audit defaults to
+`docs/state-machine-audit.md` in the target repo; that file is what
 `/code-review` checks `ACCEPT` revisit triggers against.
 
 ### /handle-pr-feedback

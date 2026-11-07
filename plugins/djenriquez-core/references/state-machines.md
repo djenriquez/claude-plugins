@@ -154,6 +154,17 @@ with it, not to refactor a formal machine into code that is about to die.
 If the deletion slips, the entry reverts to scoring — frozen is a fact
 about the code's future, not a permanent exemption.
 
+## Where an audit lives
+
+An audit that nobody can find again cannot hold its `ACCEPT` triggers. When
+an audit is saved to a file, the default location is
+`docs/state-machine-audit.md` at the target repository's root, unless the
+user names another path — a named path wins and is recorded in the audit
+itself. Later reviews look in exactly two places, in order: a path the user
+or the PR names, then the default location. If neither exists, the
+`ACCEPT` revisit-trigger check does not run, and the review says so rather
+than searching the repository for a file that might be the audit.
+
 ## Qualification bar
 
 Report a machine only when the evidence shows:

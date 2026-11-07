@@ -28,7 +28,10 @@ It holds the definition, the encodings to look for, when implicit is
 acceptable, the hard triggers, and the four dispositions
 (`ACT` / `CONTAIN` / `ACCEPT` / `DELETE`). Load
 `references/harness-adapters.md` only when spawning across harnesses. Load
-`references/reporting-style.md` while presenting.
+`references/reporting-style.md` while presenting. Required humanizer pass
+in `digest` mode before presenting (inline Process by default, the same
+way `audit-decisions` applies its `ledger` pass): clean the prose without
+changing a disposition, a revisit trigger, or the evidence under an entry.
 
 ## Invariants
 
@@ -113,8 +116,10 @@ Present in this order:
    it.
 
 If the user asks for the audit as a file, write the same content to the
-path they name; a saved audit is what later `/code-review` runs check
-ACCEPT triggers against. Do not write a file they did not ask for.
+path they name, or to the default location in the reference
+(`docs/state-machine-audit.md` at the target repo's root) when they do not
+name one. That saved file is what later `/code-review` runs check `ACCEPT`
+triggers against. Do not write a file they did not ask for.
 
 Stay in Q&A on the report (read more code if asked). Do not start fixing
 ACT entries from this skill; offer `/write-spec` on the top entry as the

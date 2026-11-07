@@ -74,7 +74,7 @@ Run one generalist review first. Then trigger at most two specialists when evide
 - `testing`: production code with weak/missing tests, bug fix without regression coverage, flaky-looking tests
 - `architecture`: new modules, dependency direction changes, package boundaries, public API shape
 - `maintainability`: new abstractions, complex control flow, broad refactors, naming/domain clarity
-- `state-machines`: the diff adds or changes a lifecycle, status field, flag cluster, retry or cancellation flow, or persisted/restored state. Load `references/state-machines.md`; the specialist checks the changed lifecycle against its hard triggers and, when the repo has a saved `/audit-state-machines` report, against the revisit triggers on its `ACCEPT` entries
+- `state-machines`: the diff adds or changes a lifecycle, status field, flag cluster, retry or cancellation flow, or persisted/restored state. Load `references/state-machines.md`; the specialist checks the changed lifecycle against its hard triggers and, when a saved `/audit-state-machines` report exists, against the revisit triggers on its `ACCEPT` entries. Find the report by the reference's lookup rule: a path the user or PR names first, then `docs/state-machine-audit.md` at the repo root; if neither exists, skip the trigger check and say so in the coverage line
 
 If no trigger is present and the generalist pass is strong, synthesize immediately.
 
