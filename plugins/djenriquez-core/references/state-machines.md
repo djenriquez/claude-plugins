@@ -71,8 +71,10 @@ of these hold:
 Any one of these ends the acceptable case, whatever the other answers are:
 
 - Four or more states, or any cycle, retry, timeout, or cancellation path
-- More than one writer, file, or goroutine mutating the state, or mutations
-  scattered across many call sites with no guard in front of them
+- Mutations with no single owner: more than one file or goroutine mutating
+  the state, or mutations scattered across many call sites with no guard in
+  front of them. Several methods on one owning type, serialized behind one
+  lock or guard, count as one writer for this purpose
 - The state is persisted, restored, or held in more than one copy
 - The encoding represents combinations that contradict each other, and the
   contradiction can occur on a path that moves money, grants access, or
