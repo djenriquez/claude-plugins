@@ -55,8 +55,8 @@ of these hold:
 
 1. Few states (two or three), moving mostly in one direction, with no
    cycles, retries, timeouts, or cancellation paths branching back in.
-2. One writer in one place. A local variable, or a single function that owns
-   every mutation.
+2. One owner of every mutation: a local variable, a single function, or
+   methods on one owning type serialized behind one lock or guard.
 3. Not persisted. The state dies with the process, so nothing has to be
    restored or reconciled after a crash or restart.
 4. Impossible combinations, if the encoding allows any, are harmless and
@@ -73,12 +73,12 @@ Any one of these ends the acceptable case, whatever the other answers are:
 - Four or more states, or any cycle, retry, timeout, or cancellation path
 - Mutations with no single owner: more than one file or goroutine mutating
   the state, or mutations scattered across many call sites with no guard in
-  front of them. Several methods on one owning type, serialized behind one
-  lock or guard, count as one writer for this purpose
+  front of them. Methods on one owning type serialized behind one lock or
+  guard are one owner
 - The state is persisted, restored, or held in more than one copy
 - The encoding represents combinations that contradict each other, and the
-  contradiction can occur on a path that moves money, grants access, or
-  decides eligibility
+  contradiction can occur on a path that moves money, grants access,
+  decides eligibility, or loses or corrupts data
 - An unrecognized value falls through silently — a switch with no fallback,
   string comparisons with asymmetric matching, a consumer that hangs or
   no-ops on a value it does not know
@@ -105,7 +105,9 @@ turn them into a numeric score.
 ## Dispositions
 
 Every machine a workflow reports gets exactly one disposition. A list
-without dispositions is a backlog, not a result.
+without dispositions is a backlog, not a result. When more than one could
+fit, take the first that applies: `DELETE`, then `ACT`, then `ACCEPT`, then
+`CONTAIN`.
 
 ### ACT — make it explicit
 
@@ -121,8 +123,6 @@ entry is spec-ready:
 - the suggested shape — named states, a transition table or guard, a single
   mutator — and how to verify the change (which existing tests cover the
   lifecycle, what transition test is missing)
-
-Keep the ACT list short. If everything is ACT, the scoring was not done.
 
 ### CONTAIN — keep the shape, add the cheap guard
 
@@ -145,27 +145,27 @@ The acceptable case holds. An ACCEPT entry records:
   another package appears
 
 An acceptance without a revisit trigger is an omission, not a decision.
-Later reviews do not re-litigate ACCEPT entries; they check whether a diff
-crossed a recorded trigger, and reopen only those.
 
-### DELETE — the code goes away instead
+### DELETE — remove it instead
 
-The machine lives in code that is frozen, deprecated, or already scheduled
-for deletion. The right move is to record which removal takes the machine
-with it, not to refactor a formal machine into code that is about to die.
-If the deletion slips, the entry reverts to scoring — frozen is a fact
-about the code's future, not a permanent exemption.
+The machine lives in dead, frozen, or deprecated code, or in state that
+duplicates another source of truth. The right move is to remove that code
+or state, not to build a formal machine into it. The entry names what to
+delete and what any remaining reader uses instead, or points to the tracked
+removal that already covers it. If the removal is not going to happen,
+score the machine again — frozen is a fact about the code's future, not a
+permanent exemption.
 
 ## Where an audit lives
 
-An audit that nobody can find again cannot hold its `ACCEPT` triggers. When
-an audit is saved to a file, the default location is
-`docs/state-machine-audit.md` at the target repository's root, unless the
-user names another path — a named path wins and is recorded in the audit
-itself. Later reviews look in exactly two places, in order: a path the user
-or the PR names, then the default location. If neither exists, the
-`ACCEPT` revisit-trigger check does not run, and the review says so rather
-than searching the repository for a file that might be the audit.
+An audit lives in the session that ran it and writes no files. Its scope is
+whatever was asked — the whole codebase, a path, or one pull request — and
+its entries hold only for that scope. Reviews do not reuse an audit: the
+state-machine check in `djenriquez-core:code-review` derives dispositions
+from the diff, its `ACT`, `CONTAIN`, and `DELETE` entries that meet the
+review bar become that review's findings, and `/publish-review` posts them
+like any other finding. `ACCEPT` entries are not findings and are not
+posted.
 
 ## Qualification bar
 
@@ -175,8 +175,10 @@ Report a machine only when the evidence shows:
    state, with file references.
 2. The inferred states — named by the auditor, marked as inferred when the
    code never names them.
-3. At least one writer and, for anything above ACCEPT, the transition or
-   combination that makes the disposition necessary.
+3. At least one writer and, for `ACT` or `CONTAIN`, the transition or
+   combination that makes the disposition necessary; for `DELETE`, what
+   shows the code is dead, frozen, or deprecated, or which source of truth
+   the state duplicates.
 
 Do not report a machine from a name alone ("this is called Status, so it
 must be a lifecycle") without reading how the value is written and read.

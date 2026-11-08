@@ -74,15 +74,17 @@ Run one generalist review first. Then trigger at most two specialists when evide
 - `testing`: production code with weak/missing tests, bug fix without regression coverage, flaky-looking tests
 - `architecture`: new modules, dependency direction changes, package boundaries, public API shape
 - `maintainability`: new abstractions, complex control flow, broad refactors, naming/domain clarity
-- `state-machines`: the diff adds or changes a lifecycle, status field, flag cluster, retry or cancellation flow, or persisted/restored state. Load `references/state-machines.md`; the specialist checks the changed lifecycle against its hard triggers and, when a saved `/audit-state-machines` report exists, against the revisit triggers on its `ACCEPT` entries. Find the report by the reference's lookup rule: a path the user or PR names first, then `docs/state-machine-audit.md` at the repo root; if neither exists, skip the trigger check and say so in the coverage line
+- `state-machines`: the diff adds or changes a lifecycle, status field, flag cluster, retry or cancellation flow, or persisted/restored state. Load `references/state-machines.md`; the specialist checks each changed lifecycle against its hard triggers and gives it a disposition. `ACT`, `CONTAIN`, and `DELETE` entries that meet the review bar are findings, anchored at the changed line that introduces or exposes them with the encoding sites in the body; `ACCEPT` entries are not findings
 
 If no trigger is present and the generalist pass is strong, synthesize immediately.
-
-Whatever the lane, the generalist pass asks one state question of any diff that touches state: does a new or changed field or flag's meaning change over time? If it does and the change does not name its machine — named states, a guard or single mutator, a fallback for unknown values — that is the `state-machines` trigger, even when the rest of the diff is small. A diff that crosses the revisit trigger on a saved audit's `ACCEPT` entry reopens that entry as a finding; a diff that stays inside the recorded acceptance does not.
 
 ### L2
 
 Run the generalist pass, then select the minimal specialist set needed for the risk. Cap specialists at four unless the user explicitly asks for a heavy review. Prefer security, correctness, testing, and architecture for high-risk changes.
+
+### State question (every lane)
+
+The generalist pass asks one question of any diff that touches state: does a new or changed field or flag's meaning change over time without the change naming its machine — named states, a guard or single mutator, a fallback for unknown values? In L0 the generalist answers it in its own pass against `references/state-machines.md` and spawns nothing. In L1 and L2 a yes is the `state-machines` trigger, even when the rest of the diff is small.
 
 ## Reviewer Prompts
 

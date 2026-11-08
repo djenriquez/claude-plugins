@@ -143,27 +143,28 @@ implementer's private session. Required `ledger` humanizer.
 
 ### /audit-state-machines
 
-Finds the implicit state machines in a codebase or subsystem — lifecycles
-encoded in flag clusters, string values, nil-ness, counters, or scattered
-mutations — and gives each one a disposition instead of a flat list:
-`ACT` (make it explicit; the entry is spec-ready), `CONTAIN` (keep the
-shape, add a named cheap guard), `ACCEPT` (leave it implicit, on the record
-with a revisit trigger a later diff can be checked against), or `DELETE`
-(it dies with code already scheduled for removal). Read-only; not a code
-review, and it blocks nothing. Required `digest` humanizer before
+Finds the implicit state machines in a codebase, subsystem, or pull request
+— lifecycles encoded in flag clusters, string values, nil-ness, counters, or
+scattered mutations — and gives each one a disposition instead of a flat
+list: `ACT` (make it explicit; the entry is spec-ready), `CONTAIN` (keep the
+shape, add a named cheap guard), `ACCEPT` (leave it implicit, with a revisit
+trigger), or `DELETE` (remove the dead, frozen, or deprecated code or the
+redundant state that holds it). Read-only and session-only: it writes no
+files, is not a code review, and blocks nothing. In a PR review,
+`/code-review`'s state-machine check applies the same reference, and
+`/publish-review` posts its findings. Required `digest` humanizer before
 presenting.
 
 ```
 /audit-state-machines
 /audit-state-machines internal/orchestrator
+/audit-state-machines 123
 ```
 
 Definitions, acceptable cases, and hard triggers live in
 `references/state-machines.md`, which is also the probe behind the
 state-machine checks in `/write-spec`, `/spec-review`, `/code-review`,
-`/self-review-loop`, and `/handle-pr-feedback`. A saved audit defaults to
-`docs/state-machine-audit.md` in the target repo; that file is what
-`/code-review` checks `ACCEPT` revisit triggers against.
+`/self-review-loop`, and `/handle-pr-feedback`.
 
 ### /handle-pr-feedback
 
