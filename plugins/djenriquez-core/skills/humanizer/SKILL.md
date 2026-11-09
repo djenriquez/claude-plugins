@@ -42,6 +42,7 @@ Load from the `djenriquez-core` plugin root:
 | `write-spec` | `spec-narrative` | narrative layer only |
 | `handle-pr-feedback` | `pr-reply` | each reply body |
 | `audit-decisions` | `ledger` | before present |
+| `audit-state-machines` | `digest` | before present |
 | `interactive-review` | `digest` | graph summary, roles, and annotations before serve; each panel answer before POST |
 | `lecture-video` | `narration` | spoken beats and on-screen text before the script checkpoint |
 

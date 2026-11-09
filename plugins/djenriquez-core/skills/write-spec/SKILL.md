@@ -43,12 +43,13 @@ the repo file wins for content written into that repository.
 2. **Name the file.** Kebab-case, 3–6 words derived from the goal, under `docs/specs/` (create the directory if needed). When the spec originates from an issue or ticket, derive the name from its title and record the reference in the spec header.
 3. **Draft per the style reference.** Narrative layer on top, implementation appendix at the bottom. Everything an implementer needs survives — demoted, not deleted.
 4. **Structural sanity pass.** Only if the spec introduces new packages or modules: load `<plugin-root>/references/structure-standards.md` (plus `<plugin-root>/references/structure-standards-go.md` when the target repo has a root `go.mod`) and validate the proposed shape. Make each new package's responsibility, exports, and separation legible in the Design section; redesign before presenting if a package fails a standard.
-5. **Completeness and readability pass.** First run the style reference's implementer test: diff the gathered context against the draft, and place every fact, constraint, and decision that shaped the design into the narrative or the appendix — the narrative budget is never met by dropping facts. Then run the reviewer test against the narrative layer alone. Fix what fails.
-6. **Humanizer (required, narrative only).** Apply `spec-narrative` inline
+5. **State-machine pass.** If the design introduces or changes a lifecycle, status, phase, retry or cancellation flow, or persisted state: load `<plugin-root>/references/state-machines.md` and name each machine in the Design section — its states, allowed transitions and guards, terminal states, and what happens on an invalid transition. Any field or flag whose meaning changes over time names its machine there, or is split until it no longer needs one. A lifecycle the spec leaves implicit has to meet the reference's acceptable case on the record, not by omission.
+6. **Completeness and readability pass.** First run the style reference's implementer test: diff the gathered context against the draft, and place every fact, constraint, and decision that shaped the design into the narrative or the appendix — the narrative budget is never met by dropping facts. Then run the reviewer test against the narrative layer alone. Fix what fails.
+7. **Humanizer (required, narrative only).** Apply `spec-narrative` inline
    (local humanizer). Do not grow length or drop constraints; leave the
    appendix untouched. Optional `technical-writing` only for procedure-heavy
    design docs.
-7. **Present.** Show the full spec; apply requested adjustments before done.
+8. **Present.** Show the full spec; apply requested adjustments before done.
 
 ## Rewrite mode
 

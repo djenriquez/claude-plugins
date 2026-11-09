@@ -57,6 +57,7 @@ Everything above the appendix is the narrative layer. Adapt sections to the size
 
 - Any flow with three or more actors, or four or more sequential steps, gets a Mermaid sequence or flow diagram instead of prose. GitHub renders Mermaid. Put the diagram first and the caveats after.
 - Summarize the load-bearing choices in a key-decisions table: `Decision | Choice | Why`. Reviewers challenge decisions, not paragraphs.
+- Any lifecycle in the design — a status, phase, retry or cancellation flow, or state that is persisted and restored — gets its states and allowed transitions stated in a table or a diagram, with guards, terminal states, and the behavior on an invalid transition. If a lifecycle stays implicit, the Design section says why it meets the acceptable case in `references/state-machines.md`; silence is not an acceptable case.
 - Each component subsection opens with what changes and why, in plain language, then the constraints that shaped it. Give each load-bearing constraint a short name at first statement (for example, "the argv-logging constraint") and cite that name from every design subsection it shapes — a constraint an implementer must honor may live in the appendix, but its name and consequence must appear where the design depends on it.
 
 **Alternatives Considered** is one short paragraph per alternative: what it was and the single reason it lost.
@@ -118,5 +119,6 @@ If any answer requires the appendix, move that answer up.
 6. Every fact, constraint, and decision gathered while preparing the spec appears in the narrative or the appendix. The narrative budget is never met by dropping facts — compare the draft against the gathered context and place anything missing.
 7. An agent holding only this document could implement without undeclared gaps: every decision is either made in the spec or explicitly delegated with bounds, and none requires rediscovering context the author already had.
 8. Every named constraint is cited from each design subsection it shapes.
+9. Every field or flag whose meaning changes over time names its state machine in the Design section, or is split until it no longer needs one. No lifecycle is left implicit by omission.
 
 Then confirm the budgets hold and the prose rules pass. Run the required `djenriquez-core:humanizer` pass in `spec-narrative` mode on the narrative layer only — prefer fewer ideas over growing length, keep meaning and named constraints, and do not alter appendix precision. Optional: load `djenriquez-core:technical-writing` when the narrative includes long follow-along procedures.

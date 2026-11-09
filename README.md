@@ -78,6 +78,7 @@ Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`,
 | `/write-spec` | `spec-narrative` (narrative only) |
 | `/handle-pr-feedback` | `pr-reply` |
 | `/audit-decisions` | `ledger` |
+| `/audit-state-machines` | `digest` |
 | `/lecture-video` | `narration` |
 
 ### /technical-writing
@@ -139,6 +140,31 @@ Not a code review, not a PR body, and it cannot change code or block merge.
 Same work-target shapes as `/code-review`. Request sources are the spec
 path, PR body, linked issue, or notes in the argument — not the
 implementer's private session. Required `ledger` humanizer.
+
+### /audit-state-machines
+
+Finds the implicit state machines in a codebase, subsystem, or pull request
+— lifecycles encoded in flag clusters, string values, nil-ness, counters, or
+scattered mutations — and gives each one a disposition instead of a flat
+list: `ACT` (make it explicit; the entry is spec-ready), `CONTAIN` (keep the
+shape, add a named cheap guard), `ACCEPT` (leave it implicit, with a revisit
+trigger), or `DELETE` (remove the dead, frozen, or deprecated code or the
+redundant state that holds it). Read-only and session-only: it writes no
+files, is not a code review, and blocks nothing. In a PR review,
+`/code-review`'s state-machine check applies the same reference, and
+`/publish-review` posts its findings. Required `digest` humanizer before
+presenting.
+
+```
+/audit-state-machines
+/audit-state-machines internal/orchestrator
+/audit-state-machines 123
+```
+
+Definitions, acceptable cases, and hard triggers live in
+`references/state-machines.md`, which is also the probe behind the
+state-machine checks in `/write-spec`, `/spec-review`, `/code-review`,
+`/self-review-loop`, and `/handle-pr-feedback`.
 
 ### /handle-pr-feedback
 
