@@ -102,6 +102,9 @@ mechanisms:
 - retries, background work, recovery protocols, caches, or persistent state
 - dynamic query or batching machinery
 - control flow spanning multiple components
+- a new state lifecycle, or an existing lifecycle encoded as additional
+  flags, counters, or string values instead of at its owning seam (see
+  `references/state-machines.md`)
 
 Size alone does not force `NEEDS DECISION`. If a remedy stays inside the
 mechanism list above but looks large — roughly more than 50 non-test lines or

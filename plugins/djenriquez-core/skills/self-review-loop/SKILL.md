@@ -52,6 +52,11 @@ with sediment.
   issues are blocking regardless of Medium/Low label. Remaining Medium/Low and
   Observations do not create fix turns.
 - Rank remedies before mutation: remove/simplify → owning seam → local patch.
+- A fix turn does not introduce a new implicit state machine. A fix that
+  adds a flag, counter, or status value whose meaning changes over time
+  names its machine (see `references/state-machines.md`) or splits the
+  field until it no longer needs one; an unnamed one counts as unexplained
+  mechanism growth in the turn's account.
 - `NEEDS DECISION` and same-seam second blockers pause that seam (and shared
   remedy/files). Independent `FIX NOW` on other seams may continue.
 - Approach checkpoint over the self-review delta before the 2nd+ fix-mutation
@@ -88,7 +93,8 @@ Each turn:
    structure refs when those surfaces change. Verify; fix turn-caused failures
    without evading seam/complexity rules.
 5. **Account** — Report growth/mechanisms for turn, self-review run, and total
-   PR. Gated mechanism growth → `NEEDS DECISION` before commit. Soft size →
+   PR, including any new state encoding a fix introduced and the machine it
+   names. Gated mechanism growth → `NEEDS DECISION` before commit. Soft size →
    report and ask. Local commit; update `fixed_seams` and
    `fix_mutation_turns`.
 
