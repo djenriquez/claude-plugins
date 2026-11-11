@@ -71,7 +71,7 @@ prompt. Do not paste this session's private reasoning as if it were the spec.
 
 Load `references/harness-adapters.md`. Spawn one fresh read-only auditor:
 
-- Claude Code: `Task` with `agents/decision-auditor.md`
+- Claude Code: `Agent` (`Task` in older releases) with `agents/decision-auditor.md`
 - Cursor: `Task` (`explore` or `generalPurpose`); instruct it to load the
   protocol and agent file
 - Codex: `spawn_agent` with `fork_context: false`; prefer `explorer`

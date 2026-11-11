@@ -724,8 +724,6 @@ def serve(
 
 
 def _session_dir(ns: argparse.Namespace) -> Path:
-    if not ns.session:
-        raise SystemExit(" --session is required")
     return Path(ns.session).expanduser()
 
 

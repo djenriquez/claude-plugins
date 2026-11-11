@@ -24,8 +24,7 @@ Default event is `COMMENT`. Use `REQUEST_CHANGES` only when a finding is
 ## Inputs
 
 - **PR reference**: `#N`, `N`, or a GitHub PR URL. If absent, use the current
-  branch's open PR via `gh pr view --json number,baseRepository`. Otherwise
-  prompt.
+  branch's open PR via `gh pr view --json number,url`. Otherwise prompt.
 - **Findings list**: `path`, `line`, `body`, `severity`
   (`critical`|`high`|`medium`|`low`|`nit`). Optional `start_line` for ranges.
 - **Optional blocking review**: `--request-changes` / `blocking: true`.
@@ -98,12 +97,12 @@ Remove the temp file after the API call succeeds or fails.
 Normalize the PR reference:
 
 - URL like `https://github.com/OWNER/REPO/pull/123`: use `OWNER/REPO` and `123`.
-- `#123` or `123`: use that number. Resolve `OWNER/REPO` from the current checkout with `gh repo view --json nameWithOwner --jq .nameWithOwner`, or from `gh pr view 123 --json baseRepository`.
-- No reference: try the current branch's open PR:
+- `#123` or `123`: use that number. Resolve `OWNER/REPO` from the current checkout with `gh repo view --json nameWithOwner --jq .nameWithOwner`, or from the PR's `url` as below.
+- No reference: try the current branch's open PR. `gh pr view` has no base-repository field, so read `OWNER/REPO` from the PR `url`, which always names the base repository:
 
 ```sh
-gh pr view --json number,baseRepository \
-  --jq '"\(.baseRepository.owner.login)/\(.baseRepository.name) \(.number)"'
+gh pr view --json number,url \
+  --jq '.url | capture("github\\.com/(?<repo>[^/]+/[^/]+)/pull/(?<number>[0-9]+)") | "\(.repo) \(.number)"'
 ```
 
 If no PR can be resolved, prompt for a PR reference.
@@ -112,7 +111,7 @@ Fetch PR metadata:
 
 ```sh
 gh pr view "$number" --repo "$owner/$repo" \
-  --json state,mergedAt,isDraft,url,number,baseRepository
+  --json state,mergedAt,isDraft,url,number
 ```
 
 If the PR is closed or merged, warn and require explicit closed-PR opt-in before proceeding.

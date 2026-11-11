@@ -79,6 +79,7 @@ Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`,
 | `/handle-pr-feedback` | `pr-reply` |
 | `/audit-decisions` | `ledger` |
 | `/audit-state-machines` | `digest` |
+| `/interactive-review` | `digest` (graph prose and panel answers) |
 | `/lecture-video` | `narration` |
 
 ### /technical-writing

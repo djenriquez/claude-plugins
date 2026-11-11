@@ -106,8 +106,8 @@ mechanisms:
   flags, counters, or string values instead of at its owning seam (see
   `references/state-machines.md`)
 
-Size alone does not force `NEEDS DECISION`. If a remedy stays inside the
-mechanism list above but looks large — roughly more than 50 non-test lines or
+Size alone does not force `NEEDS DECISION`. If a remedy adds or widens none of
+the mechanisms above but looks large — roughly more than 50 non-test lines or
 more than three production files — report that size as a soft checkpoint before
 mutation. Ask whether to proceed, treat it as mechanical, or reclassify. Do not
 split a change to evade scrutiny. Demonstrably mechanical edits (renames,

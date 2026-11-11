@@ -1,4 +1,4 @@
-// Browser entry that render.mjs bundles and opens in headless Chrome. The page
+// Browser entry that renderer.mjs bundles and opens in headless Chrome. The page
 // shows one composition, ?comp=Lecture or ?comp=Strip&id=<scene>, and exposes
 // window.lecture so the renderer can draw any frame and screenshot it.
 import "@fontsource/inter/latin-400.css";

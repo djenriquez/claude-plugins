@@ -37,7 +37,10 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     pipes: dict[str, KPipeline] = {}
     for voice in args.voices:
-        pipe = pipes.setdefault(voice[0], KPipeline(lang_code=voice[0], repo_id="hexgrad/Kokoro-82M"))
+        lang = voice[0]
+        if lang not in pipes:
+            pipes[lang] = KPipeline(lang_code=lang, repo_id="hexgrad/Kokoro-82M")
+        pipe = pipes[lang]
         audio = np.concatenate([np.asarray(a, dtype=np.float32) for _, _, a in pipe(args.text, voice=voice, speed=1.0)])
         sf.write(out_dir / f"{voice}.wav", audio, 24000)
         print(out_dir / f"{voice}.wav", f"{len(audio) / 24000:.1f}s")
