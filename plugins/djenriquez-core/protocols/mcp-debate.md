@@ -29,8 +29,8 @@ Record only verified debate-capable MCPs as available. If the invoking skill is 
 Run debates sequentially — the second debate benefits from the first's findings.
 
 Construct a debate prompt containing:
-1. The content being reviewed (spec text, PR diff, etc.)
-2. The review output being challenged (synthesized findings, verdict, changelog)
+1. Where the content under review lives: repository path, spec path or PR number, and the changed-file inventory. Embed the content itself only when it fits the size limit below.
+2. A short summary of the review output being challenged (findings and verdict)
 3. Adversarial challenge questions (provided by the invoking skill — at least 5)
 
 Keep the constructed prompt body under roughly 1 KB unless the provider's schema requires more context. Oversized debate prompts have previously stalled the orchestrator's model stream before the MCP call dispatched. Prefer repository paths, PR numbers, changed-file inventories, and short summaries over pasted PR descriptions, full diffs, full standards files, or long review histories; the provider should fetch or read large artifacts itself when the sandbox allows it.

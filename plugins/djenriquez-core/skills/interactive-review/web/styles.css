@@ -315,10 +315,6 @@ body {
   stroke-dasharray: 5 4;
 }
 
-.edge.dim {
-  opacity: 0.2;
-}
-
 .edge-wrap.dim {
   opacity: 0.2;
 }

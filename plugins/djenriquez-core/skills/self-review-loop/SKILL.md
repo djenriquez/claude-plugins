@@ -51,6 +51,11 @@ with sediment.
   correctness, security, data-loss, broken-contract, or failing-verification
   issues are blocking regardless of Medium/Low label. Remaining Medium/Low and
   Observations do not create fix turns.
+- A `High` state-machine finding with no demonstrated defect
+  (`code-review-protocol.md`, State-Machine Findings) is `NEEDS DECISION`:
+  present the simpler shape and pause that seam. The loop does not reshape a
+  lifecycle on its own authority, and the run is not clean while the finding
+  is open.
 - Rank remedies before mutation: remove/simplify → owning seam → local patch.
 - A fix turn does not introduce a new implicit state machine. A fix that
   adds a flag, counter, or status value whose meaning changes over time

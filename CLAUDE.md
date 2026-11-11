@@ -68,6 +68,8 @@ External debate is an escalation tool for uncertain high-severity findings, spec
 
 Speculative concerns are not actionable findings. Keep rare useful observations explicitly non-actionable, without severity or verdict impact.
 
+One maintainability finding is `High` without a defect: an implicit state machine the change introduces or worsens, when it meets a hard trigger and the finding shows the simpler explicit shape (`protocols/code-review-protocol.md`, State-Machine Findings). Audits apply the same rule to `ACT`. Keep the two guards when editing either: the hard trigger, and naming what the explicit version removes.
+
 ## PR Feedback Invariants
 
 - Use `protocols/feedback-disposition.md` whenever review feedback can cause code changes.
@@ -84,6 +86,7 @@ Speculative concerns are not actionable findings. Keep rare useful observations 
 - Review turns use fresh, context-free, read-only reviewers against the local diff from `origin/<pr_base_ref>...HEAD`.
 - Successful completion requires no unresolved Critical or High findings after severity normalization and no unexplained mechanism growth from the self-review run. Max turns, oscillation, same-seam escalation without a decision, unexplained mechanism growth, and final-review failures are blocked states, not successful exits.
 - Only demonstrated blocking findings drive loop edits. After evidence validation, concrete correctness, security, data-loss, broken-contract, or failing-verification issues are blocking regardless of the reviewer's Medium/Low label. Remaining Medium/Low findings and non-actionable observations do not create fix turns.
+- A `High` state-machine finding with no demonstrated defect is `NEEDS DECISION`. The loop presents the simpler shape and waits; it does not reshape a lifecycle on its own, and the run is not clean while the finding is open.
 - Rank remedies before mutation and escalate a second blocking finding on an already-fixed seam to `NEEDS DECISION`. After the first fix-mutation turn, run an approach checkpoint over the self-review delta before further patches.
 - Cap fix-mutation turns at 3 without an explicit user continue. Apply the shared feedback complexity gate before mutation and before each per-turn commit. Pause gated seams; allow independent fixes only on other seams.
 - Prefer the local lean `djenriquez-core:code-review` path when available. Direct fallback must follow the same staged L0/L1/L2 policy.

@@ -56,8 +56,8 @@ intermediate hops. If the evidence changes, update the graph before rendering.
 
 Image models invent architecture when the prompt is a vibe. Write a spec, not
 a caption. A one-liner like "draw a diagram of this PR" is how you get a
-generic cloud picture. Ground every box and arrow in the humanized Summary
-plus `git diff <base>...HEAD`. If a name, arrow, or component is not in that
+generic cloud picture. Ground every box and arrow in the PR's title and body
+plus the base-branch diff. If a name, arrow, or component is not in that
 evidence, omit it. The "Do not draw" list is what keeps sibling designs (and
 future work) out of the figure.
 
@@ -158,7 +158,7 @@ reach for another product's image tool when the session already has one):
 |---------|-----------|
 | **Cursor** | Native `GenerateImage`. `aspect_ratio: "16:9"`. Put landscape, white background, and the title in `description`. After it returns, use the saved file path (move out of the workspace if the tool dropped it there). |
 | **Codex** | Installed `imagegen` skill / built-in `image_gen`. Put landscape and white background in the prompt. Copy the chosen file out of `$CODEX_HOME/generated_images/` to a temp path before upload. Do not switch to that skill's CLI fallback unless the user asked. |
-| **Claude Code** | No native raster generator. Use a native image tool if the session has one. Else Codex `imagegen` / `codex` CLI if already available. Do not install plugins to unblock publish. |
+| **Claude Code** | No native raster generator. Use a native image tool if the session has one. Else Codex `imagegen` / `codex` CLI if already available. Do not install plugins to unblock the figure. |
 
 If none of those exist, use the deterministic fallback. Do not block the PR
 when neither rendering path is available.
@@ -248,11 +248,13 @@ commit (`https://github.com/<owner>/<repo>/blob/<sha>/<path>?raw=true`).
 Do not invent a new binaries directory on a code PR. Do not force-push.
 Do not `git add -A`.
 
-If both hosting paths fail, publish without the figure. Report the local path
-so the user can drop it into the GitHub UI.
+If both hosting paths fail, post nothing. Report the local path so the user
+can drop it into the GitHub UI.
 
 ## Refresh
 
-When updating an existing PR, regenerate if the Summary's outcome or the
-end-state flow changed. Otherwise keep the existing `![...](...)`. Never
-leave two figures in the body.
+When the PR already has a figure, regenerate only if the end-state flow
+changed; otherwise leave the existing one in place. A PR body never holds two
+figures. `/pr-publish` removes body figures when it refreshes a description
+(`skills/pr-publish/SKILL.md` gives the reason), so use `comment` for a figure
+that has to outlast a refresh.

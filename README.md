@@ -79,6 +79,7 @@ Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`,
 | `/handle-pr-feedback` | `pr-reply` |
 | `/audit-decisions` | `ledger` |
 | `/audit-state-machines` | `digest` |
+| `/interactive-review` | `digest` (graph prose and panel answers) |
 | `/lecture-video` | `narration` |
 
 ### /technical-writing
@@ -120,6 +121,9 @@ for high-risk escalation.
 - **L1**: generalist, then at most two evidence-triggered specialists
 - **L2**: bounded specialist set (cap four unless asked for heavy)
 
+An implicit state machine the diff introduces or worsens is a `High` finding
+even without a bug, when the review can show the simpler explicit shape.
+
 Large diffs use file inventories and targeted local diffs, not full-diff paste
 into every sub-agent. Findings and synthesis get a required `review-comment`
 humanizer pass before presentation.
@@ -146,7 +150,7 @@ implementer's private session. Required `ledger` humanizer.
 Finds the implicit state machines in a codebase, subsystem, or pull request
 — lifecycles encoded in flag clusters, string values, nil-ness, counters, or
 scattered mutations — and gives each one a disposition instead of a flat
-list: `ACT` (make it explicit; the entry is spec-ready), `CONTAIN` (keep the
+list: `ACT` (make it explicit; no bug needed, only a simpler shape the entry can show), `CONTAIN` (keep the
 shape, add a named cheap guard), `ACCEPT` (leave it implicit, with a revisit
 trigger), or `DELETE` (remove the dead, frozen, or deprecated code or the
 redundant state that holds it). Read-only and session-only: it writes no
@@ -188,7 +192,8 @@ Fresh read-only reviews until clean — or a blocked state, not a fake success.
 ```
 
 Success requires no unresolved Critical/High after normalization **and** no
-unexplained mechanism growth. Only demonstrated blockers mutate (severity uplift
+unexplained mechanism growth. A `High` state-machine finding without a bug
+stops for your decision instead of an automatic refactor. Only demonstrated blockers mutate (severity uplift
 for concrete correctness/security/data-loss/contract/verify failures). Cap three
 fix-mutation turns; same-seam second hit → decision; one squashed push; never
 force-push. Prefers local `/code-review`; direct fallback keeps L0/L1/L2.

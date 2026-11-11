@@ -337,8 +337,9 @@ Library cheat sheet (`src/lib.tsx`):
 - `Svg` is a full-canvas layer. `Arrow pts p` draws progressively; `Packet
   pts t` is a glowing dot; `along(pts, t)` gives a point on a path.
 - Use palette colours (`C.*`) for arrows; arrowheads exist only for them.
-- Text uses `FONT` (Inter) and `MONO` (JetBrains Mono) at weights 400–900 in
-  steps of 100. Draw checkmarks and crosses with `Icon`, not text glyphs.
+- Text uses `FONT` (Inter, weights 400–900 in steps of 100) and `MONO`
+  (JetBrains Mono, weights 400 and 700); other weights fall back to the
+  nearest one. Draw checkmarks and crosses with `Icon`, not text glyphs.
 
 Layout grid (1920×1080 canvas, absolute pixels):
 

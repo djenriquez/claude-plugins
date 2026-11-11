@@ -73,7 +73,10 @@ Rules from `pr-figure`, applied to JSON not pixels:
   discarded designs, or future work.
 - `layout`: `landscape` (default; bands are columns, left to right, matching
   the PNG) or `rows` (bands as horizontal lanes).
-- `kind`: `control`, `data-happy`, `data-other`, or `once`.
+- `kind`: `control` (a control-plane call), `data-happy` (the main data
+  path), `data-other` (an alternate or failure data path), or `once` (a
+  one-time step such as setup or a probe; drawn dashed). The page legend
+  uses these meanings, so pick the kind by meaning, not by colour.
 - Labels: one to three words. Quote verbatim strings that must appear.
 - Component names, not function, type, or file-path box labels.
 - Distinct outcomes on distinct edges. Same `from`/`to` pair is fanned;
