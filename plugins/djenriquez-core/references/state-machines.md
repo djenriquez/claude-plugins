@@ -111,14 +111,27 @@ fit, take the first that applies: `DELETE`, then `ACT`, then `ACCEPT`, then
 
 ### ACT — make it explicit
 
-A hard trigger is present and the harm is concrete. The report for an ACT
-entry is spec-ready:
+A hard trigger is present, and making the machine explicit leaves the code
+simpler. The fix is a reshape: it changes how the state is stored, or its
+writers or readers in more than one place. The machine does not have to be
+buggy. An implicit lifecycle that meets a hard trigger costs every reader who
+has to reconstruct it and every change that adds one more flag to it, so a
+cleaner, easier-to-extend shape is reason enough.
+
+"Could be cleaner" is true of most code, so the entry has to show the simpler
+shape. It carries enough to act on, whether the user turns it into a direct
+fix, a review comment, an issue, or a spec:
 
 - the inferred states and the transitions between them, including the
   invalid ones the current code allows
 - the encoding and every writer site found
-- one concrete harm scenario: the input, state, or timing that reaches the
-  bad combination or the missing transition
+- what the explicit version removes: flags or fields deleted, combinations
+  that can no longer be represented, writer sites collapsed into one
+  mutator, conditionals a reader no longer has to trace. If the explicit
+  version only adds a type on top of what is there, the entry is not ACT
+- a harm scenario when one exists: the input, state, or timing that reaches
+  the bad combination or the missing transition. Entries that have one rank
+  ahead of entries that do not
 - the owning seam where the explicit machine should live
 - the suggested shape — named states, a transition table or guard, a single
   mutator — and how to verify the change (which existing tests cover the
@@ -126,12 +139,14 @@ entry is spec-ready:
 
 ### CONTAIN — keep the shape, add the cheap guard
 
-No hard trigger with concrete harm, but a guard is missing that costs little:
-name the lifecycle in a comment or type, replace a bool or string cluster
-with a typed enum, route mutations through one function, add the missing
-fallback so an unknown value fails visibly, log transitions, or add a test
-for the one transition that matters. State the exact guard proposed; "keep
-an eye on it" is not a containment.
+The shape can stay, but one cheap guard is missing, local to the owning type
+or file so callers do not notice it: name the lifecycle in a comment or type,
+replace a bool or string cluster with a typed enum, route mutations through
+one function, add the missing fallback so an unknown value fails visibly, log
+transitions, or add a test for the one transition that matters. State the
+exact guard proposed; "keep an eye on it" is not a containment. When the
+guards needed add up to a change in how the state is stored, or reach writers
+in several files, the entry is ACT.
 
 ### ACCEPT — leave it implicit, on the record
 
@@ -164,10 +179,13 @@ its entries hold only for that scope. Reviews do not reuse an audit: the
 state-machine check in `djenriquez-core:code-review` derives dispositions
 from the diff, its `ACT`, `CONTAIN`, and `DELETE` entries that meet the
 review bar become that review's findings, and `/publish-review` posts them
-like any other finding. `ACCEPT` entries are not findings and are not
-posted. An `ACT` finding takes its severity from the design-defect rule in
-`protocols/code-review-protocol.md`: rate the unguarded transition by the
-state it reaches, not by how often its trigger fires.
+like any other finding. An `ACT` entry for a machine the diff introduces or
+worsens is a `High` finding without a defect
+(`protocols/code-review-protocol.md`, State-Machine Findings). A demonstrated
+defect in a machine, such as an unguarded transition, takes its severity from
+the design-defect rule in the same protocol: rate it by the state it reaches,
+not by how often its trigger fires. `ACCEPT` entries are not findings and are
+not posted.
 
 ## Qualification bar
 
@@ -177,10 +195,11 @@ Report a machine only when the evidence shows:
    state, with file references.
 2. The inferred states — named by the auditor, marked as inferred when the
    code never names them.
-3. At least one writer and, for `ACT` or `CONTAIN`, the transition or
-   combination that makes the disposition necessary; for `DELETE`, what
-   shows the code is dead, frozen, or deprecated, or which source of truth
-   the state duplicates.
+3. At least one writer and, for `ACT`, the hard trigger met and what the
+   explicit version removes; for `CONTAIN`, the missing guard and the
+   transition or combination it covers; for `DELETE`, what shows the code is
+   dead, frozen, or deprecated, or which source of truth the state
+   duplicates.
 
 Do not report a machine from a name alone ("this is called Status, so it
 must be a lifecycle") without reading how the value is written and read.

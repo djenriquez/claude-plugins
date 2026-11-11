@@ -74,7 +74,7 @@ Run one generalist review first. Then trigger at most two specialists when evide
 - `testing`: production code with weak/missing tests, bug fix without regression coverage, flaky-looking tests
 - `architecture`: new modules, dependency direction changes, package boundaries, public API shape
 - `maintainability`: new abstractions, complex control flow, broad refactors, naming/domain clarity
-- `state-machines`: the diff adds or changes a lifecycle, status field, flag cluster, retry or cancellation flow, or persisted/restored state. Load `references/state-machines.md`; the specialist checks each changed lifecycle against its hard triggers and gives it a disposition. `ACT`, `CONTAIN`, and `DELETE` entries that meet the review bar are findings, anchored at the changed line that introduces or exposes them with the encoding sites in the body; `ACCEPT` entries are not findings
+- `state-machines`: the diff adds or changes a lifecycle, status field, flag cluster, retry or cancellation flow, or persisted/restored state. Load `references/state-machines.md`; the specialist checks each changed lifecycle against its hard triggers and gives it a disposition. `ACT`, `CONTAIN`, and `DELETE` entries that meet the review bar are findings, anchored at the changed line that introduces or exposes them with the encoding sites in the body; `ACCEPT` entries are not findings. An `ACT` entry for a machine the diff introduces or worsens is `High` even without a bug, on the evidence the protocol's State-Machine Findings section names
 
 If no trigger is present and the generalist pass is strong, synthesize immediately.
 

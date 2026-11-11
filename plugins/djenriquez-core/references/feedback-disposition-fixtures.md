@@ -105,3 +105,17 @@ validation. The latest review reports no Critical/High findings.
 **Disposition:** Do not treat the run as clean. Report mechanism growth and
 either justify each addition as the ranked remedy for a required invariant or
 stop for a decision / blocked state.
+
+## 10. New implicit state machine, no bug → `NEEDS DECISION`
+
+**Claim:** "`High`: this change tracks delivery with `sent`, `acked`, and
+`retry_count`, written from three files. One `status` field with a single
+mutator would replace all three."
+
+**Evidence:** The diff adds the fields and the scattered writers, which meets
+a hard trigger in `references/state-machines.md`. The finding names what the
+explicit version removes. No reachable bad state is shown.
+
+**Disposition:** `NEEDS DECISION`. Do not file it as `NO CHANGE` because no
+defect was demonstrated, and do not reshape the lifecycle without an owner
+decision. Offer the simpler shape, a `CONTAIN` guard, and leaving it as is.

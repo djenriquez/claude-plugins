@@ -63,6 +63,15 @@ Use one of these outcomes for each cluster:
 Do not classify a proven violation of a required invariant as `NO CHANGE`
 because its remedy is expensive. Use `NEEDS DECISION`.
 
+A lifecycle finding is the one concern that can be valid without a defect.
+When the change introduces or worsens an implicit state machine that meets a
+hard trigger, and the finding shows the simpler explicit shape
+(`protocols/code-review-protocol.md`, State-Machine Findings), do not file it
+as `NO CHANGE` for being subjective. Reshaping a lifecycle is an approach
+decision, so use `NEEDS DECISION`, with the simpler shape, a `CONTAIN` guard,
+and leaving it as is among the options. A demonstrated defect in the
+lifecycle is dispositioned like any other.
+
 An explicit user, repository-owner, or code-owner request may also be `FIX NOW`
 when it is contract-neutral, local, and simplifying. Treat it as non-blocking,
 and apply the complexity gate before accepting it.
