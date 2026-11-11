@@ -20,13 +20,27 @@ zero findings is the right result when nothing meets it.
 Severity describes impact if the finding is true, not confidence in the evidence.
 Do not raise severity to compensate for weak evidence.
 
+Rate a design defect in code the change adds by the flaw, not by how rare its
+trigger is: a rare trigger does not make the design cheaper to keep. When the
+change breaks a contract or invariant that its own code, docs, or PR states,
+or leaves a lifecycle transition unguarded into a state that is costly to
+leave, the finding is at least `High` once its path is demonstrated. For
+ordinary runtime bugs, likelihood still counts toward severity, and the review
+bar above still drops speculative paths.
+
 For performance findings, require a change-introduced unbounded or asymptotic
 path, a measured regression, or a cited workload, service-level, or production
 constraint. Do not report an existing bounded path or a small constant-factor
-concern without that evidence.
+concern without that evidence. Once that evidence is there, today's small scale
+does not lower the severity of a change-introduced asymptotic path.
 
-Collapse symptoms at the same seam into one root-cause finding. Recommend the
-least-mechanistic correction that resolves the demonstrated harm.
+Collapse symptoms at the same seam into one root-cause finding. Rank the
+correction the way `protocols/feedback-disposition.md` ranks remedies: remove
+or simplify, then fix at the owning seam, then a local patch. A runbook or
+process step is not a correction for a code defect, because the defect stays
+for every later reader and operator. For a design defect, when the smallest
+code fix leaves the underlying design in place, also name the structural fix
+and let the author choose.
 
 ## Severity
 

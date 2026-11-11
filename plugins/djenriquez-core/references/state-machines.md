@@ -165,7 +165,9 @@ state-machine check in `djenriquez-core:code-review` derives dispositions
 from the diff, its `ACT`, `CONTAIN`, and `DELETE` entries that meet the
 review bar become that review's findings, and `/publish-review` posts them
 like any other finding. `ACCEPT` entries are not findings and are not
-posted.
+posted. An `ACT` finding takes its severity from the design-defect rule in
+`protocols/code-review-protocol.md`: rate the unguarded transition by the
+state it reaches, not by how often its trigger fires.
 
 ## Qualification bar
 
