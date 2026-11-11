@@ -171,9 +171,10 @@ the guards needed add up to a change in how the state is stored, or reach
 writers in several files, the entry is ACT.
 
 In a review, a CONTAIN entry follows the ordinary evidence bar: it is a
-finding only when a reachable bad path can be shown, and it is rated on that
-impact, usually `Medium` or lower. It does not get the `High` rating an ACT
-entry gets for a machine the change introduces.
+finding only when a reachable bad path can be shown, and it is rated by the
+protocol's severity rules, not by the size of its fix. An unguarded
+transition into a state that is costly to leave is at least `High`, even
+when the guard is one line.
 
 ### ACCEPT — leave it implicit, on the record
 
