@@ -6,8 +6,6 @@ disable-model-invocation: false
 allowed-tools:
   - Bash(git:*)
   - Bash(gh:*)
-  - Bash(python3:*)
-  - Bash(curl:*)
   - Read
   - Glob
   - Grep

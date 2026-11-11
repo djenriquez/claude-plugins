@@ -1,5 +1,5 @@
 // Frame primitives for the lecture. Every component is a pure function of the
-// current frame, so render.mjs can draw any frame, in any order, in several
+// current frame, so renderer.mjs can draw any frame, in any order, in several
 // browser pages at once. Scenes use these through lib.tsx's useScene().
 import React, { createContext, useContext } from "react";
 

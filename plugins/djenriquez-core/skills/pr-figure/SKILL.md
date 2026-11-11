@@ -26,13 +26,9 @@ reconstruct architecture from prose. Drawing rules, prompt skeleton, harness
 table, and hosting fallbacks live in `references/pr-figure.md` — load it
 before generating.
 
-## Callers
+## Placement
 
-| Caller | Placement |
-|--------|-----------|
-| Standalone | `comment` unless the user asks for body or URL-only |
-
-Callers run this Process inline by default. Nested `/pr-figure` is optional.
+Post a `comment` unless the user asks for `body` or `url`.
 
 ## Arguments
 
@@ -78,7 +74,11 @@ different repository.
 7. Deliver:
    - `comment`: `gh pr comment --repo OWNER/REPO` with `![title](url)` and a
      one- or two-sentence `pr-reply` note. Not a commit.
-   - `body`: return `![title](url)` for the caller to embed.
+   - `body`: return `![title](url)` for the user to embed. For a private or
+     internal repository, say first that GitHub serves a body image through a
+     signed URL that Slack unfurls of the PR expose to secret scanners, and
+     that `/pr-publish` removes body figures when it refreshes the
+     description. A `comment` avoids both.
    - `url`: print the asset URL.
    After posting, check rendering on the PR when a browser is available
    (signed in for a private/internal repository). Otherwise, report that the

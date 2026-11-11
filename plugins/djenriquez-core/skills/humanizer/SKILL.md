@@ -82,8 +82,8 @@ Mode rules override when they conflict.
   main body to the overall assessment supported by the findings; details stay
   inline under `**<Severity>: <short label>**` (bold only). For a local review,
   keep the protocol's sections, file anchors, and final verdict. Backtick code.
-- **`digest`** — Outcome-first Intent; narrative by concern; neutral; one name
-  per thing.
+- **`digest`** — Outcome first; narrative by concern; neutral; one name per
+  thing.
 - **`spec-narrative`** — Narrative layer only; never grow length; keep named
   constraints.
 - **`pr-reply`** — Answer the point with the change, evidence, or reason for

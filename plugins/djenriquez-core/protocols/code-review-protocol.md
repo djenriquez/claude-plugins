@@ -8,7 +8,7 @@ Only report a finding when all are true:
 
 1. The issue was introduced or materially exposed by this change.
 2. It identifies the exact changed contract or invariant and cites its source.
-3. It demonstrates a reachable violating path, reproducer, failing verification, or why the path must be reachable.
+3. It demonstrates a reachable violating path, reproducer, failing verification, or why the path must be reachable. State-machine findings have their own evidence rule below.
 4. It has concrete impact on correctness, security, operability, performance, maintainability, or reviewability.
 5. It is actionable by the author.
 6. It does not depend on guessing the author's intent.
@@ -50,6 +50,23 @@ and let the author choose.
 - `Low`: nit, small clarity issue, or non-blocking suggestion.
 
 Normalize severity during synthesis. A finding's evidence matters more than the label a reviewer used.
+
+## State-Machine Findings
+
+One class of finding qualifies without a violating path. When the change
+introduces an implicit state machine that meets a hard trigger in
+`references/state-machines.md`, or adds flags, values, or writers to one that
+already does, report it when you can show the simpler explicit shape. The
+evidence is the encoding sites the change adds, the hard trigger met, and
+what the explicit version removes (the reference's `ACT` entry). That stands
+in for item 3 of the review bar. The other items still apply, so a machine
+the change did not touch is not a finding.
+
+Rate it `High`: the encoding gets more expensive to unwind with every reader
+added after merge, which is the design risk `High` describes. The lifecycle
+does not have to be buggy. A demonstrated defect in it is rated on its own
+impact and may be `Critical`. `CONTAIN` and `DELETE` entries follow the
+ordinary bar and severity rules.
 
 ## Observations
 

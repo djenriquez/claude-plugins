@@ -65,7 +65,7 @@ const ProgressBar: React.FC = () => {
   );
 };
 
-// Video only: render.mjs lays each scene's public/audio/<id>.wav at its start frame.
+// Video only: renderer.mjs lays each scene's public/audio/<id>.wav at its start frame.
 export const Lecture: React.FC = () => (
   <AbsoluteFill>
     <Background />

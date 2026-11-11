@@ -45,9 +45,11 @@ changing a disposition, a revisit trigger, or the evidence under an entry.
   scoring axes in the reference — not from how alarming the encoding looks.
 - `ACCEPT` requires a revisit trigger a later diff can be checked against.
   An acceptance without one does not ship in the report.
-- `ACT` entries are spec-ready: inferred states and transitions, writer
-  sites, one concrete harm scenario, the owning seam, and a verification
-  note.
+- `ACT` does not need a bug. It needs a hard trigger and a simpler explicit
+  shape the entry can show. Each `ACT` entry carries enough to act on:
+  inferred states and transitions, writer sites, what the explicit version
+  removes, a harm scenario when one exists, the owning seam, and a
+  verification note.
 - Coverage is stated honestly: what was searched, what was excluded
   (generated code, vendored code, tests unless asked), and any area the
   pass could not read. A partial census labeled as complete is a failed run.
@@ -99,14 +101,19 @@ on the axes, then assign the first disposition that fits, in this order:
 - `DELETE` — the machine lives in dead, frozen, or deprecated code, or in
   state that duplicates another source of truth; name what to remove, or
   the tracked removal that covers it.
-- `ACT` — a hard trigger is present and a concrete harm scenario can be
-  stated. If the harm cannot be stated, it is not ACT.
+- `ACT` — a hard trigger is present and the explicit version is simpler:
+  the entry names what it removes (flags, representable combinations,
+  writer sites, conditionals). Cleaner, easier-to-follow code is enough; a
+  harm scenario strengthens the entry but is not required. If the explicit
+  version only adds a type on top, or one local guard would do, it is not
+  ACT.
 - `ACCEPT` — the acceptable criteria hold; record the reason and the
   revisit trigger.
-- `CONTAIN` — none of the above, but a named cheap guard is missing.
+- `CONTAIN` — none of the above, but a named cheap, local guard is missing.
 
-Rank ACT entries by blast radius, then by how many readers depend on the
-encoding. Rank CONTAIN entries by guard cost, cheapest first.
+Rank ACT entries with a harm scenario first, then by blast radius, then by
+how many readers depend on the encoding. Rank CONTAIN entries by guard cost,
+cheapest first.
 
 ## Present
 
@@ -115,8 +122,7 @@ Present in this order:
 1. **Coverage** — target, slices searched, exclusions, explicit machines
    found, total candidates that met the bar.
 2. **Counts** — how many entries per disposition.
-3. **ACT** — full entries, ranked. Each one is the input to a `/write-spec`
-   run if the user picks it up.
+3. **ACT** — full entries, ranked.
 4. **CONTAIN** — one line per entry: the machine, where it lives, the exact
    guard proposed.
 5. **ACCEPT** — one line per entry: the machine, where it lives, why it is
@@ -129,5 +135,6 @@ This skill does not post. The reference's "Where an audit lives" section
 names the review path for state findings on a PR.
 
 Stay in Q&A on the report (read more code if asked). Do not start fixing
-ACT entries from this skill; offer `/write-spec` on the top entry as the
-follow-up when the user wants to act.
+entries on this skill's own initiative. What an entry becomes is the user's
+call: a direct fix, a review comment, an issue, or a `/write-spec` run when
+the reshape is large enough to need a design.

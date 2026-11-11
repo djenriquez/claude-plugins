@@ -9,6 +9,7 @@ allowed-tools:
   - Read
   - Glob
   - Grep
+  - Agent
   - Task
   - TeamCreate
   - TeamDelete
@@ -69,6 +70,11 @@ cross-review, output).
 6. **Debate** — Load `protocols/mcp-debate.md` only for judgment-sensitive `L2`,
    Critical disagreement, or suspected high-severity miss/FP. Otherwise skip
    and state why.
-7. **Synthesize** — Dedup into Critical/High/Medium/Low (omit empty). Coverage
-   line: lane, run/skipped specialists, failures, debate status. End with
-   exactly one verdict block.
+7. **Synthesize** — Dedup, then map the protocol's labels to tiers: Critical =
+   blockers; High = other P0/P1 findings; Medium = P2; Low = P3, nitpicks, and
+   thoughts (omit empty tiers). Coverage line: lane, run/skipped specialists,
+   failures, debate status. End with exactly one verdict block:
+   `## Verdict: APPROVED` when no Critical item remains, otherwise
+   `## Verdict: REVISIONS NEEDED` naming each Critical item and what must
+   change. The verdict is binary because a spec is either ready to implement
+   or it is not.

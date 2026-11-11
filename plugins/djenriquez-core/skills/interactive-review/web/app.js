@@ -1,7 +1,6 @@
 /* interactive-review SPA. Expects window.IR from /config.js */
 (function () {
   const IR = window.IR || {};
-  const token = IR.token || "";
   const heartbeatMs = IR.heartbeatMs || 5000;
 
   const svg = document.getElementById("canvas");
@@ -56,10 +55,9 @@
   let live = false;
   const threads = { _all: [] };
 
+  // The page authenticates with the HttpOnly ir_session cookie and never holds the token.
   function headers() {
-    const h = { "Content-Type": "application/json" };
-    if (token) h.Authorization = "Bearer " + token;
-    return h;
+    return { "Content-Type": "application/json" };
   }
 
   function safeHttpUrl(value) {

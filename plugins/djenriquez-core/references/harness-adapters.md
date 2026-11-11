@@ -63,7 +63,7 @@ Use fresh, read-only agents for review work. Map spawn tools by harness:
 
 | Harness | Spawn specialists | Cross-review / follow-up |
 |---------|-------------------|--------------------------|
-| **Claude Code** | `Task` / team primitives (`TeamCreate`, `TaskCreate`, …) with agent definitions under `<plugin-root>/agents/` | Lead `SendMessage`; specialists may wait for challenges when team tools exist |
+| **Claude Code** | `Agent` (named `Task` in older releases) / team primitives (`TeamCreate`, `TaskCreate`, …) with agent definitions under `<plugin-root>/agents/` | Lead `SendMessage`; specialists may wait for challenges when team tools exist |
 | **Cursor** | `Task` with registered `subagent_type` matching `*-reviewer` names (`clarity-reviewer`, `completeness-reviewer`, `api-reviewer`, `feasibility-reviewer`, `operations-reviewer`, `product-reviewer`, `scope-reviewer`, `complexity-reviewer`, `structure-reviewer`, …) | One-shot return to the parent. Lead collects Phase 1 output, then spawns a **second** Task (prefer `resume` when available) with only disputed findings. Do not expect idle wait / `SendMessage` |
 | **Codex** | `spawn_agent`; prefer `agent_type: "explorer"` for read-only review unless another skill must run; `fork_context: false` when the review must be unbiased | Follow-up input or second spawn; Claude `TeamCreate` / `TaskUpdate` map to local plan notes unless explicit team tools exist |
 
