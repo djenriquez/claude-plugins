@@ -109,6 +109,18 @@ without dispositions is a backlog, not a result. When more than one could
 fit, take the first that applies: `DELETE`, then `ACT`, then `ACCEPT`, then
 `CONTAIN`.
 
+| Disposition | When | Remedy |
+|-------------|------|--------|
+| `DELETE` | The code or state holding the machine is dead, frozen, deprecated, or duplicated | Remove it |
+| `ACT` | A hard trigger is present and a simpler shape can be shown | Reshape how the state is stored or mutated |
+| `ACCEPT` | No hard trigger; the acceptable case holds | Nothing, with a revisit trigger on record |
+| `CONTAIN` | None of the above, but a guard is missing | One small, local fix |
+
+`ACT` and `CONTAIN` both say the machine has a real problem. `ACCEPT` is
+checked before `CONTAIN`, so a machine that reaches `CONTAIN` has normally
+met a hard trigger too. What separates the two is the size of the right fix,
+not how serious the problem is.
+
 ### ACT — make it explicit
 
 A hard trigger is present, and making the machine explicit leaves the code
@@ -144,9 +156,24 @@ or file so callers do not notice it: name the lifecycle in a comment or type,
 replace a bool or string cluster with a typed enum, route mutations through
 one function, add the missing fallback so an unknown value fails visibly, log
 transitions, or add a test for the one transition that matters. State the
-exact guard proposed; "keep an eye on it" is not a containment. When the
-guards needed add up to a change in how the state is stored, or reach writers
-in several files, the entry is ACT.
+exact guard proposed; "keep an eye on it" is not a containment.
+
+"Contain" means limiting the risk without restructuring anything. A `status`
+string read by a switch with no default meets a hard trigger, because an
+unrecognized value silently does nothing; adding a default that returns an
+error is one line, so the entry is CONTAIN. Delivery tracked by `sent`,
+`acked`, and `retry_count` written from three files needs one status field
+and a single mutator, which touches every writer, so that entry is ACT.
+
+A typed enum and a single mutator appear in both lists, so decide by
+locality. A guard that stays inside the owning type or file is CONTAIN. When
+the guards needed add up to a change in how the state is stored, or reach
+writers in several files, the entry is ACT.
+
+In a review, a CONTAIN entry follows the ordinary evidence bar: it is a
+finding only when a reachable bad path can be shown, and it is rated on that
+impact, usually `Medium` or lower. It does not get the `High` rating an ACT
+entry gets for a machine the change introduces.
 
 ### ACCEPT — leave it implicit, on the record
 
