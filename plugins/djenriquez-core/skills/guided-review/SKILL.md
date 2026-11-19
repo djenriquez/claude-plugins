@@ -91,14 +91,18 @@ source. Before listing points, gather what this review should build on:
 
 Unless the user says to skip it, start `/code-review` on
 `<base-sha>...<head-sha>` once Load is done, and go on to the explanation while
-it runs. Run it in a fresh, read-only agent that does not share this
-conversation (`references/harness-adapters.md`, Agents And Teams), so its
-findings are not anchored on the discussion. Give it the repository path, the
-range, and `owner/repo` with the PR number for the description and checks, and
-tell it not to run external-model debate, since it cannot ask the user during
-the run. Record the head SHA it reviewed. If no agent can be spawned, tell the
-user and continue without it; running the review in this conversation would
-lose its independence.
+it runs. Run it in a fresh agent that does not share this conversation, so its
+findings are not anchored on the discussion, and that can run skills and spawn
+`/code-review`'s own reviewers (`references/harness-adapters.md`, Agents And
+Teams and Compatibility Rule): in Claude Code a general-purpose agent rather
+than `Explore`, in Codex `spawn_agent` with `fork_context: false` rather than
+`explorer`. Tell it to stay read-only and not to run external-model debate,
+since it cannot ask the user during the run, and give it the repository path,
+the range, and `owner/repo` with the PR number for the description and checks.
+Record the head SHA it reviewed. If no such agent is available, or the run ends
+without code-review's final `## Verdict:` line, tell the user and continue
+without it, so a failed review is never mistaken for a clean one; running the
+review in this conversation would lose its independence.
 
 Its findings are candidate points, not conclusions, and its verdict is not
 adopted: the user decides what is raised. The explanation does not depend on
@@ -130,11 +134,11 @@ it. Look for:
 - conflicts with the user's stated principles or with comments already posted
   in the stack.
 
-Merge the review's findings with your own points, deduplicated by root cause.
+Merge the review's findings with your own points, deduplicated by root cause,
+and show its Observations as context, not as points.
 Label each point with its source and, for a review finding, the severity the
 review gave it (`code-review, High`). Recheck a review finding's evidence at
-the current head before presenting it, since the author may have pushed while
-the review ran. If the user went ahead without the review, add its findings
+the reviewed head before presenting it. If the user went ahead without the review, add its findings
 when it returns and flag any that touch a point already commented on.
 
 Rate a design defect by the flaw, not by how likely it is to bite. Leave out
