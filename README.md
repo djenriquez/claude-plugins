@@ -79,6 +79,7 @@ Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`,
 | `/handle-pr-feedback` | `pr-reply` |
 | `/audit-decisions` | `ledger` |
 | `/audit-state-machines` | `digest` |
+| `/guided-review` | `digest` (explanations), `review-comment` (comment drafts) |
 | `/interactive-review` | `digest` (graph prose and panel answers) |
 | `/lecture-video` | `narration` |
 
@@ -127,6 +128,25 @@ even without a bug, when the review can show the simpler explicit shape.
 Large diffs use file inventories and targeted local diffs, not full-diff paste
 into every sub-agent. Findings and synthesis get a required `review-comment`
 humanizer pass before presentation.
+
+### /guided-review
+
+Joint PR review, run one point at a time with the user. Explains the PR in
+plain language and answers concept questions, lists the points that need
+attention with `file:line` evidence, discusses each one, and drafts one plain
+PR comment per agreed point. Nothing posts until the user approves that draft;
+cited lines are rechecked against the current head first. Stacked PRs are
+diffed against the parent PR's head. Later rounds check each posted point
+against the author's new commits before reviewing new changes. Required
+`digest` humanizer for explanations and `review-comment` for drafts.
+
+```
+/guided-review #42
+/guided-review https://github.com/djenriquez/claude-plugins/pull/34
+```
+
+Use `/code-review` for an autonomous findings report and `/publish-review` to
+post existing findings as one review with inline comments.
 
 ### /audit-decisions
 
