@@ -96,11 +96,13 @@ conversation (`references/harness-adapters.md`, Agents And Teams), so its
 findings are not anchored on the discussion. Give it the repository path, the
 range, and `owner/repo` with the PR number for the description and checks, and
 tell it not to run external-model debate, since it cannot ask the user during
-the run. If no agent can be spawned, tell the user and continue without it;
-running the review in this conversation would lose its independence.
+the run. Record the head SHA it reviewed. If no agent can be spawned, tell the
+user and continue without it; running the review in this conversation would
+lose its independence.
 
 Its findings are candidate points, not conclusions, and its verdict is not
-adopted: the user decides what is raised.
+adopted: the user decides what is raised. The explanation does not depend on
+them, so it goes ahead while the review runs; the points wait for it.
 
 ## Explain
 
@@ -112,8 +114,12 @@ humanizer pass in `digest` mode to explanations.
 
 ## List the points
 
-After the explanation, or when the user asks, list the points that need
-attention, ranked, one line each with a `file:line`. Look for:
+After the explanation, and once the background review has returned, list the
+points that need attention, ranked, one line each with a `file:line`. Waiting
+lets the review's findings be ranked with the rest instead of arriving after
+points have been discussed or posted. If the user asks for points while the
+review is still running, say so and wait unless they choose to go ahead without
+it. Look for:
 
 - broken or inconsistent contracts, including a doc, a comment, and code that
   disagree;
@@ -124,12 +130,12 @@ attention, ranked, one line each with a `file:line`. Look for:
 - conflicts with the user's stated principles or with comments already posted
   in the stack.
 
-When the background review returns, merge its findings with your own points,
-deduplicated by root cause. Label each point with its source and, for a review
-finding, the severity the review gave it (`code-review, High`). Recheck a
-review finding's evidence at the head before presenting it. If the review
-returns after the list was shown, finish the current point, then add its new
-points to the list and say so.
+Merge the review's findings with your own points, deduplicated by root cause.
+Label each point with its source and, for a review finding, the severity the
+review gave it (`code-review, High`). Recheck a review finding's evidence at
+the current head before presenting it, since the author may have pushed while
+the review ran. If the user went ahead without the review, add its findings
+when it returns and flag any that touch a point already commented on.
 
 Rate a design defect by the flaw, not by how likely it is to bite. Leave out
 speculative edge cases. Mark minor points as minor so the user can drop them.
@@ -184,6 +190,7 @@ author's changes go beyond fixes to points already discussed. Approve
 
 Pause for the user at each of these:
 
+- the user asks for points while the background review is still running;
 - a point is presented and needs a decision;
 - a draft is shown and needs approval;
 - the user's pushback needs a code check that changes a point;
