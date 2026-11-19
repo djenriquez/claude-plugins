@@ -1,7 +1,7 @@
 ---
 name: code-review
 description: "Runs a lean, risk-scaled code review: one generalist pass first, specialists only when triggered by evidence, and external debate only for high-risk escalation."
-argument-hint: "[PR number, branch name, 'staged', 'unstaged', commit SHA, or file path]"
+argument-hint: "[PR number, branch name, <base>...<head> range, 'staged', 'unstaged', commit SHA, or file path]"
 disable-model-invocation: false
 allowed-tools:
   - Bash(git:*)
@@ -37,6 +37,10 @@ Resolve the review target:
 
 - PR number or URL: use `references/github-pr-workflow.md`; inspect local `HEAD` against `origin/<baseRefName>` after checkout.
 - branch name: compare against the appropriate base with `git diff <base>...<branch>`.
+- `<base>...<head>` range of SHAs or refs, for a caller that fetched a PR
+  without checking it out: review `git diff <base>...<head>`. The working tree
+  is not the reviewed code, so read and search at `<head>` with
+  `git grep -n '' <head> -- <path>` and `git grep -n <pattern> <head>`.
 - `staged`: `git diff --cached`.
 - `unstaged` or no qualifier: `git diff`.
 - commit SHA: `git show <sha>`.
