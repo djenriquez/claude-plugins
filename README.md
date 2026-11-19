@@ -114,6 +114,7 @@ for high-risk escalation.
 
 ```
 /code-review #42
+/code-review main...feature
 /code-review staged
 /code-review unstaged
 ```
@@ -134,10 +135,13 @@ humanizer pass before presentation.
 Joint PR review, run one point at a time with the user. Explains the PR in
 plain language and answers concept questions, lists the points that need
 attention with `file:line` evidence, discusses each one, and drafts one plain
-PR comment per agreed point. Nothing posts until the user approves that draft;
-cited lines are rechecked against the current head first. Stacked PRs are
-diffed against the parent PR's head. Later rounds check each posted point
-against the author's new commits before reviewing new changes. Required
+PR comment per agreed point. A fresh `/code-review` runs in the background while
+the PR is explained, and the points start once it returns; its findings join
+them, labeled with their source and severity, and its verdict is not adopted. Say "skip code-review" to run
+without it. Nothing posts until the user approves that draft; cited lines are
+rechecked against the current head first. Stacked PRs are diffed against the
+parent PR's head. Later rounds check each posted point against the author's new
+commits before reviewing new changes. Required
 `digest` humanizer for explanations and `review-comment` for drafts.
 
 ```
@@ -145,8 +149,8 @@ against the author's new commits before reviewing new changes. Required
 /guided-review https://github.com/djenriquez/claude-plugins/pull/34
 ```
 
-Use `/code-review` for an autonomous findings report and `/publish-review` to
-post existing findings as one review with inline comments.
+For a hands-off review, run `/code-review` and then `/publish-review` to post
+its findings as one review with inline comments.
 
 ### /audit-decisions
 
