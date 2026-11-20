@@ -29,11 +29,11 @@ It holds the definition, the encodings to look for, when implicit is
 acceptable, the hard triggers, and the four dispositions
 (`ACT` / `CONTAIN` / `ACCEPT` / `DELETE`). Load
 `references/github-pr-workflow.md` only for a PR target. Load
-`references/harness-adapters.md` only when spawning across harnesses. Load
-`references/reporting-style.md` while presenting. Required humanizer pass
-in `digest` mode before presenting (inline Process by default, the same
-way `audit-decisions` applies its `ledger` pass): clean the prose without
-changing a disposition, a revisit trigger, or the evidence under an entry.
+`references/harness-adapters.md` only when spawning across harnesses. Apply
+`skills/humanizer/SKILL.md` in `digest` mode (inline Process by default, the
+same way `audit-decisions` applies its `ledger` pass) before presenting: clean
+the prose without changing a disposition, a revisit trigger, or the evidence
+under an entry.
 
 ## Invariants
 

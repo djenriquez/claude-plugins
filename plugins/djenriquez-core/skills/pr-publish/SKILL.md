@@ -17,7 +17,7 @@ allowed-tools:
 
 Publish completed branch work as a PR, or refresh the current branch's existing PR. Treat `$ARGUMENTS` as extra drafting context such as linked issues, incident notes, or validation evidence.
 
-Load `references/github-pr-workflow.md` before making branch or PR decisions. Load `references/pr-description-style.md` when drafting the body. Load `references/reporting-style.md` for tone while drafting (outcome first, meaning before plainness, fewer ideas, claim only verified results).
+Load `references/github-pr-workflow.md` before making branch or PR decisions. Load `references/pr-description-style.md` when drafting the body. Load `skills/humanizer/SKILL.md` (`pr-body` mode) for shared writing rules and the required pass before publishing.
 
 The PR body is for humans. If a busy reviewer cannot understand the change from the Summary, the body is not done.
 
@@ -47,13 +47,13 @@ The PR body is for humans. If a busy reviewer cannot understand the change from 
 1. Discover: status, current/default branch, merge-base commits/diff, current PR.
 2. Stop for safety cases in `references/github-pr-workflow.md`.
 3. Gather only framing that changes the body (issues, evidence, affected users).
-4. Draft title (<70 chars) and body via `pr-description-style.md` +
-   `reporting-style.md`; rewrite journey-relative phrasing; join hard-wrapped
-   prose into unbroken paragraphs.
-5. Load `skills/humanizer/SKILL.md` and its `pr-body` references; apply the
-   Process to the title and full body. Remove repeated ideas across sections,
-   unwrap any remaining hard wraps, and re-check the base-branch frame.
-   Optional `technical-writing` only for rare long procedure sections.
+4. Draft title (<70 chars) and body via `references/pr-description-style.md`;
+   rewrite journey-relative phrasing; join hard-wrapped prose into unbroken
+   paragraphs.
+5. Apply `skills/humanizer/SKILL.md` (`pr-body` mode) to the title and full
+   body. Remove repeated ideas across sections, unwrap any remaining hard
+   wraps, and re-check the base-branch frame. Optional `technical-writing`
+   only for rare long procedure sections.
 6. Push if needed; create or update the PR (`gh pr create` / edit body; retitle
    only if generated, non-conventional, or over 70 chars).
 7. Print the PR URL.

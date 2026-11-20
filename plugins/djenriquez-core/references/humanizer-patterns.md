@@ -1,10 +1,9 @@
 # Humanizer Patterns
 
-Load from the `djenriquez-core:humanizer` skill. Pattern catalog only — process
-and modes live in `skills/humanizer/SKILL.md`. Reported-work tone lives in
-`references/reporting-style.md`. Procedure craft lives in
-`skills/technical-writing/SKILL.md` and loads only when authoring docs a reader
-follows.
+Load from `skills/humanizer/SKILL.md`. Pattern catalog and examples only —
+core writing rules, process, and modes live in `skills/humanizer/SKILL.md`.
+Procedure craft lives in `skills/technical-writing/SKILL.md` and loads only
+when authoring docs a reader follows.
 
 Forked from abatilo-core humanizer / [Wikipedia: Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing),
 plus engineering-specific tells common in agent-written PRs and reviews.
@@ -16,15 +15,8 @@ that make models clip meaning to satisfy a number.
 Keep clear text as it is. Prefer concrete subjects and verbs, and claims a
 reviewer can verify from the supplied evidence. Word replacement alone will
 not fix a comment that repeats itself or hides its point behind abstractions.
-
-**Meaning outranks plainness.** Plainer wording is only worth having when it
-still says the same thing. Preserve identifiers, sequence, uncertainty, and
-normative force (must / should / may). Do not turn a possible failure into a
-confirmed one, or supply missing facts to make vague prose sound specific.
-
-**Brevity means fewer ideas**, not compressed notation. Expand
-`Fixed: timeout → retry path → green` into whole sentences; do not enforce
-numeric word caps while generating.
+Core rules (meaning first, behavior before symbols, fewer ideas, verified
+evidence) live in `skills/humanizer/SKILL.md`.
 
 ---
 
@@ -226,8 +218,8 @@ Cut. End on a specific fact or nothing.
 Watch: arrow chains (`A → B → green`), stacked labels without verbs, telegram
 fragments that require the session to decode.
 
-Rewrite as complete sentences with an explicit subject and outcome. This is
-reporting-style, not "make it longer."
+Rewrite as complete sentences with an explicit subject and outcome. Write
+complete sentences, not "make it longer."
 
 ### 20. Invented verification
 

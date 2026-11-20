@@ -1,6 +1,6 @@
 # PR Description Style Reference
 
-Load this when drafting or revising a pull request body. The `pr-publish` skill owns when to publish; this file governs structure. Load `references/reporting-style.md` for tone and apply `skills/humanizer/SKILL.md` in `pr-body` mode before publish.
+Load this when drafting or revising a pull request body. The `pr-publish` skill owns when to publish; this file governs structure. Apply `skills/humanizer/SKILL.md` in `pr-body` mode for shared writing rules and voice cleanup before publish.
 
 ## Shape
 
@@ -70,5 +70,4 @@ Every unchecked item must be runnable by a reviewer or operator. Avoid vague ent
   rounds do not belong in the description of the final change.
 - Do not add emoji unless recent project PRs use them.
 - If a before/after table would repeat the same failure mode, omit it.
-- Avoid engineering AI-speak (`leverages`, `streamlines`, `ensures`, `robust`, `seamless`, `comprehensive`, `aligns with best practices`). Prefer concrete mechanisms and outcomes. See `references/humanizer-patterns.md`.
-- Brevity means fewer ideas, not compressed fragments. Claim tests/builds only when evidence exists.
+- Follow `skills/humanizer/SKILL.md` (`pr-body` mode) and `references/humanizer-patterns.md` for plain language, brevity, and verified evidence.

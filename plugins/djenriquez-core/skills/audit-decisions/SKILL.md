@@ -26,8 +26,8 @@ unstaged changes when the tree is dirty; otherwise ask.
 Load `protocols/decision-audit-protocol.md` before spawning the auditor.
 Load `references/github-pr-workflow.md` only for PR or branch mechanics.
 Load `references/harness-adapters.md` only when spawning across harnesses.
-Load `references/reporting-style.md` while presenting. Required humanizer
-pass in `ledger` mode before presenting (inline Process by default).
+Apply `skills/humanizer/SKILL.md` in `ledger` mode (inline Process by default)
+before presenting.
 
 ## Invariants
 

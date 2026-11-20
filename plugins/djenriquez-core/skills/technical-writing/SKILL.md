@@ -7,8 +7,7 @@ description: |
   notes, architecture decision records, or long follow-along PR sections.
   Covers imperative steps, condition-before-command order, consistent
   terminology, noun stacks, list structure, and warnings on destructive steps.
-  Use humanizer for AI-slop cleanup and narrative voice; use reporting-style for
-  the always-on register of reported work.
+  Use humanizer for shared writing rules, AI-slop cleanup, and narrative voice.
 disable-model-invocation: false
 allowed-tools:
   - Read
@@ -25,16 +24,14 @@ Sentence-level craft for a document a reader **follows** or **looks facts up
 in**. Load this skill only when authoring or editing that kind of document —
 not for every PR summary or turn report.
 
-Also load (from the installed `djenriquez-core` plugin root):
-
-- `references/reporting-style.md` — meaning first, outcome first, evidence,
-  fewer ideas
-- `djenriquez-core:humanizer` after drafting if the prose still has AI tells
+Also load `skills/humanizer/SKILL.md` from the installed `djenriquez-core`
+plugin root for shared writing rules (meaning first, outcome and behavior
+first, verified evidence, fewer ideas) and post-draft AI-tell cleanup.
 
 This skill is adapted from abatilo's post-STE split: full Simplified Technical
 English as an always-on rule was too heavy and made models game word caps.
-Craft stays here; thin reporting tone stays in `reporting-style.md`; AI voice
-cleanup stays in humanizer.
+Procedure and reference craft stays here; shared writing rules and AI voice
+cleanup stay in `skills/humanizer/SKILL.md`.
 
 ## Collision rules
 
@@ -43,7 +40,7 @@ Where guidance collides, the reader's task decides:
 | Text kind | Wins |
 |-----------|------|
 | Procedure, reference, how-to, migration, long follow-along doc | this skill |
-| PR Summary / short reported work | `reporting-style.md` + humanizer `pr-body` |
+| PR Summary / short reported work | humanizer `pr-body` / `digest` |
 | Review comment / short reply | humanizer `review-comment` / `pr-reply` (teammate voice) |
 | Narrative essay / person-sounding prose | humanizer `general` |
 
@@ -105,5 +102,5 @@ pre-response checklist. Those make models clip meaning.
 
 Run a surgical humanizer pass if the draft still has AI marketing, significance
 inflation, or engineering AI-speak. Do not let humanizer impose narrative
-"voice and soul" on a procedure. Re-check reporting-style: outcome first,
-evidence only when verified, meaning preserved.
+"voice and soul" on a procedure; keep its core rules intact (outcome first,
+evidence only when verified, meaning preserved).
