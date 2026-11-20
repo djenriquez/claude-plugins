@@ -53,12 +53,12 @@ Expand compressed notation into plain clauses:
 
 ## Behavior before symbols
 
-When explaining a design issue, trade-off, or review finding, start with what
-the system is trying to do, what happens in practice, and what goes wrong—using
-a concrete scenario in plain English. Put file paths, line numbers, and symbol
-names after the behavior is clear so the reader does not have to decode
-internal types before understanding the point. When comparing options, spell
-out what changes for the caller or operator under each one.
+When explaining a design issue, trade-off, or review finding, open with what
+happens or goes wrong in plain behavioral terms, using a concrete scenario and
+bringing in the system's intent as the context that makes it wrong. Put file
+paths, line numbers, and symbol names after the behavior is clear so the
+reader does not have to decode internal types first. When comparing options,
+spell out what changes for the caller or operator under each one.
 
 ## Brevity means fewer ideas
 
