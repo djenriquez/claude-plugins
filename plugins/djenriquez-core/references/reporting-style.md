@@ -16,7 +16,7 @@ and loads only when authoring those documents. AI-slop cleanup lives in
 | PR body / title (`pr-publish`) | yes | humanizer `pr-body` |
 | State-machine audit report (`audit-state-machines`) | yes | humanizer `digest` |
 | Interactive review graph summary / roles / panel answers | yes | humanizer `digest` (contractions OK) |
-| Guided review explanations (`guided-review`) | yes | humanizer `digest`; comment drafts use `review-comment` |
+| Guided review explanations and point walkthroughs (`guided-review`) | yes | humanizer `digest`; comment drafts use `review-comment` |
 | Decision ledger (`audit-decisions`) | yes | humanizer `ledger` |
 | PR thread reply | yes | humanizer `pr-reply` |
 | Spec narrative | yes (register) | humanizer `spec-narrative` |
@@ -50,6 +50,15 @@ Expand compressed notation into plain clauses:
 
 - Avoid: `Fixed: timeout → retry path → green.`
 - Prefer: `The request timeout is fixed. The client retries once after a transient gateway error, and the integration test passes.`
+
+## Behavior before symbols
+
+When explaining a design issue, trade-off, or review finding, open with what
+happens or goes wrong in plain behavioral terms, using a concrete scenario and
+bringing in the system's intent as the context that makes it wrong. Put file
+paths, line numbers, and symbol names after the behavior is clear so the
+reader does not have to decode internal types first. When comparing options,
+spell out what changes for the caller or operator under each one.
 
 ## Brevity means fewer ideas
 

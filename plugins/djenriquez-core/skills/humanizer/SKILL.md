@@ -75,7 +75,8 @@ Mode rules override when they conflict.
   paragraphs (Summary first); blank lines between paragraphs/sections stay;
   lists, fences, and markdown images (`![...](...)`) keep structure. Do not
   invent tests/risks.
-- **`review-comment`** — Lead with the concrete problem and when it occurs.
+- **`review-comment`** — Lead with the concrete problem and when it occurs, in
+  plain behavioral terms before diving into internal type or symbol names.
   Keep the cause, consequence, and useful correction without forcing a sentence
   for each. Use a question only for a real uncertainty; do not soften a proven
   bug into "Could we consider...". Preserve severity, evidence, and qualifiers.
