@@ -143,8 +143,8 @@ voice, and a style preview (Process, With `--review`).
    files to the save location. Verify the streams and duration from the
    summary the render prints.
 10. **Deliver**: copy `lecture.mp4` to the save location, so it sits with the
-    files later revisions need (reference, Revisions). Then report using
-    `references/reporting-style.md`.
+    files later revisions need (reference, Revisions). Then apply
+    `skills/humanizer/SKILL.md` (`digest` mode) to the final report.
 
 ### With `--review`
 

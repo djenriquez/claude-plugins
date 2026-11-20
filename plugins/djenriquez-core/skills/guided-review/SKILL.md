@@ -24,8 +24,8 @@ conversation is the review; there is no report to hand over at the end.
 
 Target: `$ARGUMENTS` (`#N`, `N`, or PR URL). If missing, use the current
 branch's PR, otherwise ask. Load `references/github-pr-workflow.md` for PR
-mechanics and `references/reporting-style.md` while explaining and working
-through points.
+mechanics and apply `skills/humanizer/SKILL.md` inline (`digest` mode for
+explanations and point walkthroughs; `review-comment` mode for comment drafts).
 
 ## Invariants
 
@@ -149,11 +149,11 @@ that comment instead of raising it again.
 
 ## Work through each point
 
-Follow `references/reporting-style.md` (behavior before symbols): state the
-problem, what goes wrong in practice, and the suggested correction in plain
-English, keeping the required `file:line` citation as supporting detail
-rather than leading with it. Answer follow-up questions from the code, not
-from memory of it. Each point ends as one of: comment, dropped, or deferred
+Follow `skills/humanizer/SKILL.md` (`digest` mode, behavior before symbols):
+state the problem, what goes wrong in practice, and the suggested correction
+in plain English, keeping the required `file:line` citation as supporting
+detail rather than leading with it. Answer follow-up questions from the code,
+not from memory of it. Each point ends as one of: comment, dropped, or deferred
 to another PR. Give the reason when a review finding is dropped, so nothing
 the review raised disappears silently.
 

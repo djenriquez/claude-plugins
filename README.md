@@ -49,9 +49,11 @@ humanizer on the narrative layer only (inline by default).
 
 ### /humanizer
 
-Edits engineering text for a plain, concise voice: removes jargon, repeated
-ideas, and canned phrasing while preserving facts and uncertainty. Forked from
-[`abatilo-core:humanizer`](https://github.com/abatilo); prefer the local skill.
+Shared writing rules (meaning first, behavior before symbols, fewer ideas,
+verified evidence) and plain-language cleanup for engineering text. Removes
+jargon, repeated ideas, and canned phrasing while preserving facts and
+uncertainty. Forked from [`abatilo-core:humanizer`](https://github.com/abatilo);
+prefer the local skill.
 
 ```
 /humanizer pr-body
@@ -60,33 +62,16 @@ ideas, and canned phrasing while preserving facts and uncertainty. Forked from
 ```
 
 Modes: `pr-body`, `review-comment`, `digest`, `spec-narrative`, `pr-reply`,
-`ledger`, `narration`, `general`. Callers apply the Process inline by default; nested
-`/humanizer` is optional.
-
-| Layer | Resource | When |
-|-------|----------|------|
-| Reporting tone | `references/reporting-style.md` | PR bodies, digests, ledgers, replies |
-| AI cleanup | this skill + `references/humanizer-patterns.md` | Before publish/present |
-| Procedure craft | `/technical-writing` | Runbooks, how-tos, READMEs, references |
-
-| Caller | Mode |
-|--------|------|
-| `/pr-publish` | `pr-body` |
-| `/pr-figure` | `pr-reply` (comment body) |
-| `/code-review` | `review-comment` (findings and synthesis) |
-| `/publish-review` | `review-comment` |
-| `/write-spec` | `spec-narrative` (narrative only) |
-| `/handle-pr-feedback` | `pr-reply` |
-| `/audit-decisions` | `ledger` |
-| `/audit-state-machines` | `digest` |
-| `/guided-review` | `digest` (explanations), `review-comment` (comment drafts) |
-| `/interactive-review` | `digest` (graph prose and panel answers) |
-| `/lecture-video` | `narration` |
+`ledger`, `narration`, `general`. Callers apply the Process inline by default;
+nested `/humanizer` is optional. See
+`plugins/djenriquez-core/skills/humanizer/SKILL.md` for the full caller-to-mode
+and collision tables.
 
 ### /technical-writing
 
 Opt-in craft for docs a reader follows (runbooks, how-tos, API references). Not
-for ordinary PR summaries. Pair with reporting-style and humanizer when needed.
+for ordinary PR summaries. Pair with `/humanizer` for shared writing rules and
+AI-tell cleanup when needed.
 
 ### /spec-review
 
@@ -316,9 +301,10 @@ for invalid anchors and closed/merged PR opt-in).
 Spec-review architecture adapted from [@abatilo](https://github.com/abatilo)'s
 [`abatilo-core`](https://github.com/abatilo/vimrc). This plugin uses a leaner
 staged code-review model and lazy-loaded `protocols/` / `references/`.
-`/humanizer` is a fork of `abatilo-core:humanizer`. The reporting /
+`/humanizer` is a fork of `abatilo-core:humanizer`. The humanizer /
 technical-writing split follows the lesson that always-on STE was too heavy:
-thin reporting tone, craft on demand, humanizer for cleanup. The
+shared writing rules and AI cleanup in `/humanizer`, procedure craft on demand
+in `/technical-writing`. The
 silent-decision review surface follows David Zhang's audit-choices framing
 ([dzhng/skills](https://github.com/dzhng/skills)); `/audit-decisions` is
 written for this plugin, not ported.

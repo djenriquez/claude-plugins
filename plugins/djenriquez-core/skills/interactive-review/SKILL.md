@@ -26,10 +26,10 @@ Local comprehension map for one pull request. The page is a proxy. This
 session is the brain. Read-only. No GitHub hosting.
 
 Load `references/interactive-review.md` and `references/github-pr-workflow.md`
-before starting. Load `references/reporting-style.md` and
-`references/humanizer-patterns.md` before writing graph prose and before each
-answer. Load `references/pr-figure.md` only for skip rules and what to draw
-(actors, arrows, bands). Do not generate a PNG and do not upload.
+before starting. Load `skills/humanizer/SKILL.md` (`digest` mode) before
+writing graph prose and before each answer. Load `references/pr-figure.md`
+only for skip rules and what to draw (actors, arrows, bands). Do not generate
+a PNG and do not upload.
 
 `$ARGUMENTS` is a PR reference (`#N`, `N`, or URL). If omitted, use the
 current branch’s PR. Do not guess a number from history.
@@ -50,8 +50,7 @@ current branch’s PR. Do not guess a number from history.
 - **grounding**: no invented boxes, arrows, or claims. Unknown → say so.
 - **human-voice**: graph summary, roles/annotations, and every panel answer
   get the required `digest` humanizer pass (inline Process; nested
-  `/humanizer` optional). Outcome first, one name per thing, natural
-  contractions OK. Do not POST or draw the raw draft.
+  `/humanizer` optional). Do not POST or draw the raw draft.
 - **no-verdict**: explain; do not approve or reject.
 - **no-host**: do not commit the page or upload it.
 - **skip-trivial**: nothing to draw → stop, no sidecar.
@@ -122,9 +121,8 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
 ```
 
 Draft the answer, then run the required `digest` humanizer pass on
-`markdown` and `follow_ups` before POST. Lead with the outcome. One name
-per thing. Contractions are fine. Follow-ups are real next questions, not
-“want me to dive deeper.” Cite only paths just read or listed on the
+`markdown` and `follow_ups` before POST. Follow-ups are real next questions,
+not “want me to dive deeper.” Cite only paths just read or listed on the
 node’s `evidence`. HTML-safe plain markdown. Optional `follow_ups` (at
 most three). If evidence is missing, `unknown: true`.
 

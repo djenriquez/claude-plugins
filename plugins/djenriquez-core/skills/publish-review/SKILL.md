@@ -52,11 +52,12 @@ a partial findings list. No generic praise, filler preamble, or
 `Severity` is `Critical`|`High`|`Medium`|`Low`|`Nit` matching the finding.
 Bold only — never `#` headers. Backtick code/logic refs in the body.
 
-**Voice:** load `skills/humanizer/SKILL.md` and its `review-comment` references
-from the plugin root. Apply the Process to the main body and each inline label
-and body before posting (inline by default; nested `/humanizer` optional).
-Read the assembled review once for repetition across the summary and comments.
-Preserve claims, uncertainty, evidence, and severity; do not add findings.
+**Voice:** load `skills/humanizer/SKILL.md` and
+`references/humanizer-patterns.md` from the plugin root. Apply the Process to
+the main body and each inline label and body before posting (inline by default;
+nested `/humanizer` optional). Read the assembled review once for repetition
+across the summary and comments. Preserve claims, uncertainty, evidence, and
+severity; do not add findings.
 
 ## Preflight
 
