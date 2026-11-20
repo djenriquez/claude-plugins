@@ -10,7 +10,7 @@ plus engineering-specific tells common in agent-written PRs and reviews.
 Refined by abatilo's later split: drop always-on STE word caps and checklists
 that make models clip meaning to satisfy a number.
 
-## Core rule
+## Editing discipline
 
 Keep clear text as it is. Prefer concrete subjects and verbs, and claims a
 reviewer can verify from the supplied evidence. Word replacement alone will
@@ -218,8 +218,8 @@ Cut. End on a specific fact or nothing.
 Watch: arrow chains (`A → B → green`), stacked labels without verbs, telegram
 fragments that require the session to decode.
 
-Rewrite as complete sentences with an explicit subject and outcome. Write
-complete sentences, not "make it longer."
+Rewrite as complete sentences with an explicit subject and outcome. Expanding
+shorthand is about writing clear prose, not making text longer.
 
 ### 20. Invented verification
 

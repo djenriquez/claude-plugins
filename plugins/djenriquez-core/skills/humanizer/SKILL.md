@@ -28,22 +28,27 @@ Load `references/humanizer-patterns.md` from the `djenriquez-core` plugin root
 alongside this file. For procedures, runbooks, and reference docs a reader
 follows step by step, pair with `skills/technical-writing/SKILL.md`.
 
-## Core rules (every mode)
+## Core rules
 
-These rules apply across all modes unless a mode overrides register or structure:
+These rules apply to all engineering modes (`pr-body`, `review-comment`,
+`digest`, `spec-narrative`, `pr-reply`, `ledger`, `narration`) unless a mode
+overrides register or structure. `general` takes only **Meaning first** and
+**Verified evidence only**, preserving the author's voice.
 
 - **Meaning first:** get the meaning right, then make the language plain.
   Preserve identifiers, commands, paths, error text, units, operation sequence,
   uncertainty, and normative force (`must` / `should` / `may`). Use one name
   for one component, service, state, or result; a synonym reads as a second
   thing. Name a gap instead of filling it with a plausible guess.
-- **Outcome and behavior first:** open with what happened, changed, or went
-  wrong in plain behavioral terms, using a concrete scenario with the system's
-  intent as the context that makes it wrong. Put file paths, line numbers, and
-  internal symbol names after the behavior is clear so the reader does not have
-  to decode internal types first. When comparing options, spell out what
-  changes for the caller or operator under each one. Expand compressed agent
-  shorthand (`Fixed: timeout → retry path → green.`) into complete sentences.
+- **Outcome and behavior first:** open with the outcome or change in plain
+  behavioral terms, putting file paths, line numbers, and internal symbol names
+  after the behavior is clear so the reader does not have to decode internal
+  types first. When explaining a design issue, trade-off, or review finding,
+  open with what goes wrong in practice using a concrete scenario (with the
+  system's intent as the context that makes it wrong), and when comparing
+  options, spell out what changes for the caller or operator under each one.
+  Expand compressed agent shorthand (`Fixed: timeout → retry path → green.`)
+  into complete sentences.
 - **Brevity means fewer ideas:** cut repeated explanations across sections and
   details that do not change what the reader understands or does next, rather
   than compressing sentences into fragments. Do not enforce numeric word-count
@@ -74,10 +79,13 @@ This table is the canonical caller-to-mode map for `djenriquez-core`:
 | `interactive-review` | `digest` | graph summary, roles, and annotations before serve; each panel answer before POST |
 | `lecture-video` | `narration`, `digest` | spoken beats and on-screen text before script checkpoint; final delivery report |
 
-Callers run the Process **inline** by default. Nested `/humanizer` is optional.
-Never ship the unhumanized draft when the caller requires the pass. Load this
-skill and `references/humanizer-patterns.md`; mentioning a humanizer pass is
-not a substitute for applying it. Recheck the final text after later edits.
+Callers follow the Core rules **while drafting**, and the pass checks and
+tightens what was drafted (the editing pass cannot invent missing facts or
+scenarios). Callers run the Process **inline** by default; nested `/humanizer`
+is optional. Never ship the unhumanized draft when the caller requires the
+pass. Load this skill and `references/humanizer-patterns.md`; mentioning a
+humanizer pass is not a substitute for applying it. Recheck the final text
+after later edits.
 
 ## Collision
 
@@ -89,7 +97,7 @@ not a substitute for applying it. Recheck the final text after later edits.
 | Review comment / short reply | core rules + this mode; teammate voice, contractions OK |
 | Video narration | core rules + `narration`; spoken and warm, not formal report register |
 | Procedure / reference | `technical-writing` structure; this skill cleans AI tells without imposing narrative voice |
-| Narrative / person-sounding | `general`; keep real voice, do not invent personality for eng docs |
+| Narrative / person-sounding | `general` (meaning first + verified evidence only; keep real voice, do not invent personality for eng docs) |
 
 ## Modes
 
@@ -146,11 +154,14 @@ invent a concrete explanation to improve it.
 2. Load `references/humanizer-patterns.md`.
 3. Edit per Core rules, mode, and patterns, including titles, labels, and
    repeated ideas.
-4. Final skim (three checks, not a ritual checklist):
+4. Final skim (four concrete checks, not a ritual checklist):
    - Does the opening give the outcome or problem in plain behavior before
      symbols?
+   - Compare the rewrite against the source: did you drop a condition, alter
+     certainty (for example turning "may fail" into "fails"), soften a
+     requirement, invent verification or facts, or rename the same thing twice?
    - Would a reader who only has this text (not your session) understand it?
-   - Did you invent verification, soften a requirement, or rename the same
-     thing twice?
+   - Does it sound natural aloud? (Especially important for `narration` and
+     `review-comment`.)
 5. Return rewritten text only, unless a factual gap needs flagging or the user
    invoked directly and a brief note helps.
